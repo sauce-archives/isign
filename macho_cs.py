@@ -136,7 +136,7 @@ BlobWrapper = Struct("BlobWrapper",
 BlobIndex = Struct("BlobIndex",
                    UBInt32("type"),
                    UBInt32("offset"),
-                   Pointer(lambda ctx: ctx['_']['sb_start'] - 8 + ctx['offset'], Blob),
+                   If(lambda ctx: ctx['offset'], Pointer(lambda ctx: ctx['_']['sb_start'] - 8 + ctx['offset'], Blob)),
                    )
 
 SuperBlob = Struct("SuperBlob",
