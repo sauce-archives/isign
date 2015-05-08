@@ -5,11 +5,13 @@ import subprocess
 import macholib.mach_o
 import macholib.MachO
 from optparse import OptionParser
+import os
 from hexdump import hexdump
 
 import macho_cs
 
-OPENSSL = distutils.spawn.find_executable('openssl')
+
+OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
 
 def sign(data):
