@@ -45,18 +45,26 @@ def print_parsed_asn1(data):
     print out
 
 
+def get_codesig_blob(codesig_cons, magic):
+    for blob in codesig_cons.data.BlobIndex:
+        if blob.blob.magic == magic:
+            return blob.blob
+    raise KeyError(magic)
+
+
 def resign_cons(codesig_cons):
     print "entitlements:"
-    entitlements = codesig_cons.data.BlobIndex[2].blob
+    entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
     entitlements_data = macho_cs.Blob_.build(entitlements)
     print hashlib.sha1(entitlements_data).hexdigest()
     entitlements.bytes = open("Entitlements.plist", "rb").read()
     entitlements.length = len(entitlements.bytes) + 8
     entitlements_data = macho_cs.Blob_.build(entitlements)
     print hashlib.sha1(entitlements_data).hexdigest()
+    print
 
     print "requirements:"
-    requirements = codesig_cons.data.BlobIndex[1].blob
+    requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
     #print hexdump(requirements.bytes.value)
     print hashlib.sha1(requirements.bytes.value).hexdigest()
     cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
@@ -69,38 +77,41 @@ def resign_cons(codesig_cons):
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
     #print hexdump(requirements_data)
+    print
 
-    print "certs:"
-    for blob in codesig_cons.data.BlobIndex:
-        if blob.blob.magic == 'CSMAGIC_BLOBWRAPPER':
-            #print_parsed_asn1(blob.blob.data.data.value)
-            #open("sigrip.der", "wb").write(blob.blob.data.data.value)
-            cd = codesig_cons.data.BlobIndex[0].blob
-            print cd
-            cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
-            cd.data.hashes[2] = hashlib.sha1(open("../resigned/NativeIOSTestApp.app/_CodeSignature/CodeResources", "rb").read()).digest()
-            cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
-            cd.data.teamID = "JWKXD469L2"
-            cd.bytes = macho_cs.CodeDirectory.build(cd.data)
-            cd_data = macho_cs.Blob_.build(cd)
-            print len(cd_data)
-            #open("cdrip", "wb").write(cd_data)
-            print "CDHash:", hashlib.sha1(cd_data).hexdigest()
+    print "code directory:"
+    cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
+    print cd
+    cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
+    cd.data.hashes[2] = hashlib.sha1(open("../resigned/NativeIOSTestApp.app/_CodeSignature/CodeResources", "rb").read()).digest()
+    cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
+    cd.data.teamID = "JWKXD469L2"
+    cd.bytes = macho_cs.CodeDirectory.build(cd.data)
+    cd_data = macho_cs.Blob_.build(cd)
+    print len(cd_data)
+    #open("cdrip", "wb").write(cd_data)
+    print "CDHash:", hashlib.sha1(cd_data).hexdigest()
+    print
 
-            sig = sign(cd_data)
-            oldsig = blob.blob.bytes.value
-            print "sig len:", len(sig)
-            print "old sig len:", len(oldsig)
-            #open("my_sigrip.der", "wb").write(sig)
-            #print hexdump(oldsig)
-            blob.blob.data = construct.Container(data=sig)
-            #print_parsed_asn1(sig)
-            #blob.blob.data = construct.Container(data="hahaha")
-            blob.blob.length = len(blob.blob.data.data) + 8
-            blob.blob.bytes = blob.blob.data.data
-            print len(blob.blob.bytes)
-            #print hexdump(blob.blob.bytes)
-            break
+    print "sig:"
+    sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
+    #print_parsed_asn1(sigwrapper.data.data.value)
+    #open("sigrip.der", "wb").write(sigwrapper.data.data.value)
+    sig = sign(cd_data)
+    oldsig = sigwrapper.bytes.value
+    print "sig len:", len(sig)
+    print "old sig len:", len(oldsig)
+    #open("my_sigrip.der", "wb").write(sig)
+    #print hexdump(oldsig)
+    sigwrapper.data = construct.Container(data=sig)
+    #print_parsed_asn1(sig)
+    #sigwrapper.data = construct.Container(data="hahaha")
+    sigwrapper.length = len(sigwrapper.data.data) + 8
+    sigwrapper.bytes = sigwrapper.data.data
+    print len(sigwrapper.bytes)
+    #print hexdump(sigwrapper.bytes)
+    print
+
     superblob = macho_cs.SuperBlob.build(codesig_cons.data)
     codesig_cons.length = len(superblob) + 8
     codesig_cons.bytes = superblob
