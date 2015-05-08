@@ -14,7 +14,7 @@ import macho_cs
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
 
-def sign(data):
+def sign(data, signer_cert_file, signer_key_file, cert_file):
     proc = subprocess.Popen("%s cms"
                             " -sign -binary -nosmimecap"
                             " -certfile %s"
@@ -23,9 +23,9 @@ def sign(data):
                             " -keyform pkcs12 "
                             " -outform DER" %
                             (OPENSSL,
-                             '~/applecerts.pem',
-                             '~/devcert.pem',
-                             '~/devkey.p12'),
+                             cert_file,
+                             signer_cert_file,
+                             signer_key_file),
                             stdin=subprocess.PIPE,
                             stdout=subprocess.PIPE,
                             shell=True)
@@ -52,7 +52,7 @@ def get_codesig_blob(codesig_cons, magic):
     raise KeyError(magic)
 
 
-def resign_cons(codesig_cons):
+def resign_cons(codesig_cons, signer_cert_file, signer_key_file, cert_file):
     print "entitlements:"
     entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
     entitlements_data = macho_cs.Blob_.build(entitlements)
@@ -97,7 +97,10 @@ def resign_cons(codesig_cons):
     sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
     #print_parsed_asn1(sigwrapper.data.data.value)
     #open("sigrip.der", "wb").write(sigwrapper.data.data.value)
-    sig = sign(cd_data)
+    sig = sign(cd_data,
+               signer_cert_file,
+               signer_key_file,
+               cert_file)
     oldsig = sigwrapper.bytes.value
     print "sig len:", len(sig)
     print "old sig len:", len(oldsig)
@@ -172,7 +175,10 @@ def main():
             actual.encode('hex')
         )
 
-    new_codesig_cons = resign_cons(codesig_cons)
+    new_codesig_cons = resign_cons(codesig_cons,
+                                   '~/devcert.pem',
+                                   '~/devkey.p12',
+                                   '~/applecerts.pem')
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
     print "old len:", len(codesig_data)
     print "new len:", len(new_codesig_data)
