@@ -210,20 +210,9 @@ def main():
     print "wrote mach-o header of length:", f3.tell()
     f.seek(f3.tell())  # FIXME -- really want original f header size, not new m length
     f3.write(f.read(cmds['LC_CODE_SIGNATURE'].dataoff - f3.tell()))
-    for cmd in m.headers[0].commands:
-        load_cmd, data, _ = cmd
-        filesize = 0
-        if isinstance(data, macholib.mach_o.linkedit_data_command):
-            if load_cmd.get_cmd_name() == "LC_CODE_SIGNATURE":
-                print "writing codesig"
-                f3.seek(data.dataoff)
-                f3.write(new_codesig_data)
-            else:
-                # FIXME this is a no-op
-                f.seek(data.dataoff)
-                f3.seek(data.dataoff)
-                f3.write(f.read(data.datasize))
-            filesize = max(filesize, data.dataoff + data.datasize)
+    print "writing codesig"
+    f3.seek(cmds['LC_CODE_SIGNATURE'].dataoff)
+    f3.write(new_codesig_data)
     f3.close()
 
 
