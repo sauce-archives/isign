@@ -1,4 +1,5 @@
 import construct
+import distutils
 import hashlib
 import subprocess
 import macholib.mach_o
@@ -8,7 +9,7 @@ from hexdump import hexdump
 
 import macho_cs
 
-OPENSSL = '/usr/local/Cellar/openssl/1.0.1j_1/bin/openssl'
+OPENSSL = distutils.spawn.find_executable('openssl')
 
 
 def sign(data):
