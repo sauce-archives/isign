@@ -4,8 +4,9 @@ import hashlib
 import subprocess
 import macholib.mach_o
 import macholib.MachO
-from optparse import OptionParser
 import os
+import OpenSSL
+from optparse import OptionParser
 from hexdump import hexdump
 
 import macho_cs
@@ -67,8 +68,11 @@ def resign_cons(codesig_cons, signer_cert_file, signer_key_file, cert_file):
     requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
     #print hexdump(requirements.bytes.value)
     print hashlib.sha1(requirements.bytes.value).hexdigest()
+    signer_key_data = open(os.path.expanduser(signer_key_file), "rb").read()
+    signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
+    signer_cn = dict(signer_p12.get_certificate().get_subject().get_components())['CN']
     cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
-    cn.data = 'iPhone Developer: Steven Hazel (DU2T223MY8)'
+    cn.data = signer_cn
     cn.length = len(cn.data)
     requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
     requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
