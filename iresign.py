@@ -2,13 +2,12 @@ import construct
 import distutils
 import hashlib
 import subprocess
-import macholib.mach_o
-import macholib.MachO
 import os
 import OpenSSL
 from optparse import OptionParser
 from hexdump import hexdump
 
+import macho
 import macho_cs
 
 
@@ -47,18 +46,160 @@ def print_parsed_asn1(data):
 
 
 def get_codesig_blob(codesig_cons, magic):
-    for blob in codesig_cons.data.BlobIndex:
-        if blob.blob.magic == magic:
-            return blob.blob
+    for index in codesig_cons.data.BlobIndex:
+        if index.blob.magic == magic:
+            return index.blob
     raise KeyError(magic)
 
+def make_arg(data_type, arg):
+    if data_type.name == 'Data':
+        return construct.Container(data=arg,
+                                   length=len(arg))
+    elif data_type.name.lower() == 'expr':
+        return make_expr(*arg)
+    elif data_type.name == 'slot':
+        if arg == 'leafCert':
+            return 0
+        return arg
+    elif data_type.name == 'Match':
+        matchOp = arg[0]
+        data = None
+        if len(arg) > 1:
+            data = construct.Container(data=arg[1],
+                                       length=len(arg[1]))
+        return construct.Container(matchOp=matchOp, Data=data)
+    print data_type
+    print data_type.name
+    print arg
+    assert 0
 
-def resign_cons(codesig_cons, signer_cert_file, signer_key_file, cert_file):
+def make_expr(op, *args):
+    op = "op" + op
+    data = None
+    data_type = macho_cs.expr_args.get(op)
+    if isinstance(data_type, macho_cs.Sequence):
+        data = [make_arg(dt, arg) for dt, arg in zip(data_type.subcons, args)]
+    elif data_type:
+        data = make_arg(data_type, args[0])
+    return construct.Container(op=op,
+                               data=data)
+
+def make_designated_requirement():
+    req = construct.Container(kind=1,
+                              expr=make_expr(
+        'And',
+        ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
+        ('And',
+         ('AppleGenericAnchor',),
+         ('And',
+          ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
+          ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists'])))))
+    print req
+    req_data = macho_cs.Requirement.build(req)
+    return construct.Container(
+        sb_start=0,
+        count=1,
+        BlobIndex=[construct.Container(type='kSecDesignatedRequirementType',
+                                       offset=20,
+                                       blob=construct.Container(magic='CSMAGIC_REQUIREMENT',
+                                                                length=len(req_data) + 8,
+                                                                data="",
+                                                                bytes=req_data))
+                   ]
+        )
+
+def make_basic_codesig(entitlements_file):
+    ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
+    teamID = 'fake' + '\x00'
+    empty_hash = "\x00" * 20
+    cd = construct.Container(cd_start=None,
+                             version=0x20200,
+                             flags=0,
+                             identOffset=52,
+                             nSpecialSlots=5,
+                             nCodeSlots=0,
+                             codeLimit=54400,
+                             hashSize=20,
+                             hashType=1,
+                             spare1=0,
+                             pageSize=12,
+                             spare2=0,
+                             ident=ident,
+                             scatterOffset=0,
+                             teamIDOffset=52 + len(ident),
+                             teamID=teamID,
+                             hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
+                             hashes=[empty_hash, empty_hash, empty_hash, empty_hash, empty_hash],
+                             )
+    print cd
+    cd_data = macho_cs.CodeDirectory.build(cd)
+    print len(cd_data)
+    print hexdump(cd_data)
+
+    offset = 44
+    cd_index = construct.Container(type=0,
+                                   offset=offset,
+                                   blob=construct.Container(magic='CSMAGIC_CODEDIRECTORY',
+                                                            length=len(cd_data) + 8,
+                                                            data=cd,
+                                                            bytes=cd_data,
+                                                            ))
+    offset += cd_index.blob.length
+    reqs_sblob = make_designated_requirement()
+    print reqs_sblob
+    reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
+    requirements_index = construct.Container(type=2,
+                                             offset=offset,
+                                             blob=construct.Container(magic='CSMAGIC_REQUIREMENTS',
+                                                                      length=len(reqs_sblob_data) + 8,
+                                                                      data="",
+                                                                      bytes=reqs_sblob_data,
+                                                                      ))
+    offset += requirements_index.blob.length + 8
+
+    entitlements_bytes = open(entitlements_file, "rb").read()
+    entitlements_index = construct.Container(type=5,
+                                            offset=offset,
+                                            blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
+                                                                     length=len(entitlements_bytes) + 8,
+                                                                     data="",
+                                                                     bytes=entitlements_bytes
+                                                                     ))
+    offset += entitlements_index.blob.length
+    sigwrapper_index = construct.Container(type=65536,
+                                           offset=offset,
+                                           blob=construct.Container(magic='CSMAGIC_BLOBWRAPPER',
+                                                                    length=0 + 8,
+                                                                    data="",
+                                                                    bytes="",
+                                                                    ))
+    indicies = [cd_index,
+                requirements_index,
+                entitlements_index,
+                sigwrapper_index]
+
+    superblob = construct.Container(
+        sb_start=0,
+        count=len(indicies),
+        BlobIndex=indicies)
+    print superblob
+    data = macho_cs.SuperBlob.build(superblob)
+    print hexdump(data)
+
+    chunk = macho_cs.Blob.build(construct.Container(
+        magic="CSMAGIC_EMBEDDED_SIGNATURE",
+        length=len(data) + 8,
+        data=data,
+        bytes=data))
+    return macho_cs.Blob.parse(chunk)
+
+
+def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_file, cert_file):
     print "entitlements:"
     entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
     entitlements_data = macho_cs.Blob_.build(entitlements)
     print hashlib.sha1(entitlements_data).hexdigest()
-    entitlements.bytes = open("Entitlements.plist", "rb").read()
+    entitlements.bytes = open(entitlements_file, "rb").read()
     entitlements.length = len(entitlements.bytes) + 8
     entitlements_data = macho_cs.Blob_.build(entitlements)
     print hashlib.sha1(entitlements_data).hexdigest()
@@ -130,39 +271,59 @@ def main():
     parser = OptionParser()
     options, args = parser.parse_args()
     filename = args[0]
-
-    m = macholib.MachO.MachO(filename)
-    base_offset = 0
-    if m.fat:
-        base_offset = 0x1000
-
-    cmds = {}
-    for cmd in m.headers[0].commands:
-        name = cmd[0].get_cmd_name()
-        if isinstance(cmd[1], macholib.mach_o.linkedit_data_command):
-            print name, cmd[1].dataoff, cmd[1].datasize
-            cmds[name] = cmd[1]
+    entitlements_file = "Entitlements.plist"
 
     f = open(filename, "rb")
-    codesigdrs_offset = base_offset + cmds['LC_DYLIB_CODE_SIGN_DRS'].dataoff
+    m = macho.MachoFile.parse(f.read())
+    base_offset = 0
+    m2 = m.data
+    print m.data.keys()
+    print type(m)
+    print type(m.data)
+    if 'FatArch' in m.data:
+        base_offset = 0x1000
+        m2 = m.data.FatArch[0].MachO
+
+    cmds = {}
+    for cmd in m2.commands:
+        name = cmd.cmd
+        cmds[name] = cmd
+
+    # FIXME - could just pull this out of the command already parsed
+    codesigdrs_offset = base_offset + cmds['LC_DYLIB_CODE_SIGN_DRS'].data.dataoff
     f.seek(codesigdrs_offset)
-    codesigdrs_data = f.read(cmds['LC_DYLIB_CODE_SIGN_DRS'].datasize)
+    codesigdrs_data = f.read(cmds['LC_DYLIB_CODE_SIGN_DRS'].data.datasize)
     print len(codesigdrs_data)
     print hexdump(codesigdrs_data)
     print macho_cs.Blob.parse(codesigdrs_data)
 
-    f = open(filename, "rb")
-    codesig_offset = base_offset + cmds['LC_CODE_SIGNATURE'].dataoff
-    f.seek(codesig_offset)
-    codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].datasize)
-    #print len(codesig_data)
-    #print hexdump(codesig_data)
+    if 'LC_CODE_SIGNATURE' in cmds:
+        codesig_offset = base_offset + cmds['LC_CODE_SIGNATURE'].data.dataoff
+        f.seek(codesig_offset)
+        codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].data.datasize)
+        #print len(codesig_data)
+        #print hexdump(codesig_data)
+        codesig_cons = macho_cs.Blob.parse(codesig_data)
+    else:
+        codesig_data = ""
+        codesig_cons = make_basic_codesig(entitlements_file)
+        cmd_data = construct.Container(dataoff=f.tell(),
+                                       datasize=10000)
+        cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
+                                  cmdsize=16,
+                                  data=cmd_data,
+                                  bytes=macho.CodeSigRef.build(cmd_data))
+        m2.commands.append(cmd)
+        m2.ncmds += 1
+        m2.sizeofcmds += len(macho.LoadCommand.build(cmd))
+        cmds['LC_CODE_SIGNATURE'] = cmd
+        print codesig_cons
 
-    codesig_cons = macho_cs.Blob.parse(codesig_data)
     print codesig_cons
 
     # print hashes
     cd = codesig_cons.data.BlobIndex[0].blob.data
+    print cd
     end_offset = base_offset + cd.codeLimit
     start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
     for i in xrange(cd.nSpecialSlots):
@@ -180,6 +341,7 @@ def main():
         )
 
     new_codesig_cons = resign_cons(codesig_cons,
+                                   entitlements_file,
                                    '~/devcert.pem',
                                    '~/devkey.p12',
                                    '~/applecerts.pem')
@@ -193,29 +355,17 @@ def main():
     #print hexdump(new_codesig_data)
     #assert new_codesig_data != codesig_data
 
-    cmds['LC_CODE_SIGNATURE'].datasize = len(new_codesig_data)
-    for cmd in m.headers[0].commands:
-        load_cmd, data, _ = cmd
-        fileend = 0
-        if isinstance(data, macholib.mach_o.linkedit_data_command):
-            fileend = max(fileend, data.dataoff + data.datasize)
-
-    for cmd in m.headers[0].commands:
-        load_cmd, data, _ = cmd
-        if isinstance(data, macholib.mach_o.segment_command):
-            print repr(data.segname)
-            if data.segname.startswith("__LINKEDIT"):
-                filesize = fileend - data.fileoff
-                print "setting filesize to", filesize
-                data.filesize = filesize
+    cmd = cmds['LC_CODE_SIGNATURE']
+    cmd.data.datasize = len(new_codesig_data)
+    cmd.bytes = macho.CodeSigRef.build(cmd.data)
+    print m2
 
     f3 = open("foo", "wb")
-    m.write(f3)
-    print "wrote mach-o header of length:", f3.tell()
+    f3.write(macho.MachoFile.build(m))
     f.seek(f3.tell())  # FIXME -- really want original f header size, not new m length
-    f3.write(f.read(cmds['LC_CODE_SIGNATURE'].dataoff - f3.tell()))
-    print "writing codesig"
-    f3.seek(cmds['LC_CODE_SIGNATURE'].dataoff)
+    f3.write(f.read(cmds['LC_CODE_SIGNATURE'].data.dataoff - f3.tell()))
+    print "writing codesig to", hex(cmds['LC_CODE_SIGNATURE'].data.dataoff)
+    f3.seek(cmds['LC_CODE_SIGNATURE'].data.dataoff)
     f3.write(new_codesig_data)
     f3.close()
 

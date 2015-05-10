@@ -66,6 +66,21 @@ Match = Struct("Match",
                If(lambda ctx: ctx['matchOp'] != 'matchExists', Data)
                )
 
+expr_args = {
+    'opIdent': Data,
+    'opAnchorHash': Sequence("AnchorHash", CertSlot, Data),
+    'opInfoKeyValue': Data,
+    'opAnd': Sequence("And", Expr, Expr),
+    'opOr': Sequence("Or", Expr, Expr),
+    'opNot': Expr,
+    'opCDHash': Data,
+    'opInfoKeyField': Sequence("InfoKeyField", Data, Match),
+    'opEntitlementField': Sequence("EntitlementField", Data, Match),
+    'opCertField': Sequence("CertField", CertSlot, Data, Match),
+    'opCertGeneric': Sequence("CertGeneric", CertSlot, Data, Match),
+    'opTrustedCert': CertSlot,
+}
+
 Expr_ = Struct("Expr",
                Enum(UBInt32("op"),
                     opFalse=0,
@@ -87,19 +102,8 @@ Expr_ = Struct("Expr",
                     opEntitlementField=16,
                     ),
                Switch("data", lambda ctx: ctx['op'],
-                      {'opIdent': Data,
-                       'opAnchorHash': Sequence("AnchorHash", CertSlot, Data),
-                       'opInfoKeyValue': Data,
-                       'opAnd': Sequence("And", Expr, Expr),
-                       'opOr': Sequence("Or", Expr, Expr),
-                       'opNot': Expr,
-                       'opCDHash': Data,
-                       'opInfoKeyField': Sequence("InfoKeyField", Data, Match),
-                       'opEntitlementField': Sequence("EntitlementField", Data, Match),
-                       'opCertField': Sequence("CertField", CertSlot, Data, Match),
-                       'opCertGeneric': Sequence("CertGeneric", CertSlot, Data, Match),
-                       'opTrustedCert': CertSlot,
-                       }, default=Pass),
+                      expr_args,
+                      default=Pass),
                )
 
 Requirement = Struct("Requirement",
