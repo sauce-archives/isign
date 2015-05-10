@@ -74,14 +74,19 @@ def make_arg(data_type, arg):
     assert 0
 
 def make_expr(op, *args):
-    op = "op" + op
+    full_op = "op" + op
     data = None
-    data_type = macho_cs.expr_args.get(op)
+    data_type = macho_cs.expr_args.get(full_op)
     if isinstance(data_type, macho_cs.Sequence):
-        data = [make_arg(dt, arg) for dt, arg in zip(data_type.subcons, args)]
+        if len(data_type.subcons) == len(args):
+            data = [make_arg(dt, arg) for dt, arg in zip(data_type.subcons, args)]
+        else:
+            # automatically nest binary operations to accept >2 args
+            data = [make_arg(data_type.subcons[0], args[0]),
+                    make_expr(op, *args[1:])]
     elif data_type:
         data = make_arg(data_type, args[0])
-    return construct.Container(op=op,
+    return construct.Container(op=full_op,
                                data=data)
 
 def make_designated_requirement():
@@ -89,11 +94,9 @@ def make_designated_requirement():
                               expr=make_expr(
         'And',
         ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
-        ('And',
-         ('AppleGenericAnchor',),
-         ('And',
-          ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
-          ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists'])))))
+        ('AppleGenericAnchor',),
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
+        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists'])))
     print req
     req_data = macho_cs.Requirement.build(req)
     return construct.Container(
