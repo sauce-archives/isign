@@ -289,13 +289,7 @@ def main():
         name = cmd.cmd
         cmds[name] = cmd
 
-    # FIXME - could just pull this out of the command already parsed
-    codesigdrs_offset = base_offset + cmds['LC_DYLIB_CODE_SIGN_DRS'].data.dataoff
-    f.seek(codesigdrs_offset)
-    codesigdrs_data = f.read(cmds['LC_DYLIB_CODE_SIGN_DRS'].data.datasize)
-    print len(codesigdrs_data)
-    print hexdump(codesigdrs_data)
-    print macho_cs.Blob.parse(codesigdrs_data)
+    print cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob
 
     if 'LC_CODE_SIGNATURE' in cmds:
         codesig_offset = base_offset + cmds['LC_CODE_SIGNATURE'].data.dataoff
