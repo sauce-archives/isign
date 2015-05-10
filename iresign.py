@@ -274,15 +274,10 @@ def main():
     entitlements_file = "Entitlements.plist"
 
     f = open(filename, "rb")
-    m = macho.MachoFile.parse(f.read())
-    base_offset = 0
+    m = macho.MachoFile.parse_stream(f)
     m2 = m.data
-    print m.data.keys()
-    print type(m)
-    print type(m.data)
     if 'FatArch' in m.data:
-        base_offset = 0x1000
-        m2 = m.data.FatArch[0].MachO
+        m2 = m.data.FatArch[1].MachO
 
     cmds = {}
     for cmd in m2.commands:
@@ -292,7 +287,7 @@ def main():
     print cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob
 
     if 'LC_CODE_SIGNATURE' in cmds:
-        codesig_offset = base_offset + cmds['LC_CODE_SIGNATURE'].data.dataoff
+        codesig_offset = m2.macho_start + cmds['LC_CODE_SIGNATURE'].data.dataoff
         f.seek(codesig_offset)
         codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].data.datasize)
         #print len(codesig_data)
@@ -301,7 +296,7 @@ def main():
     else:
         codesig_data = ""
         codesig_cons = make_basic_codesig(entitlements_file)
-        cmd_data = construct.Container(dataoff=f.tell(),
+        cmd_data = construct.Container(dataoff=m2.commands[-1].data.dataoff + m2.commands[-1].data.datasize,
                                        datasize=10000)
         cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
                                   cmdsize=16,
@@ -318,7 +313,7 @@ def main():
     # print hashes
     cd = codesig_cons.data.BlobIndex[0].blob.data
     print cd
-    end_offset = base_offset + cd.codeLimit
+    end_offset = m2.macho_start + cd.codeLimit
     start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
     for i in xrange(cd.nSpecialSlots):
         expected = cd.hashes[i]
@@ -355,11 +350,12 @@ def main():
     print m2
 
     f3 = open("foo", "wb")
+    f.seek(0)
+    f3.write(f.read())
+    f3.seek(0)
     f3.write(macho.MachoFile.build(m))
-    f.seek(f3.tell())  # FIXME -- really want original f header size, not new m length
-    f3.write(f.read(cmds['LC_CODE_SIGNATURE'].data.dataoff - f3.tell()))
     print "writing codesig to", hex(cmds['LC_CODE_SIGNATURE'].data.dataoff)
-    f3.seek(cmds['LC_CODE_SIGNATURE'].data.dataoff)
+    f3.seek(cmds['LC_CODE_SIGNATURE'].data.dataoff + m2.macho_start)
     f3.write(new_codesig_data)
     f3.close()
 
