@@ -232,17 +232,18 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     signer_key_data = open(os.path.expanduser(signer_key_file), "rb").read()
     signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
     signer_cn = dict(signer_p12.get_certificate().get_subject().get_components())['CN']
-    print requirements
     try:
         cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
+    except Exception:
+        print "no signer CN rule found in requirements"
+        print requirements
+    else:
         cn.data = signer_cn
         cn.length = len(cn.data)
         requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
         requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
         requirements.bytes = macho_cs.Entitlements.build(requirements.data)
         requirements.length = len(requirements.bytes) + 8
-    except:
-        pass
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
     #print hexdump(requirements_data)
