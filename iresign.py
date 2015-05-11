@@ -51,11 +51,15 @@ def get_codesig_blob(codesig_cons, magic):
             return index.blob
     raise KeyError(magic)
 
+
 def make_arg(data_type, arg):
     if data_type.name == 'Data':
         return construct.Container(data=arg,
                                    length=len(arg))
     elif data_type.name.lower() == 'expr':
+        if isinstance(arg, construct.Container):
+            # preserve expressions that are already containerized
+            return arg
         return make_expr(*arg)
     elif data_type.name == 'slot':
         if arg == 'leafCert':
@@ -73,6 +77,7 @@ def make_arg(data_type, arg):
     print arg
     assert 0
 
+
 def make_expr(op, *args):
     full_op = "op" + op
     data = None
@@ -89,29 +94,41 @@ def make_expr(op, *args):
     return construct.Container(op=full_op,
                                data=data)
 
-def make_designated_requirement():
-    req = construct.Container(kind=1,
-                              expr=make_expr(
+
+def make_requirements(drs):
+    expr = make_expr(
         'And',
         ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
         ('AppleGenericAnchor',),
         ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
-        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists'])))
-    print req
-    req_data = macho_cs.Requirement.build(req)
+        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
+    des_req = construct.Container(kind=1, expr=expr)
+    des_req_data = macho_cs.Requirement.build(des_req)
+
+    dr_exprs = [dr.blob.data.expr for dr in drs.data.BlobIndex]
+    expr = make_expr('Or', *dr_exprs)
+    lib_req = construct.Container(kind=1, expr=expr)
+    lib_req_data = macho_cs.Requirement.build(lib_req)
+
     return construct.Container(
         sb_start=0,
-        count=1,
+        count=2,
         BlobIndex=[construct.Container(type='kSecDesignatedRequirementType',
-                                       offset=20,
+                                       offset=28,
                                        blob=construct.Container(magic='CSMAGIC_REQUIREMENT',
-                                                                length=len(req_data) + 8,
-                                                                data="",
-                                                                bytes=req_data))
-                   ]
-        )
+                                                                length=len(des_req_data) + 8,
+                                                                data=des_req,
+                                                                bytes=des_req_data)),
+                   construct.Container(type='kSecLibraryRequirementType',
+                                       offset=28 + len(des_req_data) + 8,
+                                       blob=construct.Container(magic='CSMAGIC_REQUIREMENT',
+                                                                length=len(lib_req_data) + 8,
+                                                                data=lib_req,
+                                                                bytes=lib_req_data)),
+                   ])
 
-def make_basic_codesig(entitlements_file):
+
+def make_basic_codesig(entitlements_file, drs):
     ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
     teamID = 'fake' + '\x00'
     empty_hash = "\x00" * 20
@@ -147,8 +164,9 @@ def make_basic_codesig(entitlements_file):
                                                             data=cd,
                                                             bytes=cd_data,
                                                             ))
+
     offset += cd_index.blob.length
-    reqs_sblob = make_designated_requirement()
+    reqs_sblob = make_requirements(drs)
     print reqs_sblob
     reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
     requirements_index = construct.Container(type=2,
@@ -158,16 +176,16 @@ def make_basic_codesig(entitlements_file):
                                                                       data="",
                                                                       bytes=reqs_sblob_data,
                                                                       ))
-    offset += requirements_index.blob.length + 8
+    offset += requirements_index.blob.length
 
     entitlements_bytes = open(entitlements_file, "rb").read()
     entitlements_index = construct.Container(type=5,
-                                            offset=offset,
-                                            blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
-                                                                     length=len(entitlements_bytes) + 8,
-                                                                     data="",
-                                                                     bytes=entitlements_bytes
-                                                                     ))
+                                             offset=offset,
+                                             blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
+                                                                      length=len(entitlements_bytes) + 8,
+                                                                      data="",
+                                                                      bytes=entitlements_bytes
+                                                                      ))
     offset += entitlements_index.blob.length
     sigwrapper_index = construct.Container(type=65536,
                                            offset=offset,
@@ -280,7 +298,9 @@ def main():
     m = macho.MachoFile.parse_stream(f)
     m2 = m.data
     if 'FatArch' in m.data:
-        m2 = m.data.FatArch[1].MachO
+        # Choose the first listed architecture.
+        # Really we should sign all architectures.
+        m2 = m.data.FatArch[0].MachO
 
     cmds = {}
     for cmd in m2.commands:
@@ -290,6 +310,7 @@ def main():
     print cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob
 
     if 'LC_CODE_SIGNATURE' in cmds:
+        # re-sign
         codesig_offset = m2.macho_start + cmds['LC_CODE_SIGNATURE'].data.dataoff
         f.seek(codesig_offset)
         codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].data.datasize)
@@ -297,8 +318,10 @@ def main():
         #print hexdump(codesig_data)
         codesig_cons = macho_cs.Blob.parse(codesig_data)
     else:
+        # sign from scratch
         codesig_data = ""
-        codesig_cons = make_basic_codesig(entitlements_file)
+        codesig_cons = make_basic_codesig(entitlements_file,
+                                          cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob)
         cmd_data = construct.Container(dataoff=m2.commands[-1].data.dataoff + m2.commands[-1].data.datasize,
                                        datasize=10000)
         cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
