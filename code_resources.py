@@ -90,24 +90,30 @@ def get_file_entries(source_dir, rules):
     return file_entries
 
 
-def write_file(target_dir, output):
+def write_plist(target_dir, plist):
+    """ Write the CodeResources file """
     output_dir = os.path.join(target_dir, OUTPUT_DIRECTORY)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
     output_path = os.path.join(output_dir, OUTPUT_FILENAME)
     fh = open(output_path, 'w')
-    plistlib.writePlist(output, fh)
+    plistlib.writePlist(plist, fh)
 
 
 def main(source_dir, target_dir):
+    """
+    Given a source directory, create a CodeResources file for that
+    directory, and write it into the appropriate path in a target
+    directory
+    """
     template = get_template()
     # n.b. code_resources_template not only contains a template of
     # what the file should look like; it contains default rules
     # deciding which files should be part of the seal
     rules = template['rules2']
-    output = copy.deepcopy(template)
-    output['files'] = get_file_entries(source_dir, rules)
-    write_file(target_dir, output)
+    plist = copy.deepcopy(template)
+    plist['files'] = get_file_entries(source_dir, rules)
+    write_plist(target_dir, plist)
 
 
 if __name__ == '__main__':
