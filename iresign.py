@@ -227,8 +227,8 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
 
     print "requirements:"
     requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
-    #print hexdump(requirements.bytes.value)
-    print hashlib.sha1(requirements.bytes.value).hexdigest()
+    requirements_data = macho_cs.Blob_.build(requirements)
+    print hashlib.sha1(requirements_data).hexdigest()
     signer_key_data = open(os.path.expanduser(signer_key_file), "rb").read()
     signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
     signer_cn = dict(signer_p12.get_certificate().get_subject().get_components())['CN']
@@ -240,20 +240,23 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     else:
         cn.data = signer_cn
         cn.length = len(cn.data)
+        old_len = requirements.data.BlobIndex[0].blob.length
         requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
         requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
+        for bi in requirements.data.BlobIndex[1:]:
+            bi.offset -= old_len
+            bi.offset += requirements.data.BlobIndex[0].blob.length
         requirements.bytes = macho_cs.Entitlements.build(requirements.data)
         requirements.length = len(requirements.bytes) + 8
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
-    #print hexdump(requirements_data)
     print
 
     print "code directory:"
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     print cd
     cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
-    cd.data.hashes[2] = hashlib.sha1(open("../resigned/NativeIOSTestApp.app/_CodeSignature/CodeResources", "rb").read()).digest()
+    cd.data.hashes[2] = hashlib.sha1(open("../lyft-stage/Lyft.app/_CodeSignature/CodeResources", "rb").read()).digest()
     cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
     cd.data.teamID = "JWKXD469L2"
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
@@ -281,9 +284,15 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     #sigwrapper.data = construct.Container(data="hahaha")
     sigwrapper.length = len(sigwrapper.data.data) + 8
     sigwrapper.bytes = sigwrapper.data.data
-    print len(sigwrapper.bytes)
+    #print len(sigwrapper.bytes)
     #print hexdump(sigwrapper.bytes)
     print
+
+    # update section offsets, to account for any length changes
+    offset = codesig_cons.data.BlobIndex[0].offset
+    for blob in codesig_cons.data.BlobIndex:
+        blob.offset = offset
+        offset += len(macho_cs.Blob.build(blob.blob))
 
     superblob = macho_cs.SuperBlob.build(codesig_cons.data)
     codesig_cons.length = len(superblob) + 8
@@ -336,19 +345,19 @@ def main():
 
         # generate code hashes
         hashes = []
-        print "codesig offset:", codesig_offset
+        #print "codesig offset:", codesig_offset
         start_offset = m2.macho_start
         end_offset = macho_end
-        print "new start-end", start_offset, end_offset
+        #print "new start-end", start_offset, end_offset
         codeLimit = end_offset - start_offset
-        print "new cL:", codeLimit
+        #print "new cL:", codeLimit
         nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
-        print "new nCS:", nCodeSlots
+        #print "new nCS:", nCodeSlots
         for i in xrange(nCodeSlots):
             f.seek(start_offset + 0x1000 * i)
             actual_data = f.read(min(0x1000, end_offset - f.tell()))
             actual = hashlib.sha1(actual_data).digest()
-            print actual.encode('hex')
+            #print actual.encode('hex')
             hashes.append(actual)
 
         codesig_cons = make_basic_codesig(entitlements_file,
@@ -369,7 +378,6 @@ def main():
 
     # print hashes
     cd = codesig_cons.data.BlobIndex[0].blob.data
-    print cd
     end_offset = m2.macho_start + cd.codeLimit
     start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
     for i in xrange(cd.nSpecialSlots):
@@ -385,13 +393,13 @@ def main():
             expected.encode('hex'),
             actual.encode('hex')
         )
-    print "old start-end:", start_offset, end_offset
 
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
                                    '~/devcert.pem',
                                    '~/devkey.p12',
                                    '~/applecerts.pem')
+    print new_codesig_cons
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
     print "old len:", len(codesig_data)
     print "new len:", len(new_codesig_data)
@@ -405,7 +413,6 @@ def main():
     cmd = cmds['LC_CODE_SIGNATURE']
     cmd.data.datasize = len(new_codesig_data)
     cmd.bytes = macho.CodeSigRef.build(cmd.data)
-    print m2
 
     f3 = open("foo", "wb")
     f.seek(0)
