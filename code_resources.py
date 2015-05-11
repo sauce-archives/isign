@@ -63,12 +63,14 @@ def get_hash_binary(path):
     return binascii.a2b_hex(get_hash_hex(path))
 
 
+def is_optional(path, rules):
+    return 'Assets.car' not in path
+
+
 def get_file_entries(source_dir, rules):
     """
     Walk entire directory, compile mapping
-    path relative to source_dir -> digest
-
-    in this file format, hashes are base64(integer sha1)
+    path relative to source_dir -> digest and other data
     """
     file_entries = {}
     for root, dirs, filenames in os.walk(source_dir):
@@ -77,7 +79,14 @@ def get_file_entries(source_dir, rules):
             # the Data element in plists is base64-encoded
             data = plistlib.Data(get_hash_binary(path))
             relpath_to_source = os.path.relpath(path, source_dir)
-            file_entries[relpath_to_source] = {'data': data}
+            if is_optional(path, rules):
+                val = {
+                    'data': data,
+                    'optional': True
+                }
+            else:
+                val = data
+            file_entries[relpath_to_source] = val
     return file_entries
 
 
