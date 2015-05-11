@@ -149,6 +149,9 @@ class ResourceBuilder(object):
                     dirs.remove(dirname)
                     continue
 
+                if relative_path == OUTPUT_DIRECTORY:
+                    dirs.remove(dirname)
+
         return file_entries
 
 
