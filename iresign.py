@@ -4,6 +4,7 @@ import hashlib
 import subprocess
 import os
 import OpenSSL
+import math
 from optparse import OptionParser
 from hexdump import hexdump
 
@@ -128,7 +129,7 @@ def make_requirements(drs):
                    ])
 
 
-def make_basic_codesig(entitlements_file, drs):
+def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
     ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
     teamID = 'fake' + '\x00'
     empty_hash = "\x00" * 20
@@ -137,8 +138,8 @@ def make_basic_codesig(entitlements_file, drs):
                              flags=0,
                              identOffset=52,
                              nSpecialSlots=5,
-                             nCodeSlots=0,
-                             codeLimit=54400,
+                             nCodeSlots=len(hashes),
+                             codeLimit=code_limit,
                              hashSize=20,
                              hashType=1,
                              spare1=0,
@@ -149,7 +150,7 @@ def make_basic_codesig(entitlements_file, drs):
                              teamIDOffset=52 + len(ident),
                              teamID=teamID,
                              hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
-                             hashes=[empty_hash, empty_hash, empty_hash, empty_hash, empty_hash],
+                             hashes=([empty_hash] * 5) + hashes,
                              )
     print cd
     cd_data = macho_cs.CodeDirectory.build(cd)
@@ -297,10 +298,14 @@ def main():
     f = open(filename, "rb")
     m = macho.MachoFile.parse_stream(f)
     m2 = m.data
+    f.seek(0, os.SEEK_END)
+    file_end = f.tell()
+    macho_end = file_end
     if 'FatArch' in m.data:
-        # Choose the first listed architecture.
+        # Choose the last listed architecture.
         # Really we should sign all architectures.
-        m2 = m.data.FatArch[0].MachO
+        m2 = m.data.FatArch[-1].MachO
+        #macho_end = m.data.FatArch[1].MachO.macho_start
 
     cmds = {}
     for cmd in m2.commands:
@@ -319,11 +324,32 @@ def main():
         codesig_cons = macho_cs.Blob.parse(codesig_data)
     else:
         # sign from scratch
-        codesig_data = ""
+        codesig_offset = file_end
+
+        # generate code hashes
+        hashes = []
+        print "codesig offset:", codesig_offset
+        start_offset = m2.macho_start
+        end_offset = macho_end
+        print "new start-end", start_offset, end_offset
+        codeLimit = end_offset - start_offset
+        print "new cL:", codeLimit
+        nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
+        print "new nCS:", nCodeSlots
+        for i in xrange(nCodeSlots):
+            f.seek(start_offset + 0x1000 * i)
+            actual_data = f.read(min(0x1000, end_offset - f.tell()))
+            actual = hashlib.sha1(actual_data).digest()
+            print actual.encode('hex')
+            hashes.append(actual)
+
         codesig_cons = make_basic_codesig(entitlements_file,
-                                          cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob)
-        cmd_data = construct.Container(dataoff=m2.commands[-1].data.dataoff + m2.commands[-1].data.datasize,
-                                       datasize=10000)
+                                          cmds['LC_DYLIB_CODE_SIGN_DRS'].data.blob,
+                                          codeLimit,
+                                          hashes)
+        codesig_data = macho_cs.Blob.build(codesig_cons)
+        cmd_data = construct.Container(dataoff=codesig_offset,
+                                       datasize=len(codesig_data))
         cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
                                   cmdsize=16,
                                   data=cmd_data,
@@ -332,9 +358,6 @@ def main():
         m2.ncmds += 1
         m2.sizeofcmds += len(macho.LoadCommand.build(cmd))
         cmds['LC_CODE_SIGNATURE'] = cmd
-        print codesig_cons
-
-    print codesig_cons
 
     # print hashes
     cd = codesig_cons.data.BlobIndex[0].blob.data
@@ -354,6 +377,7 @@ def main():
             expected.encode('hex'),
             actual.encode('hex')
         )
+    print "old start-end:", start_offset, end_offset
 
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
