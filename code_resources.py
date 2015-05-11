@@ -46,24 +46,18 @@ class PathRule(object):
     TOP = 0x20        # unused?
 
     def __init__(self, pattern='', properties=None):
-        print "--- init --"
         # on Mac OS the FS is case-insensitive; simulate that here
         self.pattern = re.compile(pattern, re.IGNORECASE)
         self.flags = 0
         self.weight = 0
-        print "pattern: {0}, properties: {1}".format(pattern, properties)
         if properties is not None:
-            print "props not none"
             if type(properties) == 'bool':
-                print "props is bool"
                 if properties is False:
                     self.flags |= PathRule.OMITTED
                 # if it was true, this file is required;
                 # do nothing
             elif isinstance(properties, dict):
-                print "props is dict"
                 for key, value in properties.iteritems():
-                    print "prop is {0},{1}".format(key, value)
                     if key == 'optional' and value is True:
                         self.flags |= PathRule.OPTIONAL
                     elif key == 'omit' and value is True:
@@ -72,8 +66,6 @@ class PathRule(object):
                         self.flags |= PathRule.NESTED
                     elif key == 'weight':
                         self.weight = float(value)
-        print type(properties)
-        print str(self)
 
     def is_optional(self):
         return self.flags & PathRule.OPTIONAL != 0
@@ -135,7 +127,6 @@ class ResourceBuilder(object):
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
 
-                print rule
                 if rule.is_omitted() or rule.is_exclusion():
                     continue
 
