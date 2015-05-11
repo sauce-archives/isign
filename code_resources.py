@@ -2,6 +2,7 @@ import binascii
 import copy
 # import distutils
 import hashlib
+from memoizer import memoize
 from optparse import OptionParser
 import os
 import plistlib
@@ -92,8 +93,9 @@ class PathRule(object):
 class ResourceBuilder(object):
     NULL_PATH_RULE = PathRule()
 
-    def __init__(self, rules_data):
+    def __init__(self, rules_data, respect_omissions=False):
         self.rules = []
+        self.respect_omissions = respect_omissions
         for pattern, properties in rules_data.iteritems():
             self.rules.append(PathRule(pattern, properties))
 
@@ -127,7 +129,10 @@ class ResourceBuilder(object):
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
 
-                if rule.is_omitted() or rule.is_exclusion():
+                if rule.is_exclusion():
+                    continue
+
+                if rule.is_omitted() and self.respect_omissions is True:
                     continue
 
                 # the Data element in plists is base64-encoded
@@ -184,7 +189,7 @@ def get_template():
 #     # SHA1(yourfile)= 53aad19d86fe01a0e569951d6772105860bf425c
 #     return re.split(r'\s+', out)[1]
 
-
+@memoize
 def get_hash_hex(path):
     """ Get the hash of a file at path, encoded as hexadecimal """
     hasher = hashlib.sha1()
@@ -196,6 +201,7 @@ def get_hash_hex(path):
     return hasher.hexdigest()
 
 
+@memoize
 def get_hash_binary(path):
     """ Get the hash of a file at path, encoded as binary """
     return binascii.a2b_hex(get_hash_hex(path))
@@ -224,9 +230,9 @@ def main(source_dir, target_dir):
     rules = template['rules2']
     plist = copy.deepcopy(template)
     resource_builder = ResourceBuilder(rules)
-    files = resource_builder.scan(source_dir)
-    plist['files'] = files
-    plist['files2'] = files
+    plist['files'] = resource_builder.scan(source_dir)
+    resource_builder2 = ResourceBuilder(rules, True)
+    plist['files2'] = resource_builder2.scan(source_dir)
     write_plist(target_dir, plist)
 
 
