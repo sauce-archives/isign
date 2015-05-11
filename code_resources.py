@@ -1,4 +1,3 @@
-import base64
 import binascii
 import copy
 # import distutils
@@ -29,22 +28,7 @@ def get_template():
     return plistlib.readPlist(fh)
 
 
-def encode(hex_string):
-    sha1_binary = binascii.a2b_hex(hex_string)
-    return base64.b64encode(sha1_binary)
-
-
-def get_digest(path):
-    hasher = hashlib.sha1()
-    with open(path, 'rb') as afile:
-        buf = afile.read(HASH_BLOCKSIZE)
-        while len(buf) > 0:
-            hasher.update(buf)
-            buf = afile.read(HASH_BLOCKSIZE)
-    return hasher.hexdigest()
-
-
-# def get_digest(path):
+# def get_hash(path):
 #     """
 #     Get the digest of a file.
 #
@@ -63,20 +47,38 @@ def get_digest(path):
 #     return re.split(r'\s+', out)[1]
 
 
-def get_digests(source_dir, rules):
+def get_hash_hex(path):
+    """ Get the hash of a file at path, encoded as hexadecimal """
+    hasher = hashlib.sha1()
+    with open(path, 'rb') as afile:
+        buf = afile.read(HASH_BLOCKSIZE)
+        while len(buf) > 0:
+            hasher.update(buf)
+            buf = afile.read(HASH_BLOCKSIZE)
+    return hasher.hexdigest()
+
+
+def get_hash_binary(path):
+    """ Get the hash of a file at path, encoded as binary """
+    return binascii.a2b_hex(get_hash_hex(path))
+
+
+def get_file_entries(source_dir, rules):
     """
     Walk entire directory, compile mapping
     path relative to source_dir -> digest
 
     in this file format, hashes are base64(integer sha1)
     """
-    digests = {}
-    for root, dirs, files in os.walk(source_dir):
-        for filename in files:
+    file_entries = {}
+    for root, dirs, filenames in os.walk(source_dir):
+        for filename in filenames:
             path = os.path.join(root, filename)
+            # the Data element in plists is base64-encoded
+            data = plistlib.Data(get_hash_binary(path))
             relpath_to_source = os.path.relpath(path, source_dir)
-            digests[relpath_to_source] = encode(get_digest(path))
-    return digests
+            file_entries[relpath_to_source] = {'data': data}
+    return file_entries
 
 
 def write_file(target_dir, output):
@@ -95,7 +97,7 @@ def main(source_dir, target_dir):
     # deciding which files should be part of the seal
     rules = template['rules2']
     output = copy.deepcopy(template)
-    output['files'] = get_digests(source_dir, rules)
+    output['files'] = get_file_entries(source_dir, rules)
     write_file(target_dir, output)
 
 
