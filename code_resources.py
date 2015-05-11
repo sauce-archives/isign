@@ -224,7 +224,9 @@ def main(source_dir, target_dir):
     rules = template['rules2']
     plist = copy.deepcopy(template)
     resource_builder = ResourceBuilder(rules)
-    plist['files'] = resource_builder.scan(source_dir)
+    files = resource_builder.scan(source_dir)
+    plist['files'] = files
+    plist['files2'] = files
     write_plist(target_dir, plist)
 
 
