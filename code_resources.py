@@ -93,7 +93,9 @@ class PathRule(object):
 class ResourceBuilder(object):
     NULL_PATH_RULE = PathRule()
 
-    def __init__(self, rules_data, respect_omissions=False):
+    def __init__(self, app_path, rules_data, respect_omissions=False):
+        self.app_path = app_path
+        self.app_dir = os.path.dirname(app_path)
         self.rules = []
         self.respect_omissions = respect_omissions
         for pattern, properties in rules_data.iteritems():
@@ -113,17 +115,17 @@ class ResourceBuilder(object):
 
     def get_rule_and_paths(self, root, path):
         path = os.path.join(root, path)
-        relative_path = os.path.relpath(path, source_dir)
+        relative_path = os.path.relpath(path, self.app_dir)
         rule = self.find_rule(relative_path)
         return (rule, path, relative_path)
 
-    def scan(self, source_dir):
+    def scan(self):
         """
         Walk entire directory, compile mapping
         path relative to source_dir -> digest and other data
         """
         file_entries = {}
-        for root, dirs, filenames in os.walk(source_dir):
+        for root, dirs, filenames in os.walk(self.app_dir):
 
             for filename in filenames:
                 rule, path, relative_path = self.get_rule_and_paths(root,
@@ -133,6 +135,9 @@ class ResourceBuilder(object):
                     continue
 
                 if rule.is_omitted() and self.respect_omissions is True:
+                    continue
+
+                if self.app_path == path:
                     continue
 
                 # the Data element in plists is base64-encoded
@@ -217,10 +222,10 @@ def write_plist(target_dir, plist):
     plistlib.writePlist(plist, fh)
 
 
-def main(source_dir, target_dir):
+def main(source_app_path, target_dir):
     """
-    Given a source directory, create a CodeResources file for that
-    directory, and write it into the appropriate path in a target
+    Given a source app, create a CodeResources file for the
+    surrounding directory, and write it into the appropriate path in a target
     directory
     """
     template = get_template()
@@ -229,15 +234,15 @@ def main(source_dir, target_dir):
     # deciding which files should be part of the seal
     rules = template['rules2']
     plist = copy.deepcopy(template)
-    resource_builder = ResourceBuilder(rules)
-    plist['files'] = resource_builder.scan(source_dir)
-    resource_builder2 = ResourceBuilder(rules, True)
-    plist['files2'] = resource_builder2.scan(source_dir)
+    resource_builder = ResourceBuilder(source_app_path, rules)
+    plist['files'] = resource_builder.scan()
+    resource_builder2 = ResourceBuilder(source_app_path, rules, True)
+    plist['files2'] = resource_builder2.scan()
     write_plist(target_dir, plist)
 
 
 if __name__ == '__main__':
     parser = OptionParser()
     options, args = parser.parse_args()
-    source_dir, target_dir = args
-    main(source_dir, target_dir)
+    source_app, target_dir = args
+    main(source_app, target_dir)
