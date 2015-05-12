@@ -300,6 +300,7 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
 
     return codesig_cons
 
+
 def sign_architecture(arch_macho, arch_end, f, entitlements_file):
     cmds = {}
     for cmd in arch_macho.commands:
@@ -399,6 +400,7 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file):
     offset = cmd.data.dataoff
     return offset, new_codesig_data
 
+
 def main():
     parser = OptionParser()
     options, args = parser.parse_args()
@@ -410,11 +412,10 @@ def main():
     arch_macho = m.data
     f.seek(0, os.SEEK_END)
     file_end = f.tell()
-    macho_end = file_end
     arches = []
     if 'FatArch' in arch_macho:
         for i, arch in enumerate(arch_macho.FatArch):
-            a = { 'macho': arch.MachO }
+            a = {'macho': arch.MachO}
             next_macho = i + 1
             if next_macho == len(arch_macho.FatArch):  # last
                 a['macho_end'] = file_end
@@ -422,7 +423,7 @@ def main():
                 a['macho_end'] = arch_macho.FatArch[next_macho].MachO.macho_start
             arches.append(a)
     else:
-        arches.append({ 'macho': arch_macho, 'macho_end': file_end })
+        arches.append({'macho': arch_macho, 'macho_end': file_end})
 
     # copy f into outfile, reset to beginning of file
     outfile = open("foo", "wb")
@@ -440,9 +441,8 @@ def main():
 
     # write new headers
     outfile.seek(0)
-    outfile.write(macho.MachoFile.build(m))
+    macho.MachoFile.build_stream(m, outfile)
     outfile.close()
-
 
 if __name__ == '__main__':
     main()
