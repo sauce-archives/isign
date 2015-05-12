@@ -254,7 +254,7 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
 
     print "code directory:"
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
-    print cd
+    # print cd
     cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
     cd.data.hashes[2] = hashlib.sha1(open("../lyft-stage/Lyft.app/_CodeSignature/CodeResources", "rb").read()).digest()
     cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
@@ -300,27 +300,9 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
 
     return codesig_cons
 
-
-def main():
-    parser = OptionParser()
-    options, args = parser.parse_args()
-    filename = args[0]
-    entitlements_file = "Entitlements.plist"
-
-    f = open(filename, "rb")
-    m = macho.MachoFile.parse_stream(f)
-    m2 = m.data
-    f.seek(0, os.SEEK_END)
-    file_end = f.tell()
-    macho_end = file_end
-    if 'FatArch' in m.data:
-        # Choose the last listed architecture.
-        # Really we should sign all architectures.
-        m2 = m.data.FatArch[-1].MachO
-        #macho_end = m.data.FatArch[1].MachO.macho_start
-
+def sign_architecture(arch_macho, arch_end, f, entitlements_file):
     cmds = {}
-    for cmd in m2.commands:
+    for cmd in arch_macho.commands:
         name = cmd.cmd
         cmds[name] = cmd
 
@@ -332,7 +314,7 @@ def main():
     if 'LC_CODE_SIGNATURE' in cmds:
         # re-sign
         print "re-signing"
-        codesig_offset = m2.macho_start + cmds['LC_CODE_SIGNATURE'].data.dataoff
+        codesig_offset = arch_macho.macho_start + cmds['LC_CODE_SIGNATURE'].data.dataoff
         f.seek(codesig_offset)
         codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].data.datasize)
         #print len(codesig_data)
@@ -346,7 +328,7 @@ def main():
         # generate code hashes
         hashes = []
         #print "codesig offset:", codesig_offset
-        start_offset = m2.macho_start
+        start_offset = arch_macho.macho_start
         end_offset = macho_end
         #print "new start-end", start_offset, end_offset
         codeLimit = end_offset - start_offset
@@ -371,35 +353,35 @@ def main():
                                   cmdsize=16,
                                   data=cmd_data,
                                   bytes=macho.CodeSigRef.build(cmd_data))
-        m2.commands.append(cmd)
-        m2.ncmds += 1
-        m2.sizeofcmds += len(macho.LoadCommand.build(cmd))
+        arch_macho.commands.append(cmd)
+        arch_macho.ncmds += 1
+        arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
         cmds['LC_CODE_SIGNATURE'] = cmd
 
     # print hashes
     cd = codesig_cons.data.BlobIndex[0].blob.data
-    end_offset = m2.macho_start + cd.codeLimit
+    end_offset = arch_macho.macho_start + cd.codeLimit
     start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
     for i in xrange(cd.nSpecialSlots):
         expected = cd.hashes[i]
-        print "special exp=%s" % expected.encode('hex')
+        # print "special exp=%s" % expected.encode('hex')
     for i in xrange(cd.nCodeSlots):
         expected = cd.hashes[cd.nSpecialSlots + i]
         f.seek(start_offset + 0x1000 * i)
         actual_data = f.read(min(0x1000, end_offset - f.tell()))
         actual = hashlib.sha1(actual_data).digest()
-        print '[%s] exp=%s act=%s' % (
-            ('bad', 'ok ')[expected == actual],
-            expected.encode('hex'),
-            actual.encode('hex')
-        )
+        # print '[%s] exp=%s act=%s' % (
+        #     ('bad', 'ok ')[expected == actual],
+        #     expected.encode('hex'),
+        #     actual.encode('hex')
+        # )
 
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
                                    '~/devcert.pem',
                                    '~/devkey.p12',
                                    '~/applecerts.pem')
-    print new_codesig_cons
+    # print new_codesig_cons
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
     print "old len:", len(codesig_data)
     print "new len:", len(new_codesig_data)
@@ -414,15 +396,52 @@ def main():
     cmd.data.datasize = len(new_codesig_data)
     cmd.bytes = macho.CodeSigRef.build(cmd.data)
 
-    f3 = open("foo", "wb")
+    offset = cmd.data.dataoff
+    return offset, new_codesig_data
+
+def main():
+    parser = OptionParser()
+    options, args = parser.parse_args()
+    filename = args[0]
+    entitlements_file = "Entitlements.plist"
+
+    f = open(filename, "rb")
+    m = macho.MachoFile.parse_stream(f)
+    arch_macho = m.data
+    f.seek(0, os.SEEK_END)
+    file_end = f.tell()
+    macho_end = file_end
+    arches = []
+    if 'FatArch' in arch_macho:
+        for i, arch in enumerate(arch_macho.FatArch):
+            a = { 'macho': arch.MachO }
+            next_macho = i + 1
+            if next_macho == len(arch_macho.FatArch):  # last
+                a['macho_end'] = file_end
+            else:
+                a['macho_end'] = arch_macho.FatArch[next_macho].MachO.macho_start
+            arches.append(a)
+    else:
+        arches.append({ 'macho': arch_macho, 'macho_end': file_end })
+
+    # copy f into outfile, reset to beginning of file
+    outfile = open("foo", "wb")
     f.seek(0)
-    f3.write(f.read())
-    f3.seek(0)
-    f3.write(macho.MachoFile.build(m))
-    print "writing codesig to", hex(cmds['LC_CODE_SIGNATURE'].data.dataoff)
-    f3.seek(cmds['LC_CODE_SIGNATURE'].data.dataoff + m2.macho_start)
-    f3.write(new_codesig_data)
-    f3.close()
+    outfile.write(f.read())
+    outfile.seek(0)
+
+    # write new codesign blocks for each arch
+    for arch in arches:
+        offset, new_codesig_data = sign_architecture(arch['macho'], arch['macho_end'], f, entitlements_file)
+        write_offset = arch['macho'].macho_start + offset
+        print "offset: {2}, write offset: {0}, new_codesig_data len: {1}".format(write_offset, len(new_codesig_data), offset)
+        outfile.seek(write_offset)
+        outfile.write(new_codesig_data)
+
+    # write new headers
+    outfile.seek(0)
+    outfile.write(macho.MachoFile.build(m))
+    outfile.close()
 
 
 if __name__ == '__main__':
