@@ -77,7 +77,7 @@ sign_app() {
 
 package_app() {
     if is_ipa; then
-        zip -qr $STAGE_DIR/out.ipa $PAYLOAD_DIR
+        (cd $STAGE_DIR; zip -qr out.ipa Payload)
         echo "Re-provisioned ipa at $STAGE_DIR/out.ipa"
     else
         echo "Re-provisioned app at $APP_DIR"
