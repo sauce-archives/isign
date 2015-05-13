@@ -1,4 +1,3 @@
-macholib==1.7
 construct==2.5.2
 hexdump==3.2
 memoizer==0.0.1
