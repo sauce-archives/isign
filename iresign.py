@@ -214,7 +214,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
     return macho_cs.Blob.parse(chunk)
 
 
-def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_file, cert_file):
+def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, signer_key_file, cert_file):
     print "entitlements:"
     entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
     entitlements_data = macho_cs.Blob_.build(entitlements)
@@ -256,7 +256,7 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     # print cd
     cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
-    cd.data.hashes[2] = hashlib.sha1(open("../lyft-stage/Lyft.app/_CodeSignature/CodeResources", "rb").read()).digest()
+    cd.data.hashes[2] = hashlib.sha1(open(seal_file, "rb").read()).digest()
     cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
     cd.data.teamID = "JWKXD469L2"
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
@@ -301,7 +301,7 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     return codesig_cons
 
 
-def sign_architecture(arch_macho, arch_end, f, entitlements_file):
+def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
     cmds = {}
     for cmd in arch_macho.commands:
         name = cmd.cmd
@@ -379,6 +379,7 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file):
 
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
+                                   seal_file,
                                    '~/devcert.pem',
                                    '~/devkey.p12',
                                    '~/applecerts.pem')
@@ -407,6 +408,9 @@ def main():
     filename = args[0]
     entitlements_file = "Entitlements.plist"
 
+    app_dir = os.path.dirname(args[0])
+    seal_file = os.path.join(app_dir, '_CodeSignature/CodeResources')
+
     f = open(filename, "rb")
     m = macho.MachoFile.parse_stream(f)
     arch_macho = m.data
@@ -433,7 +437,7 @@ def main():
 
     # write new codesign blocks for each arch
     for arch in arches:
-        offset, new_codesig_data = sign_architecture(arch['macho'], arch['macho_end'], f, entitlements_file)
+        offset, new_codesig_data = sign_architecture(arch['macho'], arch['macho_end'], f, entitlements_file, seal_file)
         write_offset = arch['macho'].macho_start + offset
         print "offset: {2}, write offset: {0}, new_codesig_data len: {1}".format(write_offset, len(new_codesig_data), offset)
         outfile.seek(write_offset)
