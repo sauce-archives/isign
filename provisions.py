@@ -117,7 +117,6 @@ class IpaApp(App):
         os.chdir(self.path)
         relative_payload_path = os.path.relpath(self._get_payload_dir(),
                                                 self.path)
-        print "relpath: {0}".format(relative_payload_path)
         call([ZIP_BIN, "-qr", temp, relative_payload_path])
         os.rename(temp, output_path)
         os.chdir(old_cwd)
@@ -180,7 +179,7 @@ def parse_args():
             required=False,
             metavar='<path>',
             type=absolute_path_argument,
-            default=os.path.join(os.getcwd(), 'defaultOut'),
+            default=os.path.join(os.getcwd(), 'out'),
             help='Path to output file or directory')
     parser.add_argument(
             'app',
@@ -209,5 +208,8 @@ if __name__ == '__main__':
     app.sign(args.certificate)
 
     output_path = app.package(args.output_path)
+
+    if os.path.exists(args.stage_dir):
+        shutil.rmtree(args.stage_dir)
 
     print "Re-signed package: {0}".format(output_path)
