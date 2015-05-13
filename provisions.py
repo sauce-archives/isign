@@ -88,8 +88,11 @@ class App(object):
                 self.app_dir]
         call(args)
 
-    def package(self, stage_dir):
-        return self.app_dir
+    def package(self, output_path):
+        if not output_path.endswith('.app'):
+            output_path = output_path + '.app'
+        os.rename(self.app_dir, output_path)
+        return output_path
 
 
 class IpaApp(App):
@@ -105,10 +108,20 @@ class IpaApp(App):
             raise Exception(err)
         return apps[0]
 
-    def package(self, stage_dir):
-        output_file = os.path.join(stage_dir, "out.ipa")
-        call([ZIP_BIN, "-qr", output_file, self._get_payload_dir()])
-        return output_file
+    def package(self, output_path):
+        if not output_path.endswith('.ipa'):
+            output_path = output_path + '.ipa'
+        temp = "out.ipa"
+        # need to chdir and use relative paths, because zip is stupid
+        old_cwd = os.getcwd()
+        os.chdir(self.path)
+        relative_payload_path = os.path.relpath(self._get_payload_dir(),
+                                                self.path)
+        print "relpath: {0}".format(relative_payload_path)
+        call([ZIP_BIN, "-qr", temp, relative_payload_path])
+        os.rename(temp, output_path)
+        os.chdir(old_cwd)
+        return output_path
 
 
 def path_argument(path):
@@ -156,11 +169,19 @@ def parse_args():
     parser.add_argument(
             '-s', '--staging',
             dest='stage_dir',
-            required=True,
+            required=False,
             metavar='<path>',
             type=absolute_path_argument,
             default=os.path.join(os.getcwd(), 'stage'),
             help='Path to stage directory.')
+    parser.add_argument(
+            '-o', '--output',
+            dest='output_path',
+            required=False,
+            metavar='<path>',
+            type=absolute_path_argument,
+            default=os.path.join(os.getcwd(), 'defaultOut'),
+            help='Path to output file or directory')
     parser.add_argument(
             'app',
             nargs=1,
@@ -187,6 +208,6 @@ if __name__ == '__main__':
 
     app.sign(args.certificate)
 
-    output_path = app.package(args.stage_dir)
+    output_path = app.package(args.output_path)
 
     print "Re-signed package: {0}".format(output_path)
