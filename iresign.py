@@ -216,13 +216,18 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
 
 def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_file, cert_file):
     print "entitlements:"
-    entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
-    entitlements_data = macho_cs.Blob_.build(entitlements)
-    print hashlib.sha1(entitlements_data).hexdigest()
-    entitlements.bytes = open(entitlements_file, "rb").read()
-    entitlements.length = len(entitlements.bytes) + 8
-    entitlements_data = macho_cs.Blob_.build(entitlements)
-    print hashlib.sha1(entitlements_data).hexdigest()
+    entitlements_data = None
+    try:
+        entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
+    except KeyError:
+        print "no entitlements found"
+    else:
+        entitlements_data = macho_cs.Blob_.build(entitlements)
+        print hashlib.sha1(entitlements_data).hexdigest()
+        entitlements.bytes = open(entitlements_file, "rb").read()
+        entitlements.length = len(entitlements.bytes) + 8
+        entitlements_data = macho_cs.Blob_.build(entitlements)
+        print hashlib.sha1(entitlements_data).hexdigest()
     print
 
     print "requirements:"
@@ -255,9 +260,16 @@ def resign_cons(codesig_cons, entitlements_file, signer_cert_file, signer_key_fi
     print "code directory:"
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     # print cd
-    cd.data.hashes[0] = hashlib.sha1(entitlements_data).digest()
-    cd.data.hashes[2] = hashlib.sha1(open("../lyft-stage/Lyft.app/_CodeSignature/CodeResources", "rb").read()).digest()
-    cd.data.hashes[3] = hashlib.sha1(requirements_data).digest()
+    hashnum = 0
+    if cd.data.nSpecialSlots == 5:
+        assert entitlements_data is not None
+        cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
+        hashnum += 1
+        cd.data.hashes[hashnum] = hashlib.sha1(open("../lyft-stage/Lyft.app/_CodeSignature/CodeResources", "rb").read()).digest()
+        hashnum += 1
+    else:
+        assert cd.data.nSpecialSlots == 2
+    cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
     cd.data.teamID = "JWKXD469L2"
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
     cd_data = macho_cs.Blob_.build(cd)
