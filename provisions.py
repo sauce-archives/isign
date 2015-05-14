@@ -47,7 +47,6 @@ class App(object):
         return self.path
 
     def provision(self, provision_path):
-        print "provision_path: {0}".format(provision_path)
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self):
