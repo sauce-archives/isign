@@ -193,7 +193,7 @@ def parse_args():
             metavar='<path>',
             type=app_argument,
             help='Path to application to re-sign, typically a '
-                 'directory ending in .app or .ipa.')
+                 'directory ending in .app or file ending in .ipa.')
     return parser.parse_args()
 
 
