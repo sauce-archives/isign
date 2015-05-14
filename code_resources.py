@@ -222,12 +222,14 @@ def write_plist(target_dir, plist):
     plistlib.writePlist(plist, fh)
 
 
-def main(source_app_path, target_dir):
+def make_seal(source_app_path, target_dir=None):
     """
     Given a source app, create a CodeResources file for the
     surrounding directory, and write it into the appropriate path in a target
     directory
     """
+    if target_dir is None:
+        target_dir = source_app_path
     template = get_template()
     # n.b. code_resources_template not only contains a template of
     # what the file should look like; it contains default rules
@@ -245,4 +247,4 @@ if __name__ == '__main__':
     parser = OptionParser()
     options, args = parser.parse_args()
     source_app, target_dir = args
-    main(source_app, target_dir)
+    make_seal(source_app, target_dir)

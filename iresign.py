@@ -101,6 +101,8 @@ def make_requirements(drs):
         'And',
         ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
         ('AppleGenericAnchor',),
+        # TODO pull this from the X509 cert
+        # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
         ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
         ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
@@ -261,6 +263,7 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     # print cd
     hashnum = 0
+    # if this is an app, add the entitlements and seal hash
     if cd.data.nSpecialSlots == 5:
         assert entitlements_data is not None
         cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
@@ -414,13 +417,8 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
     return offset, new_codesig_data
 
 
-def main():
-    parser = OptionParser()
-    options, args = parser.parse_args()
-    filename = args[0]
-    entitlements_file = "Entitlements.plist"
-
-    app_dir = os.path.dirname(args[0])
+def sign_file(filename, entitlements_file):
+    app_dir = os.path.dirname(filename)
     seal_file = os.path.join(app_dir, '_CodeSignature/CodeResources')
 
     f = open(filename, "rb")
@@ -459,6 +457,15 @@ def main():
     outfile.seek(0)
     macho.MachoFile.build_stream(m, outfile)
     outfile.close()
+
+
+def main():
+    parser = OptionParser()
+    options, args = parser.parse_args()
+    filename = args[0]
+    entitlements_file = "Entitlements.plist"
+    sign_file(filename, entitlements_file)
+
 
 if __name__ == '__main__':
     main()

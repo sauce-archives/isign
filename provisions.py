@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-# Port of @mikehan's provisions.sh
-
 import argparse
+import code_resources
 import glob
+import iresign
 import os
 import os.path
+import biplist
 import shutil
 from subprocess import call, Popen
 import tempfile
@@ -43,8 +44,25 @@ class App(object):
         self.provision_path = os.path.join(self.app_dir,
                                            'embedded.mobileprovision')
 
+        info_path = os.path.join(self.get_app_dir(), 'Info.plist')
+        if not os.path.exists(info_path):
+            raise Exception('no Info.plist at {0}'.format(info_path))
+        self.info = biplist.readPlist(info_path)
+
     def get_app_dir(self):
         return self.path
+
+    def get_executable(self):
+        executable_name = None
+        if 'CFBundleExecutable' in self.info:
+            executable_name = self.info['CFBundleExecutable']
+        else:
+            executable_name, _ = os.path.splitext(os.path.basename(self.app_dir))
+        executable = os.path.join(self.app_dir, executable_name)
+        if not os.path.exists(executable):
+            raise Exception(
+                    'could not find executable for {0}'.format(self.path))
+        return executable
 
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
@@ -78,20 +96,23 @@ class App(object):
         # should destroy the file
         decoded_provision_fh.close()
 
-    def codesign(self, certificate, path, extra_args=[]):
-        call([CODESIGN_BIN, '-f', '-s', certificate] + extra_args + [path])
+    def codesign(self, path):
+        print "signing path {0}".format(path)
+        if False:
+            iresign.sign_file(path, self.entitlements_file)
 
-    def sign(self, certificate):
+    # TODO cert args
+    def sign(self):
         # first sign all the dylibs
         frameworks_path = os.path.join(self.app_dir, 'Frameworks')
         if os.path.exists(frameworks_path):
             dylibs = glob.glob(os.path.join(frameworks_path, '*.dylib'))
             for dylib in dylibs:
-                self.codesign(certificate, dylib)
+                self.codesign(dylib)
+        # then create the seal
+        code_resources.make_seal(self.app_dir)
         # then sign the app
-        self.codesign(certificate,
-                      self.app_dir,
-                      ['--entitlements', self.entitlements_path])
+        self.codesign(self.get_executable())
 
     def package(self, output_path):
         if not output_path.endswith('.app'):
@@ -162,14 +183,14 @@ def parse_args():
             metavar='<your.mobileprovision>',
             type=exists_absolute_path_argument,
             help='Path to provisioning profile')
-    parser.add_argument(
-            '-c', '--certificate',
-            dest='certificate',
-            required=True,
-            metavar='<certificate>',
-            help='Identifier for the certificate in your keychain. '
-                 'See `security find-identity` for a list, or '
-                 '`man codesign` for valid ways to specify it.')
+#     parser.add_argument(
+#             '-c', '--certificate',
+#             dest='certificate',
+#             required=True,
+#             metavar='<certificate>',
+#             help='Identifier for the certificate in your keychain. '
+#                  'See `security find-identity` for a list, or '
+#                  '`man codesign` for valid ways to specify it.')
     parser.add_argument(
             '-s', '--staging',
             dest='stage_dir',
@@ -210,7 +231,7 @@ if __name__ == '__main__':
 
     app.create_entitlements()
 
-    app.sign(args.certificate)
+    app.sign()  # needs cert args
 
     output_path = app.package(args.output_path)
 
