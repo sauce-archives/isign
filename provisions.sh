@@ -72,6 +72,15 @@ create_entitlements() {
 }
 
 sign_app() {
+    if [ -e $APP_DIR/Frameworks ]; then
+        for dylib in "$APP_DIR/Frameworks/*"
+        do
+            echo "signing $dylib"
+            # entitlements are irrelevant to dylibs
+            /usr/bin/codesign -f -s "$CERT_NAME" $dylib
+        done
+    fi 
+    echo "signing $APP_DIR";
     /usr/bin/codesign -f -s "$CERT_NAME" --entitlements $ENTITLEMENTS_FILE $APP_DIR 2>/dev/null
 }
 
