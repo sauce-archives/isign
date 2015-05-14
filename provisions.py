@@ -47,6 +47,7 @@ class App(object):
         return self.path
 
     def provision(self, provision_path):
+        print "provision_path: {0}".format(provision_path)
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self):
@@ -78,15 +79,20 @@ class App(object):
         # should destroy the file
         decoded_provision_fh.close()
 
+    def codesign(self, certificate, path, extra_args=[]):
+        call([CODESIGN_BIN, '-f', '-s', certificate] + extra_args + [path])
+
     def sign(self, certificate):
-        args = [CODESIGN_BIN,
-                '-f',
-                '-s',
-                certificate,
-                '--entitlements',
-                self.entitlements_path,
-                self.app_dir]
-        call(args)
+        # first sign all the dylibs
+        frameworks_path = os.path.join(self.app_dir, 'Frameworks')
+        if os.path.exists(frameworks_path):
+            dylibs = glob.glob(os.path.join(frameworks_path, '*.dylib'))
+            for dylib in dylibs:
+                self.codesign(certificate, dylib)
+        # then sign the app
+        self.codesign(certificate,
+                      self.app_dir,
+                      ['--entitlements', self.entitlements_path])
 
     def package(self, output_path):
         if not output_path.endswith('.app'):
@@ -123,14 +129,18 @@ class IpaApp(App):
         return output_path
 
 
-def path_argument(path):
+def absolute_path_argument(path):
+    return os.path.abspath(path)
+
+
+def exists_absolute_path_argument(path):
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError("%s does not exist!" % path)
-    return path.strip("/")
+    return absolute_path_argument(path)
 
 
 def app_argument(path):
-    path = path_argument(path)
+    path = exists_absolute_path_argument(path)
     _, extension = os.path.splitext(path)
     if extension == '.app':
         app = ReceivedApp(path)
@@ -142,10 +152,6 @@ def app_argument(path):
     return app
 
 
-def absolute_path_argument(path):
-    return os.path.abspath(path)
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
             description='Resign an iOS application with a new identity '
@@ -155,7 +161,7 @@ def parse_args():
             dest='provisioning_profile',
             required=True,
             metavar='<your.mobileprovision>',
-            type=path_argument,
+            type=exists_absolute_path_argument,
             help='Path to provisioning profile')
     parser.add_argument(
             '-c', '--certificate',
