@@ -57,7 +57,8 @@ class App(object):
         if 'CFBundleExecutable' in self.info:
             executable_name = self.info['CFBundleExecutable']
         else:
-            executable_name, _ = os.path.splitext(os.path.basename(self.app_dir))
+            basename = os.path.basename(self.app_dir)
+            executable_name, _ = os.path.splitext(basename)
         executable = os.path.join(self.app_dir, executable_name)
         if not os.path.exists(executable):
             raise Exception(
@@ -97,9 +98,8 @@ class App(object):
         decoded_provision_fh.close()
 
     def codesign(self, path):
-        print "signing path {0}".format(path)
-        if False:
-            iresign.sign_file(path, self.entitlements_file)
+        print "provisions: signing path {0}".format(path)
+        iresign.sign_file(path, self.entitlements_path)
 
     # TODO cert args
     def sign(self):
@@ -110,7 +110,7 @@ class App(object):
             for dylib in dylibs:
                 self.codesign(dylib)
         # then create the seal
-        code_resources.make_seal(self.app_dir)
+        code_resources.make_seal(self.get_executable())
         # then sign the app
         self.codesign(self.get_executable())
 
