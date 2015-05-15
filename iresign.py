@@ -267,7 +267,7 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
     if cd.data.nSpecialSlots == 5:
         assert entitlements_data is not None
         cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
-        hashnum += 1
+        hashnum += 2
         cd.data.hashes[hashnum] = hashlib.sha1(open(seal_file, "rb").read()).digest()
         hashnum += 1
     else:
