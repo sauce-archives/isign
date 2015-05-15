@@ -418,6 +418,7 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
 
 
 def sign_file(filename, entitlements_file):
+    print "working on {0}".format(filename)
     app_dir = os.path.dirname(filename)
     seal_file = os.path.join(app_dir, '_CodeSignature/CodeResources')
 
@@ -457,6 +458,9 @@ def sign_file(filename, entitlements_file):
     outfile.seek(0)
     macho.MachoFile.build_stream(m, outfile)
     outfile.close()
+
+    print "moving foo to {0}".format(filename)
+    os.rename("foo", filename)
 
 
 def main():

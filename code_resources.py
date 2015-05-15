@@ -126,10 +126,14 @@ class ResourceBuilder(object):
         """
         file_entries = {}
         for root, dirs, filenames in os.walk(self.app_dir):
-
+            print "root: {0}".format(root)
             for filename in filenames:
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
+                print "rule: {0}, path: {1}, relative_path: {2}".format(
+                        rule,
+                        path,
+                        relative_path)
 
                 if rule.is_exclusion():
                     continue
@@ -229,7 +233,7 @@ def make_seal(source_app_path, target_dir=None):
     directory
     """
     if target_dir is None:
-        target_dir = source_app_path
+        target_dir = os.path.dirname(source_app_path)
     template = get_template()
     # n.b. code_resources_template not only contains a template of
     # what the file should look like; it contains default rules
