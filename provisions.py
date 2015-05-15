@@ -8,14 +8,15 @@ import os
 import os.path
 import biplist
 import shutil
-from subprocess import call, Popen
-import tempfile
-import sys
+from subprocess import call
 
 CODESIGN_BIN = '/usr/bin/codesign'
 SECURITY_BIN = '/usr/bin/security'
 ZIP_BIN = '/usr/bin/zip'
 UNZIP_BIN = '/usr/bin/unzip'
+
+# Sauce Labs Apple Organizational Unit
+OU = 'JWKXD469L2'
 
 
 class ReceivedApp(object):
@@ -69,27 +70,14 @@ class App(object):
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self):
-        # we decode part of the provision path, then extract the
-        # Entitlements part, then write that to a file in the app.
-
-        # piping to Plistbuddy doesn't seem to work :(
-        # hence, temporary intermediate file
-
-        decoded_provision_fh, decoded_provision_path = tempfile.mkstemp()
-        decoded_provision_fh = open(decoded_provision_path, 'w')
-        decode_args = [SECURITY_BIN, 'cms', '-D', '-i', self.provision_path]
-        process = Popen(decode_args, stdout=decoded_provision_fh)
-        # if we don't wait for this to complete, it's likely
-        # the next part will see a zero-length file
-        process.wait()
-
-        provision_plist = biplist.readPlist(decoded_provision_path)
-        entitlements = provision_plist['Entitlements']
+        entitlements = {
+            "keychain-access-groups": [OU + '.*'],
+            "com.apple.developer.team-identifier": OU,
+            "application-identifier": OU + '.*',
+            "get-task-allow": True
+        }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
-        print "wrote to {0}".format(self.entitlements_path)
-
-        # should destroy the file
-        decoded_provision_fh.close()
+        print "wrote Entitlements to {0}".format(self.entitlements_path)
 
     def codesign(self, path):
         print "provisions: signing path {0}".format(path)
