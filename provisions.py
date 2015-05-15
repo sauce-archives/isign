@@ -10,9 +10,9 @@ import biplist
 import shutil
 from subprocess import call, Popen
 import tempfile
+import sys
 
 CODESIGN_BIN = '/usr/bin/codesign'
-PLIST_BUDDY_BIN = '/usr/libexec/PlistBuddy'
 SECURITY_BIN = '/usr/bin/security'
 ZIP_BIN = '/usr/bin/zip'
 UNZIP_BIN = '/usr/bin/unzip'
@@ -83,16 +83,10 @@ class App(object):
         # the next part will see a zero-length file
         process.wait()
 
-        get_entitlements_cmd = [
-            PLIST_BUDDY_BIN,
-            '-x',
-            '-c',
-            'print :Entitlements ',
-            decoded_provision_path]
-        entitlements_fh = open(self.entitlements_path, 'w')
-        process2 = Popen(get_entitlements_cmd, stdout=entitlements_fh)
-        process2.wait()
-        entitlements_fh.close()
+        provision_plist = biplist.readPlist(decoded_provision_path)
+        entitlements = provision_plist['Entitlements']
+        biplist.writePlist(entitlements, self.entitlements_path, binary=False)
+        print "wrote to {0}".format(self.entitlements_path)
 
         # should destroy the file
         decoded_provision_fh.close()
