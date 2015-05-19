@@ -34,3 +34,5 @@ apps
 Entitlements.plist
 foo
 stage
+out.app
+out.ipa
