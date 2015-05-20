@@ -167,14 +167,35 @@ class TestMac:
         app_info = self.codesign_display(app_path)
 
         self.assert_common_signed_properties(app_info)
-        app_hashes = self.assert_common_signed_hashes(app_info, -5, -1)
-        # the special hash slot - should be unused
-        assert app_hashes['-4'] == '0000000000000000000000000000000000000000'
 
+        # Most of the hashes in the Hash section are hashes of blocks of the
+        # object code in question. These all have positive subscripts.
+        # But the "special" slots use negative numbers, and
+        # are hashes of:
+        # -5 Embedded entitlement configuration slot
+        # -4 App-specific slot (in all the examples we know of, all zeroes)
+        # -3 Resource Directory slot
+        # -2 Requirements slot
+        # -1 Info.plist slot
+        # For more info, see codedirectory.h in Apple open source, e.g.
+        # http://opensource.apple.com/source/libsecurity_codesigning/
+        #   libsecurity_codesigning-55032/lib/codedirectory.h
+        app_hashes = self.assert_common_signed_hashes(app_info, -5, -1)
+        assert int(app_hashes['-5'], 16) != 0
+        # skip slot -4, in all the examples we've seen it's always zero
+        assert int(app_hashes['-3'], 16) != 0
+        assert int(app_hashes['-2'], 16) != 0
+        assert int(app_hashes['-1'], 16) != 0
+
+        # Now we do similar tests for a dynamic library, linked to the
+        # main app.
         lib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
         lib_info = self.codesign_display(lib_path)
         self.assert_common_signed_properties(lib_info)
+        # dylibs only have -2 and -1
         lib_hashes = self.assert_common_signed_hashes(lib_info, -2, -1)
+        assert int(lib_hashes['-2'], 16) != 0
+        assert int(lib_hashes['-1'], 16) != 0
         assert '-3' not in lib_hashes
 
         # TODO subject.CN from cert?
