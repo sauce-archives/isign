@@ -13,7 +13,7 @@ CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 PROVISIONS_BIN = join(dirname(dirname(abspath(__file__))),
                       'provisions.py')
-
+ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
 
@@ -93,9 +93,9 @@ class TestMac:
             else:
                 # probably an error of some kind. These
                 # get appended into the output too. :(
-                if '_errors' not in ret:
-                    ret['_errors'] = []
-                ret['_errors'].append(line)
+                if ERROR_KEY not in ret:
+                    ret[ERROR_KEY] = []
+                ret[ERROR_KEY].append(line)
             if key is not None:
                 if key in ret:
                     if not isinstance(ret[key], list):
@@ -146,6 +146,9 @@ class TestMac:
         assert 'designated' in info
         assert 'anchor apple generic' in info['designated']
 
+        # should have no errors
+        assert ERROR_KEY not in info
+
     def assert_common_signed_hashes(self, info, start_index, end_index):
         # has a set of hashes
         assert 'Hash' in info
@@ -166,10 +169,12 @@ class TestMac:
         proc = subprocess.Popen(cmd)
         proc.communicate()
         assert proc.returncode == 0, "Return code not 0"
+
+        # When we ask for codesign to analyze the app directory, it
+        # will default to showing info for the main executable
         app_info = self.codesign_display(app_path)
-
         self.assert_common_signed_properties(app_info)
-
+        assert 'Sealed Resources' in app_info
         # Most of the hashes in the Hash section are hashes of blocks of the
         # object code in question. These all have positive subscripts.
         # But the "special" slots use negative numbers, and
@@ -190,7 +195,7 @@ class TestMac:
         assert int(app_hashes['-1'], 16) != 0
 
         # Now we do similar tests for a dynamic library, linked to the
-        # main app.
+        # main executable.
         lib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
         lib_info = self.codesign_display(lib_path)
         self.assert_common_signed_properties(lib_info)
