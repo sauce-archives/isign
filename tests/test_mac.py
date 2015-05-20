@@ -1,4 +1,7 @@
 import distutils
+from os.path import abspath
+from os.path import dirname
+from os.path import join
 import platform
 import pprint
 import pytest
@@ -6,6 +9,9 @@ import re
 import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
+TEST_APP = join(dirname(__file__), 'apps', 'NativeIOSTestApp.app')
+PROVISIONS_BIN = join(dirname(dirname(abspath(__file__))),
+                      'provisions.py')
 
 
 @pytest.mark.skipif(platform.system() != 'Darwin' or CODESIGN_BIN is None,
@@ -15,15 +21,14 @@ class TestMac:
         """ inspect a path with codesign """
         cmd = [CODESIGN_BIN, '-d', '-r-', '--verbose=20', path]
         # n.b. codesign usually prints everything to stderr
-        print ' '.join(cmd)
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         out, _ = proc.communicate()
         assert proc.returncode == 0, "Return code not 0"
-        return self.codesign_display_dict(out)
+        return self.codesign_display_parse(out)
 
-    def codesign_display_dict(self, out):
+    def codesign_display_parse(self, out):
         """
         Parse codesign output into a dict.
 
@@ -94,14 +99,18 @@ class TestMac:
 
         return ret
 
-    def test_lyft(self):
-        return self.codesign_display('apps/3-sauce-resigned/Lyft.app/Lyft')
-
     def test_niota(self):
-        out = self.codesign_display(
-            'apps/3-sauce-resigned/NativeIOSTestApp.app')
+        cmd = [PROVISIONS_BIN,
+               '-p', '/Users/neilk/neilkprofile.mobileprovision',
+               # TODO cert arg
+               '-o', 'test-out.app',
+               TEST_APP]
+        print ' '.join(cmd)
+        proc = subprocess.Popen(cmd)
+        proc.communicate()
+        assert proc.returncode == 0, "Return code not 0"
+        out = self.codesign_display('test-out.app')
         return out
-        # assert '-4=3cfb' in out
 
 
 if __name__ == '__main__':
