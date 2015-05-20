@@ -130,9 +130,11 @@ class TestMac:
         assert 'Signature' in info
 
         assert 'Authority' in info
-        if not isinstance(info['Authority'], list):
-            info['Authority'] = [info['Authority']]
-        assert 'Apple Root CA' in info['Authority']
+        if isinstance(info['Authority'], list):
+            authorities = info['Authority']
+        else:
+            authorities = [info['Authority']]
+        assert 'Apple Root CA' in authorities
 
         assert 'Info.plist' in info
         assert 'entries' in info['Info.plist']
