@@ -42,7 +42,7 @@ class TestMac:
         text_line = re.compile('^(\w[\w\s.]+) => (.*)$')
 
         # CodeDirectory v=20200 size=79151 flags=0x0(none) hashes=3948+5 ...
-        props_line = re.compile('^(\w[\w\s.]+)(?:\s+(\w+)=(\S+))*$')
+        props_line = re.compile('^(\w[\w\s.]+)\s+((?:\w+=\S+\s*)+)$')
 
         # Signed Time=May 14, 2015, 7:12:25 PM
         # Info.plist=not bound
@@ -70,14 +70,13 @@ class TestMac:
                 val = text_match.group(2)
             elif props_match:
                 key = props_match.group(1)
-                props = {}
-                i = 2
-                while i <= props_match.lastindex:
-                    pkey = props_match.group(i)
-                    pval = props_match.group(i+1)
-                    props[pkey] = pval
-                    i += 2
-                val = props
+                val = {}
+                pairs = re.split('\s+', props_match.group(2))
+                for pair in pairs:
+                    pairmatch = re.match('(\w+)=(\S+)', pair)
+                    pairkey = pairmatch.group(1)
+                    pairval = pairmatch.group(2)
+                    val[pairkey] = pairval
             elif sp_match:
                 key = sp_match.group(1)
                 val = sp_match.group(2)
