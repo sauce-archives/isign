@@ -6,12 +6,16 @@ import platform
 import pprint
 import pytest
 import re
+import shutil
 import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
-TEST_APP = join(dirname(__file__), 'apps', 'NativeIOSTestApp.app')
+TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 PROVISIONS_BIN = join(dirname(dirname(abspath(__file__))),
                       'provisions.py')
+
+# Sauce Labs apple organizational unit
+OU = 'JWKXD469L2'
 
 
 @pytest.mark.skipif(platform.system() != 'Darwin' or CODESIGN_BIN is None,
@@ -93,26 +97,93 @@ class TestMac:
                     ret['_errors'] = []
                 ret['_errors'].append(line)
             if key is not None:
-                ret[key] = val
+                if key in ret:
+                    if not isinstance(ret[key], list):
+                        ret[key] = [ret[key]]
+                    ret[key].append(val)
+                else:
+                    ret[key] = val
                 last = ret[key]
 
         return ret
 
-    def test_niota(self):
+    def assert_common_signed_properties(self, info):
+        # has an executable
+        assert 'Executable' in info
+
+        # has an identifier
+        assert 'Identifier' in info
+
+        # has a codedirectory, embedded
+        assert 'CodeDirectory' in info
+        assert 'location' in info['CodeDirectory']
+        assert info['CodeDirectory']['location'] == 'embedded'
+
+        # has a set of hashes
+        assert 'Hash' in info
+        assert '_' in info['Hash']
+
+        # seal hash
+        assert 'CDHash' in info
+
+        # signed
+        assert 'Signature' in info
+
+        assert 'Authority' in info
+        if not isinstance(info['Authority'], list):
+            info['Authority'] = [info['Authority']]
+        assert 'Apple Root CA' in info['Authority']
+
+        assert 'Info.plist' in info
+        assert 'entries' in info['Info.plist']
+
+        assert 'TeamIdentifier' in info
+        # TODO get this from an arg
+        assert info['TeamIdentifier'] == OU
+
+        assert 'designated' in info
+        assert 'anchor apple generic' in info['designated']
+
+    def assert_common_signed_hashes(self, info, start_index, end_index):
+        # has a set of hashes
+        assert 'Hash' in info
+        assert '_' in info['Hash']
+        hashes = info['Hash']['_']
+        for i in range(start_index, end_index+1):
+            assert str(i) in hashes
+        return hashes
+
+    def test_simple_app(self):
+        app_path = 'test-out.app'
         cmd = [PROVISIONS_BIN,
                '-p', '/Users/neilk/neilkprofile.mobileprovision',
                # TODO cert arg
-               '-o', 'test-out.app',
+               '-o', app_path,
                TEST_APP]
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
         assert proc.returncode == 0, "Return code not 0"
-        out = self.codesign_display('test-out.app')
-        return out
+        app_info = self.codesign_display(app_path)
+
+        self.assert_common_signed_properties(app_info)
+        app_hashes = self.assert_common_signed_hashes(app_info, -5, -1)
+        # the special hash slot - should be unused
+        assert app_hashes['-4'] == '0000000000000000000000000000000000000000'
+
+        lib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
+        lib_info = self.codesign_display(lib_path)
+        self.assert_common_signed_properties(lib_info)
+        lib_hashes = self.assert_common_signed_hashes(lib_info, -2, -1)
+        assert '-3' not in lib_hashes
+
+        # TODO subject.CN from cert?
+
+        shutil.rmtree(app_path)
+        return app_info
 
 
 if __name__ == '__main__':
     x = TestMac()
     pp = pprint.PrettyPrinter(indent=2)
-    pp.pprint(x.test_niota())
+    pp.pprint(x.test_simple_app())
