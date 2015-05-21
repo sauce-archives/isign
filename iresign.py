@@ -1,3 +1,4 @@
+import biplist
 import construct
 import distutils
 import hashlib
@@ -13,6 +14,9 @@ import macho_cs
 
 
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
+
+# in Entitlement plists
+TEAM_IDENTIFIER_KEY = 'com.apple.developer.team-identifier'
 
 
 def sign(data, signer_cert_file, signer_key_file, cert_file):
@@ -67,6 +71,8 @@ def make_entitlements_data(codesig_cons, entitlements_file):
         print "no entitlements found"
     else:
         # make entitlements data if slot was found
+        # libraries do not have entitlements data
+        # so this is actually a difference between libs and apps
         entitlements_data = macho_cs.Blob_.build(entitlements)
         print hashlib.sha1(entitlements_data).hexdigest()
 
@@ -74,6 +80,7 @@ def make_entitlements_data(codesig_cons, entitlements_file):
         entitlements.length = len(entitlements.bytes) + 8
         entitlements_data = macho_cs.Blob_.build(entitlements)
         print hashlib.sha1(entitlements_data).hexdigest()
+
     print
 
 
@@ -113,6 +120,7 @@ def make_requirements_data(codesig_cons, signer_key_file):
 def make_codedirectory_data(codesig_cons,
                             seal_file,
                             team_id):
+
     print "code directory:"
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     # print cd
@@ -146,6 +154,9 @@ def rewrite_signature(codesig_cons,
                       signer_cert_file,
                       signer_key_file,
                       cert_file):
+    # TODO how do we even know this blobwrapper contains the signature?
+    # seems like this is a coincidence of the structure, where it's the only
+    # blobwrapper at that level...
     print "sig:"
     sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
     oldsig = sigwrapper.bytes.value
@@ -182,15 +193,19 @@ def update_offsets(codesig_cons):
     codesig_cons.bytes = superblob
 
 
+def get_team_id(entitlements_file):
+    # TODO obtain this from entitlements
+    entitlements_plist = biplist.readPlist(entitlements_file)
+    return entitlements_plist[TEAM_IDENTIFIER_KEY]
+
+
 def resign_cons(codesig_cons,
                 entitlements_file,
                 seal_file,
                 signer_cert_file,
                 signer_key_file,
-                cert_file):
-
-    # TODO obtain this from entitlements
-    team_id = "JWKXD469L2"
+                cert_file,
+                team_id):
 
     make_entitlements_data(codesig_cons, entitlements_file)
     make_requirements_data(codesig_cons, signer_key_file)
@@ -203,7 +218,12 @@ def resign_cons(codesig_cons,
     return codesig_cons
 
 
-def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
+def sign_architecture(arch_macho,
+                      arch_end,
+                      f,
+                      entitlements_file,
+                      seal_file,
+                      team_id):
     cmds = {}
     for cmd in arch_macho.commands:
         name = cmd.cmd
@@ -249,7 +269,8 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
                                    seal_file,
                                    '~/devcert.pem',
                                    '~/devkey.p12',
-                                   '~/applecerts.pem')
+                                   '~/applecerts.pem',
+                                   team_id)
     # print new_codesig_cons
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
     print "old len:", len(codesig_data)
@@ -269,6 +290,10 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
 
 
 def sign_file(filename, entitlements_file):
+    # not all files need the entitlements data, but we use
+    # it here as a config file to get our team id
+    team_id = get_team_id(entitlements_file)
+
     print "working on {0}".format(filename)
     app_dir = os.path.dirname(filename)
     seal_file = os.path.join(app_dir, '_CodeSignature/CodeResources')
@@ -305,7 +330,8 @@ def sign_file(filename, entitlements_file):
                                                      arch['macho_end'],
                                                      f,
                                                      entitlements_file,
-                                                     seal_file)
+                                                     seal_file,
+                                                     team_id)
         write_offset = arch['macho'].macho_start + offset
         print offset_fmt.format(write_offset, len(new_codesig_data), offset)
         outfile.seek(write_offset)
