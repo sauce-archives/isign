@@ -223,6 +223,9 @@ def sign_architecture(arch_macho,
                       f,
                       entitlements_file,
                       seal_file,
+                      signer_cert_file,
+                      signer_key_file,
+                      cert_file,
                       team_id):
     cmds = {}
     for cmd in arch_macho.commands:
@@ -267,9 +270,9 @@ def sign_architecture(arch_macho,
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
                                    seal_file,
-                                   '~/devcert.pem',
-                                   '~/devkey.p12',
-                                   '~/applecerts.pem',
+                                   signer_cert_file,
+                                   signer_key_file,
+                                   cert_file,
                                    team_id)
     # print new_codesig_cons
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
@@ -289,7 +292,11 @@ def sign_architecture(arch_macho,
     return offset, new_codesig_data
 
 
-def sign_file(filename, entitlements_file):
+def sign_file(filename,
+              entitlements_file,
+              signer_cert_file,
+              signer_key_file,
+              cert_file):
     # not all files need the entitlements data, but we use
     # it here as a config file to get our team id
     team_id = get_team_id(entitlements_file)
@@ -331,6 +338,9 @@ def sign_file(filename, entitlements_file):
                                                      f,
                                                      entitlements_file,
                                                      seal_file,
+                                                     signer_cert_file,
+                                                     signer_key_file,
+                                                     cert_file,
                                                      team_id)
         write_offset = arch['macho'].macho_start + offset
         print offset_fmt.format(write_offset, len(new_codesig_data), offset)
