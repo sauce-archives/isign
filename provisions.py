@@ -134,13 +134,14 @@ class IpaApp(App):
 
 
 def absolute_path_argument(path):
-    return os.path.abspath(path)
+    return os.path.abspath(os.path.expanduser(path))
 
 
 def exists_absolute_path_argument(path):
+    path = absolute_path_argument(path)
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError("%s does not exist!" % path)
-    return absolute_path_argument(path)
+    return path
 
 
 def app_argument(path):
@@ -167,14 +168,27 @@ def parse_args():
             metavar='<your.mobileprovision>',
             type=exists_absolute_path_argument,
             help='Path to provisioning profile')
-#     parser.add_argument(
-#             '-c', '--certificate',
-#             dest='certificate',
-#             required=True,
-#             metavar='<certificate>',
-#             help='Identifier for the certificate in your keychain. '
-#                  'See `security find-identity` for a list, or '
-#                  '`man codesign` for valid ways to specify it.')
+    parser.add_argument(
+            '-a', '--apple-cert',
+            dest='apple_cert',
+            required=True,
+            metavar='<path>',
+            type=exists_absolute_path_argument,
+            help='Path to Apple certificate in .pem form')
+    parser.add_argument(
+            '-k', '--key',
+            dest='key',
+            required=True,
+            metavar='<path>',
+            type=exists_absolute_path_argument,
+            help='Path to your organization\'s key in .p12 format')
+    parser.add_argument(
+            '-c', '--certificate',
+            dest='certificate',
+            required=True,
+            metavar='<certificate>',
+            type=exists_absolute_path_argument,
+            help='Path to your organization\'s certificate in .pem form')
     parser.add_argument(
             '-s', '--staging',
             dest='stage_dir',
@@ -216,10 +230,9 @@ if __name__ == '__main__':
     app.create_entitlements()
 
     signer = iresign.Signer(
-        signer_cert_file=os.path.expanduser('~/devcert.pem'),
-        signer_key_file=os.path.expanduser('~/devkey.p12'),
-        apple_cert_file=os.path.expanduser('~/applecerts.pem')
-    )
+            signer_cert_file=args.certificate,
+            signer_key_file=args.key,
+            apple_cert_file=args.apple_cert)
 
     app.sign(signer)
 
