@@ -158,7 +158,7 @@ class TestMac:
             assert str(i) in hashes
         return hashes
 
-    def test_simple_app(self):
+    def test_simple_app(self, cleanup=True):
         app_path = 'test-out.app'
         cmd = [PROVISIONS_BIN,
                '-p', '/Users/neilk/neilkprofile.mobileprovision',
@@ -206,12 +206,12 @@ class TestMac:
         assert '-3' not in lib_hashes
 
         # TODO subject.CN from cert?
-
-        shutil.rmtree(app_path)
+        if cleanup:
+            shutil.rmtree(app_path)
         return app_info
 
 
 if __name__ == '__main__':
     x = TestMac()
     pp = pprint.PrettyPrinter(indent=2)
-    pp.pprint(x.test_simple_app())
+    pp.pprint(x.test_simple_app(False))
