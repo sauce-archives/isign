@@ -6,7 +6,6 @@ import isign
 import subprocess
 import os
 import OpenSSL
-from optparse import OptionParser
 # from hexdump import hexdump
 
 import macho
@@ -101,7 +100,7 @@ def make_requirements_data(codesig_cons, signer):
     requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
-    signer_key_data = open(os.path.expanduser(signer.signer_key_file), "rb").read()
+    signer_key_data = open(signer.signer_key_file, "rb").read()
     signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
     subject = signer_p12.get_certificate().get_subject()
     signer_cn = dict(subject.get_components())['CN']
@@ -345,15 +344,3 @@ def sign_file(filename, entitlements_file, signer):
 
     print "moving foo to {0}".format(filename)
     os.rename("foo", filename)
-
-
-def main():
-    parser = OptionParser()
-    options, args = parser.parse_args()
-    filename = args[0]
-    entitlements_file = "Entitlements.plist"
-    sign_file(filename, entitlements_file)
-
-
-if __name__ == '__main__':
-    main()
