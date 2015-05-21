@@ -53,12 +53,7 @@ def get_codesig_blob(codesig_cons, magic):
     raise KeyError(magic)
 
 
-def resign_cons(codesig_cons,
-                entitlements_file,
-                seal_file,
-                signer_cert_file,
-                signer_key_file,
-                cert_file):
+def make_entitlements_data(codesig_cons, entitlements_file):
     print "entitlements:"
     entitlements_data = None
     try:
@@ -66,14 +61,19 @@ def resign_cons(codesig_cons,
     except KeyError:
         print "no entitlements found"
     else:
+        # make entitlements data if slot was found
         entitlements_data = macho_cs.Blob_.build(entitlements)
         print hashlib.sha1(entitlements_data).hexdigest()
+
         entitlements.bytes = open(entitlements_file, "rb").read()
         entitlements.length = len(entitlements.bytes) + 8
         entitlements_data = macho_cs.Blob_.build(entitlements)
         print hashlib.sha1(entitlements_data).hexdigest()
     print
+    return entitlements_data
 
+
+def make_requirements_data(codesig_cons, signer_key_file):
     print "requirements:"
     requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
     requirements_data = macho_cs.Blob_.build(requirements)
@@ -88,6 +88,7 @@ def resign_cons(codesig_cons,
         print "no signer CN rule found in requirements"
         print requirements
     else:
+        # if we could find a signer CN rule, make requirements
         cn.data = signer_cn
         cn.length = len(cn.data)
         old_len = requirements.data.BlobIndex[0].blob.length
@@ -98,10 +99,19 @@ def resign_cons(codesig_cons,
             bi.offset += requirements.data.BlobIndex[0].blob.length
         requirements.bytes = macho_cs.Entitlements.build(requirements.data)
         requirements.length = len(requirements.bytes) + 8
+    # TODO why do we rebuild the data? even if we didn't change it?
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
     print
+    return requirements_data
 
+
+# TODO we are deferring what to do with the seal file way too late here
+def make_codedirectory_data(codesig_cons,
+                            entitlements_data,
+                            requirements_data,
+                            seal_file,
+                            team_id):
     print "code directory:"
     cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     # print cd
@@ -115,16 +125,24 @@ def resign_cons(codesig_cons,
         cd.data.hashes[hashnum] = hashlib.sha1(seal_data).digest()
         hashnum += 1
     else:
+        # this is a library, should have 2 special slots
         assert cd.data.nSpecialSlots == 2
     cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
-    cd.data.teamID = "JWKXD469L2"
+    cd.data.teamID = team_id
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
     cd_data = macho_cs.Blob_.build(cd)
     print len(cd_data)
     # open("cdrip", "wb").write(cd_data)
     print "CDHash:", hashlib.sha1(cd_data).hexdigest()
     print
+    return cd_data
 
+
+def rewrite_signature(codesig_cons,
+                      cd_data,
+                      signer_cert_file,
+                      signer_key_file,
+                      cert_file):
     print "sig:"
     sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
     # print_parsed_asn1(sigwrapper.data.data.value)
@@ -147,6 +165,8 @@ def resign_cons(codesig_cons,
     # print hexdump(sigwrapper.bytes)
     print
 
+
+def update_offsets(codesig_cons):
     # update section offsets, to account for any length changes
     offset = codesig_cons.data.BlobIndex[0].offset
     for blob in codesig_cons.data.BlobIndex:
@@ -157,6 +177,32 @@ def resign_cons(codesig_cons,
     codesig_cons.length = len(superblob) + 8
     codesig_cons.bytes = superblob
 
+
+def resign_cons(codesig_cons,
+                entitlements_file,
+                seal_file,
+                signer_cert_file,
+                signer_key_file,
+                cert_file):
+
+    # TODO obtain this from entitlements_file
+    team_id = "JWKXD469L2"
+
+    # TODO it's probably not necessary to pass the *_data around
+    # since it can be re-obtained from the cons
+    entitlements_data = make_entitlements_data(codesig_cons, entitlements_file)
+    requirements_data = make_requirements_data(codesig_cons, signer_key_file)
+    cd_data = make_codedirectory_data(codesig_cons,
+                                      entitlements_data,
+                                      requirements_data,
+                                      seal_file,
+                                      team_id)
+    rewrite_signature(codesig_cons,
+                      cd_data,
+                      signer_cert_file,
+                      signer_key_file,
+                      cert_file)
+    update_offsets(codesig_cons)
     return codesig_cons
 
 
