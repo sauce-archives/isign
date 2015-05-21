@@ -161,8 +161,10 @@ class TestMac:
     def test_simple_app(self, cleanup=True):
         app_path = 'test-out.app'
         cmd = [PROVISIONS_BIN,
-               '-p', '/Users/neilk/neilkprofile.mobileprovision',
-               # TODO cert arg
+               '-p', '~/neilkprofile.mobileprovision',
+               '-k', '~/devkey.p12',
+               '-c', '~/devcert.pem',
+               '-a', '~/applecerts.pem',
                '-o', app_path,
                TEST_APP]
         print ' '.join(cmd)
