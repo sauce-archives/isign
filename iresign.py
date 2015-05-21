@@ -19,25 +19,37 @@ OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 TEAM_IDENTIFIER_KEY = 'com.apple.developer.team-identifier'
 
 
-def sign(data, signer_cert_file, signer_key_file, cert_file):
-    proc = subprocess.Popen("%s cms"
-                            " -sign -binary -nosmimecap"
-                            " -certfile %s"
-                            " -signer %s"
-                            " -inkey %s"
-                            " -keyform pkcs12 "
-                            " -outform DER" %
-                            (OPENSSL,
-                             cert_file,
-                             signer_cert_file,
-                             signer_key_file),
-                            stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE,
-                            shell=True)
-    proc.stdin.write(data)
-    out, err = proc.communicate()
-    print err
-    return out
+class Signer(object):
+    def __init__(self,
+                 signer_key_file=None,
+                 signer_cert_file=None,
+                 apple_cert_file=None):
+        """ signer_key_file = your org's .p12
+            signer_cert_file = your org's .pem
+            apple_cert_file = apple certs in .pem form """
+        self.signer_key_file = signer_key_file
+        self.signer_cert_file = signer_cert_file
+        self.apple_cert_file = apple_cert_file
+
+    def sign(self, data):
+        proc = subprocess.Popen("%s cms"
+                                " -sign -binary -nosmimecap"
+                                " -certfile %s"
+                                " -signer %s"
+                                " -inkey %s"
+                                " -keyform pkcs12 "
+                                " -outform DER" %
+                                (OPENSSL,
+                                 self.apple_cert_file,
+                                 self.signer_cert_file,
+                                 self.signer_key_file),
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                shell=True)
+        proc.stdin.write(data)
+        out, err = proc.communicate()
+        print err
+        return out
 
 
 def print_parsed_asn1(data):
@@ -84,12 +96,12 @@ def make_entitlements_data(codesig_cons, entitlements_file):
     print
 
 
-def make_requirements_data(codesig_cons, signer_key_file):
+def make_requirements_data(codesig_cons, signer):
     print "requirements:"
     requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
-    signer_key_data = open(os.path.expanduser(signer_key_file), "rb").read()
+    signer_key_data = open(os.path.expanduser(signer.signer_key_file), "rb").read()
     signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
     subject = signer_p12.get_certificate().get_subject()
     signer_cn = dict(subject.get_components())['CN']
@@ -150,10 +162,7 @@ def make_codedirectory_data(codesig_cons,
     print
 
 
-def rewrite_signature(codesig_cons,
-                      signer_cert_file,
-                      signer_key_file,
-                      cert_file):
+def rewrite_signature(codesig_cons, signer):
     # TODO how do we even know this blobwrapper contains the signature?
     # seems like this is a coincidence of the structure, where it's the only
     # blobwrapper at that level...
@@ -163,10 +172,7 @@ def rewrite_signature(codesig_cons,
     # print_parsed_asn1(sigwrapper.data.data.value)
     # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
     cd_data = get_codesig_blob_data(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
-    sig = sign(cd_data,
-               signer_cert_file,
-               signer_key_file,
-               cert_file)
+    sig = signer.sign(cd_data)
     print "sig len:", len(sig)
     print "old sig len:", len(oldsig)
     # open("my_sigrip.der", "wb").write(sig)
@@ -202,18 +208,13 @@ def get_team_id(entitlements_file):
 def resign_cons(codesig_cons,
                 entitlements_file,
                 seal_file,
-                signer_cert_file,
-                signer_key_file,
-                cert_file,
+                signer,
                 team_id):
 
     make_entitlements_data(codesig_cons, entitlements_file)
-    make_requirements_data(codesig_cons, signer_key_file)
+    make_requirements_data(codesig_cons, signer)
     make_codedirectory_data(codesig_cons, seal_file, team_id)
-    rewrite_signature(codesig_cons,
-                      signer_cert_file,
-                      signer_key_file,
-                      cert_file)
+    rewrite_signature(codesig_cons, signer)
     update_offsets(codesig_cons)
     return codesig_cons
 
@@ -223,9 +224,7 @@ def sign_architecture(arch_macho,
                       f,
                       entitlements_file,
                       seal_file,
-                      signer_cert_file,
-                      signer_key_file,
-                      cert_file,
+                      signer,
                       team_id):
     cmds = {}
     for cmd in arch_macho.commands:
@@ -270,9 +269,7 @@ def sign_architecture(arch_macho,
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
                                    seal_file,
-                                   signer_cert_file,
-                                   signer_key_file,
-                                   cert_file,
+                                   signer,
                                    team_id)
     # print new_codesig_cons
     new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
@@ -292,11 +289,7 @@ def sign_architecture(arch_macho,
     return offset, new_codesig_data
 
 
-def sign_file(filename,
-              entitlements_file,
-              signer_cert_file,
-              signer_key_file,
-              cert_file):
+def sign_file(filename, entitlements_file, signer):
     # not all files need the entitlements data, but we use
     # it here as a config file to get our team id
     team_id = get_team_id(entitlements_file)
@@ -338,9 +331,7 @@ def sign_file(filename,
                                                      f,
                                                      entitlements_file,
                                                      seal_file,
-                                                     signer_cert_file,
-                                                     signer_key_file,
-                                                     cert_file,
+                                                     signer,
                                                      team_id)
         write_offset = arch['macho'].macho_start + offset
         print offset_fmt.format(write_offset, len(new_codesig_data), offset)

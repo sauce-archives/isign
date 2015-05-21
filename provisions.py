@@ -79,29 +79,24 @@ class App(object):
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         print "wrote Entitlements to {0}".format(self.entitlements_path)
 
-    def codesign(self, path):
+    def codesign(self, path, signer):
         print "provisions: signing path {0}".format(path)
-        signer_cert_file='~/devcert.pem'
-        signer_key_file='~/devkey.p12'
-        cert_file='~/applecerts.pem'
         iresign.sign_file(path,
                           self.entitlements_path,
-                          signer_cert_file,
-                          signer_key_file,
-                          cert_file)
+                          signer)
 
     # TODO cert args
-    def sign(self):
+    def sign(self, signer):
         # first sign all the dylibs
         frameworks_path = os.path.join(self.app_dir, 'Frameworks')
         if os.path.exists(frameworks_path):
             dylibs = glob.glob(os.path.join(frameworks_path, '*.dylib'))
             for dylib in dylibs:
-                self.codesign(dylib)
+                self.codesign(dylib, signer)
         # then create the seal
         code_resources.make_seal(self.get_executable())
         # then sign the app
-        self.codesign(self.get_executable())
+        self.codesign(self.get_executable(), signer)
 
     def package(self, output_path):
         if not output_path.endswith('.app'):
@@ -220,7 +215,13 @@ if __name__ == '__main__':
 
     app.create_entitlements()
 
-    app.sign()  # needs cert args
+    signer = iresign.Signer(
+        signer_cert_file=os.path.expanduser('~/devcert.pem'),
+        signer_key_file=os.path.expanduser('~/devkey.p12'),
+        apple_cert_file=os.path.expanduser('~/applecerts.pem')
+    )
+
+    app.sign(signer)
 
     output_path = app.package(args.output_path)
 
