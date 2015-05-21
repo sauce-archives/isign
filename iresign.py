@@ -53,6 +53,11 @@ def get_codesig_blob(codesig_cons, magic):
     raise KeyError(magic)
 
 
+def get_codesig_blob_data(codesig_cons, magic):
+    blob = get_codesig_blob(codesig_cons, magic)
+    return macho_cs.Blob_.build(blob)
+
+
 def make_entitlements_data(codesig_cons, entitlements_file):
     print "entitlements:"
     entitlements_data = None
@@ -70,7 +75,6 @@ def make_entitlements_data(codesig_cons, entitlements_file):
         entitlements_data = macho_cs.Blob_.build(entitlements)
         print hashlib.sha1(entitlements_data).hexdigest()
     print
-    return entitlements_data
 
 
 def make_requirements_data(codesig_cons, signer_key_file):
@@ -103,13 +107,10 @@ def make_requirements_data(codesig_cons, signer_key_file):
     requirements_data = macho_cs.Blob_.build(requirements)
     print hashlib.sha1(requirements_data).hexdigest()
     print
-    return requirements_data
 
 
 # TODO we are deferring what to do with the seal file way too late here
 def make_codedirectory_data(codesig_cons,
-                            entitlements_data,
-                            requirements_data,
                             seal_file,
                             team_id):
     print "code directory:"
@@ -118,15 +119,19 @@ def make_codedirectory_data(codesig_cons,
     hashnum = 0
     # if this is an app, add the entitlements and seal hash
     if cd.data.nSpecialSlots == 5:
-        assert entitlements_data is not None
+        # we are sure this should be there, for this kind of app, at this point
+        entitlements_data = get_codesig_blob_data(codesig_cons,
+                                                  'CSMAGIC_ENTITLEMENT')
         cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
         hashnum += 2
-        seal_data = open(seal_file, "rb").read()
-        cd.data.hashes[hashnum] = hashlib.sha1(seal_data).digest()
+        seal_contents = open(seal_file, "rb").read()
+        cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
         hashnum += 1
     else:
         # this is a library, should have 2 special slots
         assert cd.data.nSpecialSlots == 2
+    requirements_data = get_codesig_blob_data(codesig_cons,
+                                              'CSMAGIC_REQUIREMENTS')
     cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
     cd.data.teamID = team_id
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
@@ -135,23 +140,22 @@ def make_codedirectory_data(codesig_cons,
     # open("cdrip", "wb").write(cd_data)
     print "CDHash:", hashlib.sha1(cd_data).hexdigest()
     print
-    return cd_data
 
 
 def rewrite_signature(codesig_cons,
-                      cd_data,
                       signer_cert_file,
                       signer_key_file,
                       cert_file):
     print "sig:"
     sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
+    oldsig = sigwrapper.bytes.value
     # print_parsed_asn1(sigwrapper.data.data.value)
     # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
+    cd_data = get_codesig_blob_data(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
     sig = sign(cd_data,
                signer_cert_file,
                signer_key_file,
                cert_file)
-    oldsig = sigwrapper.bytes.value
     print "sig len:", len(sig)
     print "old sig len:", len(oldsig)
     # open("my_sigrip.der", "wb").write(sig)
@@ -185,20 +189,13 @@ def resign_cons(codesig_cons,
                 signer_key_file,
                 cert_file):
 
-    # TODO obtain this from entitlements_file
+    # TODO obtain this from entitlements
     team_id = "JWKXD469L2"
 
-    # TODO it's probably not necessary to pass the *_data around
-    # since it can be re-obtained from the cons
-    entitlements_data = make_entitlements_data(codesig_cons, entitlements_file)
-    requirements_data = make_requirements_data(codesig_cons, signer_key_file)
-    cd_data = make_codedirectory_data(codesig_cons,
-                                      entitlements_data,
-                                      requirements_data,
-                                      seal_file,
-                                      team_id)
+    make_entitlements_data(codesig_cons, entitlements_file)
+    make_requirements_data(codesig_cons, signer_key_file)
+    make_codedirectory_data(codesig_cons, seal_file, team_id)
     rewrite_signature(codesig_cons,
-                      cd_data,
                       signer_cert_file,
                       signer_key_file,
                       cert_file)
