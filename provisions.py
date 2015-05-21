@@ -81,7 +81,14 @@ class App(object):
 
     def codesign(self, path):
         print "provisions: signing path {0}".format(path)
-        iresign.sign_file(path, self.entitlements_path)
+        signer_cert_file='~/devcert.pem'
+        signer_key_file='~/devkey.p12'
+        cert_file='~/applecerts.pem'
+        iresign.sign_file(path,
+                          self.entitlements_path,
+                          signer_cert_file,
+                          signer_key_file,
+                          cert_file)
 
     # TODO cert args
     def sign(self):
