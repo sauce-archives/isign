@@ -53,7 +53,12 @@ def get_codesig_blob(codesig_cons, magic):
     raise KeyError(magic)
 
 
-def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, signer_key_file, cert_file):
+def resign_cons(codesig_cons,
+                entitlements_file,
+                seal_file,
+                signer_cert_file,
+                signer_key_file,
+                cert_file):
     print "entitlements:"
     entitlements_data = None
     try:
@@ -75,7 +80,8 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
     print hashlib.sha1(requirements_data).hexdigest()
     signer_key_data = open(os.path.expanduser(signer_key_file), "rb").read()
     signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
-    signer_cn = dict(signer_p12.get_certificate().get_subject().get_components())['CN']
+    subject = signer_p12.get_certificate().get_subject()
+    signer_cn = dict(subject.get_components())['CN']
     try:
         cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
     except Exception:
@@ -105,7 +111,8 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
         assert entitlements_data is not None
         cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
         hashnum += 2
-        cd.data.hashes[hashnum] = hashlib.sha1(open(seal_file, "rb").read()).digest()
+        seal_data = open(seal_file, "rb").read()
+        cd.data.hashes[hashnum] = hashlib.sha1(seal_data).digest()
         hashnum += 1
     else:
         assert cd.data.nSpecialSlots == 2
@@ -114,14 +121,14 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
     cd.bytes = macho_cs.CodeDirectory.build(cd.data)
     cd_data = macho_cs.Blob_.build(cd)
     print len(cd_data)
-    #open("cdrip", "wb").write(cd_data)
+    # open("cdrip", "wb").write(cd_data)
     print "CDHash:", hashlib.sha1(cd_data).hexdigest()
     print
 
     print "sig:"
     sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
-    #print_parsed_asn1(sigwrapper.data.data.value)
-    #open("sigrip.der", "wb").write(sigwrapper.data.data.value)
+    # print_parsed_asn1(sigwrapper.data.data.value)
+    # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
     sig = sign(cd_data,
                signer_cert_file,
                signer_key_file,
@@ -129,15 +136,15 @@ def resign_cons(codesig_cons, entitlements_file, seal_file, signer_cert_file, si
     oldsig = sigwrapper.bytes.value
     print "sig len:", len(sig)
     print "old sig len:", len(oldsig)
-    #open("my_sigrip.der", "wb").write(sig)
-    #print hexdump(oldsig)
+    # open("my_sigrip.der", "wb").write(sig)
+    # print hexdump(oldsig)
     sigwrapper.data = construct.Container(data=sig)
-    #print_parsed_asn1(sig)
-    #sigwrapper.data = construct.Container(data="hahaha")
+    # print_parsed_asn1(sig)
+    # sigwrapper.data = construct.Container(data="hahaha")
     sigwrapper.length = len(sigwrapper.data.data) + 8
     sigwrapper.bytes = sigwrapper.data.data
-    #print len(sigwrapper.bytes)
-    #print hexdump(sigwrapper.bytes)
+    # print len(sigwrapper.bytes)
+    # print hexdump(sigwrapper.bytes)
     print
 
     # update section offsets, to account for any length changes
@@ -159,35 +166,40 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
         name = cmd.cmd
         cmds[name] = cmd
 
+    lc_cmd = cmds['LC_CODE_SIGNATURE']
+
     if 'LC_CODE_SIGNATURE' in cmds:
         # re-sign
         print "re-signing"
-        codesig_offset = arch_macho.macho_start + cmds['LC_CODE_SIGNATURE'].data.dataoff
+        codesig_offset = arch_macho.macho_start + lc_cmd.data.dataoff
         f.seek(codesig_offset)
-        codesig_data = f.read(cmds['LC_CODE_SIGNATURE'].data.datasize)
-        #print len(codesig_data)
-        #print hexdump(codesig_data)
+        codesig_data = f.read(lc_cmd.data.datasize)
+        # print len(codesig_data)
+        # print hexdump(codesig_data)
         codesig_cons = macho_cs.Blob.parse(codesig_data)
     else:
         isign.make_signature(arch_macho, arch_end, cmds, f, entitlements_file)
 
+    # TODO make this optional, in case we want to check hashes or something
     # print hashes
-    cd = codesig_cons.data.BlobIndex[0].blob.data
-    end_offset = arch_macho.macho_start + cd.codeLimit
-    start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
-    for i in xrange(cd.nSpecialSlots):
-        expected = cd.hashes[i]
-        # print "special exp=%s" % expected.encode('hex')
-    for i in xrange(cd.nCodeSlots):
-        expected = cd.hashes[cd.nSpecialSlots + i]
-        f.seek(start_offset + 0x1000 * i)
-        actual_data = f.read(min(0x1000, end_offset - f.tell()))
-        actual = hashlib.sha1(actual_data).digest()
-        # print '[%s] exp=%s act=%s' % (
-        #     ('bad', 'ok ')[expected == actual],
-        #     expected.encode('hex'),
-        #     actual.encode('hex')
-        # )
+    # cd = codesig_cons.data.BlobIndex[0].blob.data
+    # end_offset = arch_macho.macho_start + cd.codeLimit
+    # start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
+
+    # for i in xrange(cd.nSpecialSlots):
+    #    expected = cd.hashes[i]
+    #    print "special exp=%s" % expected.encode('hex')
+
+    # for i in xrange(cd.nCodeSlots):
+    #     expected = cd.hashes[cd.nSpecialSlots + i]
+    #     f.seek(start_offset + 0x1000 * i)
+    #     actual_data = f.read(min(0x1000, end_offset - f.tell()))
+    #     actual = hashlib.sha1(actual_data).digest()
+    #     print '[%s] exp=%s act=%s' % (
+    #         ('bad', 'ok ')[expected == actual],
+    #         expected.encode('hex'),
+    #         actual.encode('hex')
+    #     )
 
     new_codesig_cons = resign_cons(codesig_cons,
                                    entitlements_file,
@@ -203,14 +215,13 @@ def sign_architecture(arch_macho, arch_end, f, entitlements_file, seal_file):
     new_codesig_data += "\x00" * (len(codesig_data) - len(new_codesig_data))
     print "padded len:", len(new_codesig_data)
     print "----"
-    #print hexdump(new_codesig_data)
-    #assert new_codesig_data != codesig_data
+    # print hexdump(new_codesig_data)
+    # assert new_codesig_data != codesig_data
 
-    cmd = cmds['LC_CODE_SIGNATURE']
-    cmd.data.datasize = len(new_codesig_data)
-    cmd.bytes = macho.CodeSigRef.build(cmd.data)
+    lc_cmd.data.datasize = len(new_codesig_data)
+    lc_cmd.bytes = macho.CodeSigRef.build(cmd.data)
 
-    offset = cmd.data.dataoff
+    offset = lc_cmd.data.dataoff
     return offset, new_codesig_data
 
 
@@ -232,7 +243,8 @@ def sign_file(filename, entitlements_file):
             if next_macho == len(arch_macho.FatArch):  # last
                 a['macho_end'] = file_end
             else:
-                a['macho_end'] = arch_macho.FatArch[next_macho].MachO.macho_start
+                next_arch = arch_macho.FatArch[next_macho]
+                a['macho_end'] = next_arch.MachO.macho_start
             arches.append(a)
     else:
         arches.append({'macho': arch_macho, 'macho_end': file_end})
@@ -244,10 +256,15 @@ def sign_file(filename, entitlements_file):
     outfile.seek(0)
 
     # write new codesign blocks for each arch
+    offset_fmt = "offset: {2}, write offset: {0}, new_codesig_data len: {1}"
     for arch in arches:
-        offset, new_codesig_data = sign_architecture(arch['macho'], arch['macho_end'], f, entitlements_file, seal_file)
+        offset, new_codesig_data = sign_architecture(arch['macho'],
+                                                     arch['macho_end'],
+                                                     f,
+                                                     entitlements_file,
+                                                     seal_file)
         write_offset = arch['macho'].macho_start + offset
-        print "offset: {2}, write offset: {0}, new_codesig_data len: {1}".format(write_offset, len(new_codesig_data), offset)
+        print offset_fmt.format(write_offset, len(new_codesig_data), offset)
         outfile.seek(write_offset)
         outfile.write(new_codesig_data)
 
