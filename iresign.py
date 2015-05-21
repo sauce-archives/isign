@@ -18,6 +18,12 @@ OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 TEAM_IDENTIFIER_KEY = 'com.apple.developer.team-identifier'
 
 
+def get_team_id(entitlements_file):
+    # TODO obtain this from entitlements
+    entitlements_plist = biplist.readPlist(entitlements_file)
+    return entitlements_plist[TEAM_IDENTIFIER_KEY]
+
+
 class Signer(object):
     def __init__(self,
                  signer_key_file=None,
@@ -51,171 +57,155 @@ class Signer(object):
         return out
 
 
-def print_parsed_asn1(data):
-    proc = subprocess.Popen('openssl asn1parse -inform DER -i',
-                            stdin=subprocess.PIPE,
-                            stdout=subprocess.PIPE,
-                            shell=True)
-    proc.stdin.write(data)
-    out, err = proc.communicate()
-    print out
+class Codesig(object):
+    """ wrapper around construct for code signature """
+    def __init__(self, construct):
+        self.construct = construct
 
+    def get_blob(self, magic):
+        for index in self.construct.data.BlobIndex:
+            if index.blob.magic == magic:
+                return index.blob
+        raise KeyError(magic)
 
-def get_codesig_blob(codesig_cons, magic):
-    for index in codesig_cons.data.BlobIndex:
-        if index.blob.magic == magic:
-            return index.blob
-    raise KeyError(magic)
+    def get_blob_data(self, magic):
+        """ convenience method, if we just want the data """
+        blob = self.get_blob(magic)
+        return macho_cs.Blob_.build(blob)
 
+    def set_entitlements(self, entitlements_file):
+        print "entitlements:"
+        entitlements_data = None
+        try:
+            entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
+        except KeyError:
+            print "no entitlements found"
+        else:
+            # make entitlements data if slot was found
+            # libraries do not have entitlements data
+            # so this is actually a difference between libs and apps
+            entitlements_data = macho_cs.Blob_.build(entitlements)
+            print hashlib.sha1(entitlements_data).hexdigest()
 
-def get_codesig_blob_data(codesig_cons, magic):
-    blob = get_codesig_blob(codesig_cons, magic)
-    return macho_cs.Blob_.build(blob)
+            entitlements.bytes = open(entitlements_file, "rb").read()
+            entitlements.length = len(entitlements.bytes) + 8
+            entitlements_data = macho_cs.Blob_.build(entitlements)
+            print hashlib.sha1(entitlements_data).hexdigest()
 
+        print
 
-def make_entitlements_data(codesig_cons, entitlements_file):
-    print "entitlements:"
-    entitlements_data = None
-    try:
-        entitlements = get_codesig_blob(codesig_cons, 'CSMAGIC_ENTITLEMENT')
-    except KeyError:
-        print "no entitlements found"
-    else:
-        # make entitlements data if slot was found
-        # libraries do not have entitlements data
-        # so this is actually a difference between libs and apps
-        entitlements_data = macho_cs.Blob_.build(entitlements)
-        print hashlib.sha1(entitlements_data).hexdigest()
+    def set_requirements(self, signer):
+        print "requirements:"
+        requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
+        requirements_data = macho_cs.Blob_.build(requirements)
+        print hashlib.sha1(requirements_data).hexdigest()
+        signer_key_data = open(signer.signer_key_file, "rb").read()
+        signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
+        subject = signer_p12.get_certificate().get_subject()
+        signer_cn = dict(subject.get_components())['CN']
+        try:
+            cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
+        except Exception:
+            print "no signer CN rule found in requirements"
+            print requirements
+        else:
+            # if we could find a signer CN rule, make requirements
+            cn.data = signer_cn
+            cn.length = len(cn.data)
+            old_len = requirements.data.BlobIndex[0].blob.length
+            requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
+            requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
+            for bi in requirements.data.BlobIndex[1:]:
+                bi.offset -= old_len
+                bi.offset += requirements.data.BlobIndex[0].blob.length
+            requirements.bytes = macho_cs.Entitlements.build(requirements.data)
+            requirements.length = len(requirements.bytes) + 8
+        # TODO why do we rebuild the data? even if we didn't change it?
+        requirements_data = macho_cs.Blob_.build(requirements)
+        print hashlib.sha1(requirements_data).hexdigest()
+        print
 
-        entitlements.bytes = open(entitlements_file, "rb").read()
-        entitlements.length = len(entitlements.bytes) + 8
-        entitlements_data = macho_cs.Blob_.build(entitlements)
-        print hashlib.sha1(entitlements_data).hexdigest()
+    def set_codedirectory(self, seal_file, team_id):
+        print "code directory:"
+        cd = self.get_blob('CSMAGIC_CODEDIRECTORY')
+        # print cd
+        hashnum = 0
+        # if this is an app, add the entitlements and seal hash
+        if cd.data.nSpecialSlots == 5:
+            # this is an app, so by now we should have this
+            entitlements_data = self.get_blob_data('CSMAGIC_ENTITLEMENT')
+            cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
+            hashnum += 2
+            seal_contents = open(seal_file, "rb").read()
+            cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
+            hashnum += 1
+        else:
+            # this is a library, should have 2 special slots
+            assert cd.data.nSpecialSlots == 2
+        requirements_data = self.get_blob_data('CSMAGIC_REQUIREMENTS')
+        cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
+        cd.data.teamID = team_id
+        cd.bytes = macho_cs.CodeDirectory.build(cd.data)
+        cd_data = macho_cs.Blob_.build(cd)
+        print len(cd_data)
+        # open("cdrip", "wb").write(cd_data)
+        print "CDHash:", hashlib.sha1(cd_data).hexdigest()
+        print
 
-    print
+    def _print_parsed_asn1(self, data):
+        proc = subprocess.Popen('openssl asn1parse -inform DER -i',
+                                stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE,
+                                shell=True)
+        proc.stdin.write(data)
+        out, err = proc.communicate()
+        print out
 
+    def set_signature(self, signer):
+        # TODO how do we even know this blobwrapper contains the signature?
+        # seems like this is a coincidence of the structure, where
+        # it's the only blobwrapper at that level...
+        print "sig:"
+        sigwrapper = self.get_blob('CSMAGIC_BLOBWRAPPER')
+        oldsig = sigwrapper.bytes.value
+        # self._print_parsed_asn1(sigwrapper.data.data.value)
+        # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
+        cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
+        sig = signer.sign(cd_data)
+        print "sig len:", len(sig)
+        print "old sig len:", len(oldsig)
+        # open("my_sigrip.der", "wb").write(sig)
+        # print hexdump(oldsig)
+        sigwrapper.data = construct.Container(data=sig)
+        # self._print_parsed_asn1(sig)
+        # sigwrapper.data = construct.Container(data="hahaha")
+        sigwrapper.length = len(sigwrapper.data.data) + 8
+        sigwrapper.bytes = sigwrapper.data.data
+        # print len(sigwrapper.bytes)
+        # print hexdump(sigwrapper.bytes)
+        print
 
-def make_requirements_data(codesig_cons, signer):
-    print "requirements:"
-    requirements = get_codesig_blob(codesig_cons, 'CSMAGIC_REQUIREMENTS')
-    requirements_data = macho_cs.Blob_.build(requirements)
-    print hashlib.sha1(requirements_data).hexdigest()
-    signer_key_data = open(signer.signer_key_file, "rb").read()
-    signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
-    subject = signer_p12.get_certificate().get_subject()
-    signer_cn = dict(subject.get_components())['CN']
-    try:
-        cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
-    except Exception:
-        print "no signer CN rule found in requirements"
-        print requirements
-    else:
-        # if we could find a signer CN rule, make requirements
-        cn.data = signer_cn
-        cn.length = len(cn.data)
-        old_len = requirements.data.BlobIndex[0].blob.length
-        requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
-        requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
-        for bi in requirements.data.BlobIndex[1:]:
-            bi.offset -= old_len
-            bi.offset += requirements.data.BlobIndex[0].blob.length
-        requirements.bytes = macho_cs.Entitlements.build(requirements.data)
-        requirements.length = len(requirements.bytes) + 8
-    # TODO why do we rebuild the data? even if we didn't change it?
-    requirements_data = macho_cs.Blob_.build(requirements)
-    print hashlib.sha1(requirements_data).hexdigest()
-    print
+    def update_offsets(self):
+        # update section offsets, to account for any length changes
+        offset = self.construct.data.BlobIndex[0].offset
+        for blob in self.construct.data.BlobIndex:
+            blob.offset = offset
+            offset += len(macho_cs.Blob.build(blob.blob))
 
+        superblob = macho_cs.SuperBlob.build(self.construct.data)
+        self.construct.length = len(superblob) + 8
+        self.construct.bytes = superblob
 
-# TODO we are deferring what to do with the seal file way too late here
-def make_codedirectory_data(codesig_cons,
-                            seal_file,
-                            team_id):
-
-    print "code directory:"
-    cd = get_codesig_blob(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
-    # print cd
-    hashnum = 0
-    # if this is an app, add the entitlements and seal hash
-    if cd.data.nSpecialSlots == 5:
-        # we are sure this should be there, for this kind of app, at this point
-        entitlements_data = get_codesig_blob_data(codesig_cons,
-                                                  'CSMAGIC_ENTITLEMENT')
-        cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
-        hashnum += 2
-        seal_contents = open(seal_file, "rb").read()
-        cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
-        hashnum += 1
-    else:
-        # this is a library, should have 2 special slots
-        assert cd.data.nSpecialSlots == 2
-    requirements_data = get_codesig_blob_data(codesig_cons,
-                                              'CSMAGIC_REQUIREMENTS')
-    cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
-    cd.data.teamID = team_id
-    cd.bytes = macho_cs.CodeDirectory.build(cd.data)
-    cd_data = macho_cs.Blob_.build(cd)
-    print len(cd_data)
-    # open("cdrip", "wb").write(cd_data)
-    print "CDHash:", hashlib.sha1(cd_data).hexdigest()
-    print
-
-
-def rewrite_signature(codesig_cons, signer):
-    # TODO how do we even know this blobwrapper contains the signature?
-    # seems like this is a coincidence of the structure, where it's the only
-    # blobwrapper at that level...
-    print "sig:"
-    sigwrapper = get_codesig_blob(codesig_cons, 'CSMAGIC_BLOBWRAPPER')
-    oldsig = sigwrapper.bytes.value
-    # print_parsed_asn1(sigwrapper.data.data.value)
-    # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
-    cd_data = get_codesig_blob_data(codesig_cons, 'CSMAGIC_CODEDIRECTORY')
-    sig = signer.sign(cd_data)
-    print "sig len:", len(sig)
-    print "old sig len:", len(oldsig)
-    # open("my_sigrip.der", "wb").write(sig)
-    # print hexdump(oldsig)
-    sigwrapper.data = construct.Container(data=sig)
-    # print_parsed_asn1(sig)
-    # sigwrapper.data = construct.Container(data="hahaha")
-    sigwrapper.length = len(sigwrapper.data.data) + 8
-    sigwrapper.bytes = sigwrapper.data.data
-    # print len(sigwrapper.bytes)
-    # print hexdump(sigwrapper.bytes)
-    print
-
-
-def update_offsets(codesig_cons):
-    # update section offsets, to account for any length changes
-    offset = codesig_cons.data.BlobIndex[0].offset
-    for blob in codesig_cons.data.BlobIndex:
-        blob.offset = offset
-        offset += len(macho_cs.Blob.build(blob.blob))
-
-    superblob = macho_cs.SuperBlob.build(codesig_cons.data)
-    codesig_cons.length = len(superblob) + 8
-    codesig_cons.bytes = superblob
-
-
-def get_team_id(entitlements_file):
-    # TODO obtain this from entitlements
-    entitlements_plist = biplist.readPlist(entitlements_file)
-    return entitlements_plist[TEAM_IDENTIFIER_KEY]
-
-
-def resign_cons(codesig_cons,
-                entitlements_file,
-                seal_file,
-                signer,
-                team_id):
-
-    make_entitlements_data(codesig_cons, entitlements_file)
-    make_requirements_data(codesig_cons, signer)
-    make_codedirectory_data(codesig_cons, seal_file, team_id)
-    rewrite_signature(codesig_cons, signer)
-    update_offsets(codesig_cons)
-    return codesig_cons
+    def resign(self,
+               entitlements_file,
+               seal_file,
+               signer,
+               team_id):
+        self.set_entitlements(entitlements_file)
+        self.set_requirements(signer)
+        self.set_codedirectory(seal_file, team_id)
+        self.set_signature(signer)
+        self.update_offsets()
 
 
 def sign_architecture(arch_macho,
@@ -230,9 +220,8 @@ def sign_architecture(arch_macho,
         name = cmd.cmd
         cmds[name] = cmd
 
-    lc_cmd = cmds['LC_CODE_SIGNATURE']
-
     if 'LC_CODE_SIGNATURE' in cmds:
+        lc_cmd = cmds['LC_CODE_SIGNATURE']
         # re-sign
         print "re-signing"
         codesig_offset = arch_macho.macho_start + lc_cmd.data.dataoff
@@ -242,7 +231,9 @@ def sign_architecture(arch_macho,
         # print hexdump(codesig_data)
         codesig_cons = macho_cs.Blob.parse(codesig_data)
     else:
+        # TODO: this doesn't actually work :(
         isign.make_signature(arch_macho, arch_end, cmds, f, entitlements_file)
+        # TODO get the construct back from this method as codesig_cons
 
     # TODO make this optional, in case we want to check hashes or something
     # print hashes
@@ -265,13 +256,14 @@ def sign_architecture(arch_macho,
     #         actual.encode('hex')
     #     )
 
-    new_codesig_cons = resign_cons(codesig_cons,
-                                   entitlements_file,
-                                   seal_file,
-                                   signer,
-                                   team_id)
+    codesig = Codesig(codesig_cons)
+    codesig.resign(entitlements_file,
+                   seal_file,
+                   signer,
+                   team_id)
+
     # print new_codesig_cons
-    new_codesig_data = macho_cs.Blob.build(new_codesig_cons)
+    new_codesig_data = macho_cs.Blob.build(codesig.construct)
     print "old len:", len(codesig_data)
     print "new len:", len(new_codesig_data)
 
@@ -281,6 +273,7 @@ def sign_architecture(arch_macho,
     # print hexdump(new_codesig_data)
     # assert new_codesig_data != codesig_data
 
+    lc_cmd = cmds['LC_CODE_SIGNATURE']
     lc_cmd.data.datasize = len(new_codesig_data)
     lc_cmd.bytes = macho.CodeSigRef.build(cmd.data)
 
@@ -294,6 +287,9 @@ def sign_file(filename, entitlements_file, signer):
     team_id = get_team_id(entitlements_file)
 
     print "working on {0}".format(filename)
+
+    # TODO this is WRONG if the file is a dylib, but it doesn't matter b/c
+    # we don't use the seal_file in that case. Need to untangle
     app_dir = os.path.dirname(filename)
     seal_file = os.path.join(app_dir, '_CodeSignature/CodeResources')
 
