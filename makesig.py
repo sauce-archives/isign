@@ -1,3 +1,12 @@
+#
+# Library to construct an LC_CODE_SIGNATURE construct
+# from scratch. Does not work yet.
+#
+# Abandoned development May 2015 when it became clear that most
+# apps that were uploaded to us would already be signed. But
+# we may need this someday, so preserving here.
+#
+
 import construct
 import hashlib
 import math
