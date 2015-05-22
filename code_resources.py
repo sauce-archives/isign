@@ -224,6 +224,7 @@ def write_plist(target_dir, plist):
     output_path = os.path.join(output_dir, OUTPUT_FILENAME)
     fh = open(output_path, 'w')
     plistlib.writePlist(plist, fh)
+    return output_path
 
 
 def make_seal(source_app_path, target_dir=None):
@@ -244,7 +245,7 @@ def make_seal(source_app_path, target_dir=None):
     plist['files'] = resource_builder.scan()
     resource_builder2 = ResourceBuilder(source_app_path, rules, True)
     plist['files2'] = resource_builder2.scan()
-    write_plist(target_dir, plist)
+    return write_plist(target_dir, plist)
 
 
 if __name__ == '__main__':

@@ -1,22 +1,25 @@
 #!/usr/bin/env python
 
 import argparse
+import biplist
+from codesig import Codesig
 import code_resources
 import distutils
 import glob
-import iresign
+# import isign
 from signer import Signer
+import macho
 import os
 import os.path
-import biplist
 import shutil
 from subprocess import call
+import tempfile
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
 # Sauce Labs Apple Organizational Unit
-OU = 'JWKXD469L2'
+TEAM_ID = 'JWKXD469L2'
 
 
 class ReceivedApp(object):
@@ -45,6 +48,9 @@ class App(object):
         self.provision_path = os.path.join(self.app_dir,
                                            'embedded.mobileprovision')
 
+        # will be added later
+        self.seal_path = None
+
         info_path = os.path.join(self.get_app_dir(), 'Info.plist')
         if not os.path.exists(info_path):
             raise Exception('no Info.plist at {0}'.format(info_path))
@@ -71,32 +77,124 @@ class App(object):
 
     def create_entitlements(self):
         entitlements = {
-            "keychain-access-groups": [OU + '.*'],
-            "com.apple.developer.team-identifier": OU,
-            "application-identifier": OU + '.*',
+            "keychain-access-groups": [TEAM_ID + '.*'],
+            "com.apple.developer.team-identifier": TEAM_ID,
+            "application-identifier": TEAM_ID + '.*',
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         print "wrote Entitlements to {0}".format(self.entitlements_path)
 
-    def codesign(self, path, signer):
-        print "provisions: signing path {0}".format(path)
-        iresign.sign_file(path,
-                          self.entitlements_path,
-                          signer)
+    def sign_arch(self, arch_macho, arch_end, f, signer):
+        cmds = {}
+        for cmd in arch_macho.commands:
+            name = cmd.cmd
+            cmds[name] = cmd
 
-    # TODO cert args
+        if 'LC_CODE_SIGNATURE' in cmds:
+            lc_cmd = cmds['LC_CODE_SIGNATURE']
+            # re-sign
+            print "re-signing"
+            codesig_offset = arch_macho.macho_start + lc_cmd.data.dataoff
+            f.seek(codesig_offset)
+            codesig_data = f.read(lc_cmd.data.datasize)
+            # print len(codesig_data)
+            # print hexdump(codesig_data)
+        else:
+            raise Exception("not implemented")
+            # TODO: this doesn't actually work :(
+            # codesig_data = isign.make_signature(arch_macho, arch_end,
+            #                                     cmds, f,
+            #                                     self.entitlements_path)
+            # TODO get the data from construct back
+
+        codesig = Codesig(codesig_data)
+        codesig.resign(self.entitlements_path, self.seal_path, signer, TEAM_ID)
+
+        # print new_codesig_cons
+        new_codesig_data = codesig.build_data()
+        print "old len:", len(codesig_data)
+        print "new len:", len(new_codesig_data)
+
+        padding_length = len(codesig_data) - len(new_codesig_data)
+        new_codesig_data += "\x00" * padding_length
+        print "padded len:", len(new_codesig_data)
+        print "----"
+        # print hexdump(new_codesig_data)
+        # assert new_codesig_data != codesig_data
+
+        lc_cmd = cmds['LC_CODE_SIGNATURE']
+        lc_cmd.data.datasize = len(new_codesig_data)
+        lc_cmd.bytes = macho.CodeSigRef.build(cmd.data)
+
+        offset = lc_cmd.data.dataoff
+        return offset, new_codesig_data
+
+    # TODO maybe split into different signing methods for
+    # dylibs and executables? the sig is constructed slightly differently
+    def sign_file(self, filename, signer):
+        print "working on {0}".format(filename)
+
+        f = open(filename, "rb")
+        m = macho.MachoFile.parse_stream(f)
+        arch_macho = m.data
+        f.seek(0, os.SEEK_END)
+        file_end = f.tell()
+        arches = []
+        if 'FatArch' in arch_macho:
+            for i, arch in enumerate(arch_macho.FatArch):
+                a = {'macho': arch.MachO}
+                next_macho = i + 1
+                if next_macho == len(arch_macho.FatArch):  # last
+                    a['macho_end'] = file_end
+                else:
+                    next_arch = arch_macho.FatArch[next_macho]
+                    a['macho_end'] = next_arch.MachO.macho_start
+                arches.append(a)
+        else:
+            arches.append({'macho': arch_macho, 'macho_end': file_end})
+
+        # copy f into temp, reset to beginning of file
+        temp = tempfile.NamedTemporaryFile('wb', delete=False)
+        f.seek(0)
+        temp.write(f.read())
+        temp.seek(0)
+
+        # write new codesign blocks for each arch
+        offset_fmt = ("offset: {2}, write offset: {0}, "
+                      "new_codesig_data len: {1}")
+        for arch in arches:
+            offset, new_codesig_data = self.sign_arch(arch['macho'],
+                                                      arch['macho_end'],
+                                                      f,
+                                                      signer)
+            write_offset = arch['macho'].macho_start + offset
+            print offset_fmt.format(write_offset,
+                                    len(new_codesig_data),
+                                    offset)
+            temp.seek(write_offset)
+            temp.write(new_codesig_data)
+
+        # write new headers
+        temp.seek(0)
+        macho.MachoFile.build_stream(m, temp)
+        temp.close()
+
+        print "moving temporary file to {0}".format(filename)
+        os.rename(temp.name, filename)
+
     def sign(self, signer):
         # first sign all the dylibs
         frameworks_path = os.path.join(self.app_dir, 'Frameworks')
         if os.path.exists(frameworks_path):
             dylibs = glob.glob(os.path.join(frameworks_path, '*.dylib'))
             for dylib in dylibs:
-                self.codesign(dylib, signer)
+                self.sign_file(dylib, signer)
         # then create the seal
-        code_resources.make_seal(self.get_executable())
+        self.seal_path = code_resources.make_seal(self.get_executable(),
+                                                  self.get_app_dir())
         # then sign the app
-        self.codesign(self.get_executable(), signer)
+        self.sign_file(self.get_executable(), signer)
 
     def package(self, output_path):
         if not output_path.endswith('.app'):
