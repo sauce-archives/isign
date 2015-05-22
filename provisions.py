@@ -2,6 +2,7 @@
 
 import argparse
 import code_resources
+import distutils
 import glob
 import iresign
 from signer import Signer
@@ -11,10 +12,8 @@ import biplist
 import shutil
 from subprocess import call
 
-CODESIGN_BIN = '/usr/bin/codesign'
-SECURITY_BIN = '/usr/bin/security'
-ZIP_BIN = '/usr/bin/zip'
-UNZIP_BIN = '/usr/bin/unzip'
+ZIP_BIN = distutils.spawn.find_executable('zip')
+UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
 # Sauce Labs Apple Organizational Unit
 OU = 'JWKXD469L2'
