@@ -6,7 +6,8 @@ import OpenSSL
 
 class Codesig(object):
     """ wrapper around construct for code signature """
-    def __init__(self, data):
+    def __init__(self, signable, data):
+        self.signable = signable
         self.construct = macho_cs.Blob.parse(data)
 
     def build_data(self):
@@ -23,7 +24,7 @@ class Codesig(object):
         blob = self.get_blob(magic)
         return macho_cs.Blob_.build(blob)
 
-    def set_entitlements(self, entitlements_file):
+    def set_entitlements(self, entitlements_path):
         print "entitlements:"
         entitlements_data = None
         try:
@@ -37,7 +38,7 @@ class Codesig(object):
             entitlements_data = macho_cs.Blob_.build(entitlements)
             print hashlib.sha1(entitlements_data).hexdigest()
 
-            entitlements.bytes = open(entitlements_file, "rb").read()
+            entitlements.bytes = open(entitlements_path, "rb").read()
             entitlements.length = len(entitlements.bytes) + 8
             entitlements_data = macho_cs.Blob_.build(entitlements)
             print hashlib.sha1(entitlements_data).hexdigest()
@@ -93,26 +94,37 @@ class Codesig(object):
         print hashlib.sha1(requirements_data).hexdigest()
         print
 
-    def set_codedirectory(self, seal_file, team_id):
+    def set_codedirectory(self, seal_path, signer):
         print "code directory:"
         cd = self.get_blob('CSMAGIC_CODEDIRECTORY')
         # print cd
-        hashnum = 0
-        # if this is an app, add the entitlements and seal hash
-        if cd.data.nSpecialSlots == 5:
+
+        # The codedirectory contains "slots" for special hashes.
+        # These slots are different between executable and dylib
+        slots = self.signable.get_codedirectory_special_slots()
+        assert cd.data.nSpecialSlots == len(slots)
+
+        # the slots are all negative offsets, matching what's in
+        # codedirectory.h. We add the slots length to get positive subscripts
+        # again. It will all work out in the end.
+        if 'cdEntitlementSlot' in slots:
+            hashnum = slots['cdEntitlementSlot'] + len(slots)
             # this is an app, so by now we should have this
             entitlements_data = self.get_blob_data('CSMAGIC_ENTITLEMENT')
             cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
-            hashnum += 2
-            seal_contents = open(seal_file, "rb").read()
+
+        if 'cdResourceDirSlot' in slots:
+            hashnum = slots['cdResourceDirSlot'] + len(slots)
+            seal_contents = open(seal_path, "rb").read()
             cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
-            hashnum += 1
-        else:
-            # this is a library, should have 2 special slots
-            assert cd.data.nSpecialSlots == 2
-        requirements_data = self.get_blob_data('CSMAGIC_REQUIREMENTS')
-        cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
-        cd.data.teamID = team_id
+
+        if 'cdRequirementsSlot' in slots:
+            hashnum = slots['cdRequirementsSlot'] + len(slots)
+            requirements_data = self.get_blob_data('CSMAGIC_REQUIREMENTS')
+            cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
+
+        cd.data.teamID = signer.team_id
+
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
         cd_data = macho_cs.Blob_.build(cd)
         print len(cd_data)
@@ -155,14 +167,10 @@ class Codesig(object):
         self.construct.length = len(superblob) + 8
         self.construct.bytes = superblob
 
-    def resign(self,
-               entitlements_file,
-               seal_file,
-               signer,
-               team_id):
-        self.set_entitlements(entitlements_file)
+    def resign(self, app, signer):
+        self.set_entitlements(app.entitlements_path)
         self.set_requirements(signer)
-        self.set_codedirectory(seal_file, team_id)
+        self.set_codedirectory(app.seal_path, signer)
         self.set_signature(signer)
         self.update_offsets()
 

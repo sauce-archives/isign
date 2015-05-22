@@ -11,17 +11,21 @@ OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
 
 class Signer(object):
-    """ collaborator, holds the keys and knows how to sign data """
+    """ collaborator, holds the keys, identifiers for signer,
+        and knows how to sign data """
     def __init__(self,
                  signer_key_file=None,
                  signer_cert_file=None,
-                 apple_cert_file=None):
+                 apple_cert_file=None,
+                 team_id=None):
         """ signer_key_file = your org's .p12
             signer_cert_file = your org's .pem
-            apple_cert_file = apple certs in .pem form """
+            apple_cert_file = apple certs in .pem form
+            team_id = your Apple Organizational Unit code """
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
+        self.team_id = team_id
 
     def sign(self, data):
         """ sign data, return filehandle """
