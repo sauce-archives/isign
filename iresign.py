@@ -20,23 +20,6 @@ UNZIP_BIN = distutils.spawn.find_executable('unzip')
 TEAM_ID = 'JWKXD469L2'
 
 
-class ReceivedApp(object):
-    def __init__(self, path):
-        self.path = path
-
-    def unpack_to_dir(self, unpack_dir):
-        app_name = os.path.basename(self.path)
-        target_dir = os.path.join(unpack_dir, app_name)
-        shutil.copytree(self.path, target_dir)
-        return App(target_dir)
-
-
-class ReceivedIpaApp(ReceivedApp):
-    def unpack_to_dir(self, target_dir):
-        call([UNZIP_BIN, "-qu", self.path, "-d", target_dir])
-        return IpaApp(target_dir)
-
-
 class App(object):
     def __init__(self, path):
         self.path = path
@@ -148,14 +131,10 @@ def exists_absolute_path_argument(path):
 def app_argument(path):
     path = exists_absolute_path_argument(path)
     _, extension = os.path.splitext(path)
-    if extension == '.app':
-        app = ReceivedApp(path)
-    elif extension == '.ipa':
-        app = ReceivedIpaApp(path)
-    else:
+    if not(extension == '.app' or extension == '.ipa'):
         raise argparse.ArgumentTypeError(
                 "{0} doesn't seem to be an .app or .ipa".format(path))
-    return app
+    return path
 
 
 def parse_args():
@@ -216,27 +195,40 @@ def parse_args():
     return parser.parse_args()
 
 
+def unpack_received_app(path, unpack_dir):
+    _, extension = os.path.splitext(path)
+    if extension == '.app':
+        app_name = os.path.basename(path)
+        target_dir = os.path.join(unpack_dir, app_name)
+        shutil.copytree(path, target_dir)
+        app = App(target_dir)
+    elif extension == '.ipa':
+        call([UNZIP_BIN, "-qu", path, "-d", unpack_dir])
+        app = IpaApp(unpack_dir)
+    else:
+        # should be impossible
+        raise Exception("unrecognized extension: {0}".format(path))
+    return app
+
+
 if __name__ == '__main__':
     args = parse_args()
-    received_app = args.app[0]
 
-    if os.path.exists(args.stage_dir):
-        shutil.rmtree(args.stage_dir)
-    os.mkdir(args.stage_dir)
-
-    app = received_app.unpack_to_dir(args.stage_dir)
-
-    app.provision(args.provisioning_profile)
-
-    app.create_entitlements()
+    received_app_path = args.app[0]
 
     signer = Signer(signer_cert_file=args.certificate,
                     signer_key_file=args.key,
                     apple_cert_file=args.apple_cert,
                     team_id=TEAM_ID)
 
-    app.sign(signer)
+    if os.path.exists(args.stage_dir):
+        shutil.rmtree(args.stage_dir)
+    os.mkdir(args.stage_dir)
 
+    app = unpack_received_app(received_app_path, args.stage_dir)
+    app.provision(args.provisioning_profile)
+    app.create_entitlements()
+    app.sign(signer)
     output_path = app.package(args.output_path)
 
     if os.path.exists(args.stage_dir):
