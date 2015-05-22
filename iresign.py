@@ -1,10 +1,11 @@
 import biplist
 from codesig import Codesig
 import isign
+import macho
 import os
+import tempfile
 # from hexdump import hexdump
 
-import macho
 
 
 # in Entitlement plists
@@ -121,7 +122,7 @@ def sign_file(filename, entitlements_file, signer):
         arches.append({'macho': arch_macho, 'macho_end': file_end})
 
     # copy f into outfile, reset to beginning of file
-    outfile = open("foo", "wb")
+    outfile = tempfile.NamedTemporaryFile('wb', delete=False)
     f.seek(0)
     outfile.write(f.read())
     outfile.seek(0)
@@ -146,5 +147,5 @@ def sign_file(filename, entitlements_file, signer):
     macho.MachoFile.build_stream(m, outfile)
     outfile.close()
 
-    print "moving foo to {0}".format(filename)
-    os.rename("foo", filename)
+    print "moving temporary file to {0}".format(filename)
+    os.rename(outfile.name, filename)
