@@ -1,3 +1,12 @@
+#
+# Constructs to represent various structures
+# in a Mach-O binary.
+#
+# As with all Constructs, can be used for both
+# parsing or emitting (aka building)
+#
+
+
 from construct import *
 from macho_cs import Blob
 
