@@ -49,28 +49,46 @@ class Codesig(object):
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
         requirements_data = macho_cs.Blob_.build(requirements)
         print hashlib.sha1(requirements_data).hexdigest()
+
+        # read in our cert, and get our Common Name
         signer_key_data = open(signer.signer_key_file, "rb").read()
         signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
         subject = signer_p12.get_certificate().get_subject()
         signer_cn = dict(subject.get_components())['CN']
+
+        # this is for convenience, a reference to the first blob
+        # structure within requirements, which contains the data
+        # we are going to change
+        req_blob_0 = requirements.data.BlobIndex[0].blob
+        req_blob_0_original_length = req_blob_0.length
+
         try:
-            cn = requirements.data.BlobIndex[0].blob.data.expr.data[1].data[1].data[0].data[2].Data
+            cn = req_blob_0.data.expr.data[1].data[1].data[0].data[2].Data
         except Exception:
             print "no signer CN rule found in requirements"
             print requirements
         else:
-            # if we could find a signer CN rule, make requirements
+            # if we could find a signer CN rule, make requirements.
+
+            # first, replace old signer CN with our own
             cn.data = signer_cn
             cn.length = len(cn.data)
-            old_len = requirements.data.BlobIndex[0].blob.length
-            requirements.data.BlobIndex[0].blob.bytes = macho_cs.Requirement.build(requirements.data.BlobIndex[0].blob.data)
-            requirements.data.BlobIndex[0].blob.length = len(requirements.data.BlobIndex[0].blob.bytes) + 8
+
+            # req_blob_0 contains that CN, so rebuild it, and get what
+            # the length is now
+            req_blob_0.bytes = macho_cs.Requirement.build(req_blob_0.data)
+            req_blob_0.length = len(req_blob_0.bytes) + 8
+
+            # fix offsets of later blobs in requirements
+            offset_delta = req_blob_0.length - req_blob_0_original_length
             for bi in requirements.data.BlobIndex[1:]:
-                bi.offset -= old_len
-                bi.offset += requirements.data.BlobIndex[0].blob.length
+                bi.offset += offset_delta
+
+            # rebuild requirements, and set length for whole thing
             requirements.bytes = macho_cs.Entitlements.build(requirements.data)
             requirements.length = len(requirements.bytes) + 8
-        # TODO why do we rebuild the data? even if we didn't change it?
+
+        # then rebuild the whole data, but just to show the digest...?
         requirements_data = macho_cs.Blob_.build(requirements)
         print hashlib.sha1(requirements_data).hexdigest()
         print
