@@ -5,7 +5,6 @@ import os
 # from hexdump import hexdump
 
 import macho
-import macho_cs
 
 
 # in Entitlement plists
@@ -39,11 +38,10 @@ def sign_architecture(arch_macho,
         codesig_data = f.read(lc_cmd.data.datasize)
         # print len(codesig_data)
         # print hexdump(codesig_data)
-        codesig_cons = macho_cs.Blob.parse(codesig_data)
     else:
         # TODO: this doesn't actually work :(
         isign.make_signature(arch_macho, arch_end, cmds, f, entitlements_file)
-        # TODO get the construct back from this method as codesig_cons
+        # TODO get the data from construct back from this method as codesig_data...
 
     # TODO make this optional, in case we want to check hashes or something
     # print hashes
@@ -66,14 +64,14 @@ def sign_architecture(arch_macho,
     #         actual.encode('hex')
     #     )
 
-    codesig = Codesig(codesig_cons)
+    codesig = Codesig(codesig_data)
     codesig.resign(entitlements_file,
                    seal_file,
                    signer,
                    team_id)
 
     # print new_codesig_cons
-    new_codesig_data = macho_cs.Blob.build(codesig.construct)
+    new_codesig_data = codesig.build_data()
     print "old len:", len(codesig_data)
     print "new len:", len(new_codesig_data)
 

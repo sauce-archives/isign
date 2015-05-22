@@ -6,8 +6,11 @@ import OpenSSL
 
 class Codesig(object):
     """ wrapper around construct for code signature """
-    def __init__(self, construct):
-        self.construct = construct
+    def __init__(self, data):
+        self.construct = macho_cs.Blob.parse(data)
+
+    def build_data(self):
+        return macho_cs.Blob.build(self.construct)
 
     def get_blob(self, magic):
         for index in self.construct.data.BlobIndex:
