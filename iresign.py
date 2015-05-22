@@ -6,7 +6,7 @@ from codesig import Codesig
 import code_resources
 import distutils
 import glob
-# import isign
+# import makesig
 from signer import Signer
 import macho
 import os
@@ -103,10 +103,7 @@ class App(object):
         else:
             raise Exception("not implemented")
             # TODO: this doesn't actually work :(
-            # codesig_data = isign.make_signature(arch_macho, arch_end,
-            #                                     cmds, f,
-            #                                     self.entitlements_path)
-            # TODO get the data from construct back
+            # see the makesig.py library, this was begun but not finished
 
         codesig = Codesig(codesig_data)
         codesig.resign(self.entitlements_path, self.seal_path, signer, TEAM_ID)
