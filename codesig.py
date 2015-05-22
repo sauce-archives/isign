@@ -147,3 +147,24 @@ class Codesig(object):
         self.set_codedirectory(seal_file, team_id)
         self.set_signature(signer)
         self.update_offsets()
+
+    # TODO make this optional, in case we want to check hashes or something
+    # print hashes
+    # cd = codesig_cons.data.BlobIndex[0].blob.data
+    # end_offset = arch_macho.macho_start + cd.codeLimit
+    # start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
+
+    # for i in xrange(cd.nSpecialSlots):
+    #    expected = cd.hashes[i]
+    #    print "special exp=%s" % expected.encode('hex')
+
+    # for i in xrange(cd.nCodeSlots):
+    #     expected = cd.hashes[cd.nSpecialSlots + i]
+    #     f.seek(start_offset + 0x1000 * i)
+    #     actual_data = f.read(min(0x1000, end_offset - f.tell()))
+    #     actual = hashlib.sha1(actual_data).digest()
+    #     print '[%s] exp=%s act=%s' % (
+    #         ('bad', 'ok ')[expected == actual],
+    #         expected.encode('hex'),
+    #         actual.encode('hex')
+    #     )
