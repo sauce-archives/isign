@@ -1,3 +1,11 @@
+#
+# This is a Construct library which represents an
+# LC_CODE_SIGNATURE structure. Like all Construct
+# libraries, can be used for parsing or emitting
+# (Construct calls it 'building')
+#
+
+
 from construct import *
 import plistlib
 
