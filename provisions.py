@@ -4,6 +4,7 @@ import argparse
 import code_resources
 import glob
 import iresign
+from signer import Signer
 import os
 import os.path
 import biplist
@@ -229,10 +230,9 @@ if __name__ == '__main__':
 
     app.create_entitlements()
 
-    signer = iresign.Signer(
-            signer_cert_file=args.certificate,
-            signer_key_file=args.key,
-            apple_cert_file=args.apple_cert)
+    signer = Signer(signer_cert_file=args.certificate,
+                    signer_key_file=args.key,
+                    apple_cert_file=args.apple_cert)
 
     app.sign(signer)
 
