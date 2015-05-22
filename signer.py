@@ -1,3 +1,8 @@
+#
+# Small object that can be passed around easily, that represents
+# our signing credentials, and can sign data.
+#
+
 import distutils
 import os
 import subprocess
