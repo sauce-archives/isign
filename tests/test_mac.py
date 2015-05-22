@@ -11,8 +11,8 @@ import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
-PROVISIONS_BIN = join(dirname(dirname(abspath(__file__))),
-                      'provisions.py')
+IRESIGN_BIN = join(dirname(dirname(abspath(__file__))),
+                   'iresign.py')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
@@ -160,7 +160,7 @@ class TestMac:
 
     def test_simple_app(self, cleanup=True):
         app_path = 'test-out.app'
-        cmd = [PROVISIONS_BIN,
+        cmd = [IRESIGN_BIN,
                '-p', '~/neilkprofile.mobileprovision',
                '-k', '~/devkey.p12',
                '-c', '~/devcert.pem',
