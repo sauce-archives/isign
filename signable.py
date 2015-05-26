@@ -3,7 +3,7 @@
 # Executable, or dylib
 #
 
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from codesig import Codesig
 import macho
 import os
@@ -19,9 +19,6 @@ class Signable(object):
         self.path = path
         self.f = open(self.path, "rb")
         self.m = macho.MachoFile.parse_stream(self.f)
-
-    @abstractmethod
-    def get_codedirectory_special_slots(): pass
 
     def _sign_arch(self, arch_macho, arch_end, signer):
         cmds = {}
@@ -113,18 +110,29 @@ class Signable(object):
 
 
 class Executable(Signable):
-    def get_codedirectory_special_slots(self):
-        return {'cdEntitlementSlot': -5,
-                'cdApplicationSlot': -4,
-                'cdResourceDirSlot': -3,
-                'cdRequirementsSlot': -2,
-                'cdInfoSlot': -1}
+    nSpecialSlots = 5
+    cdEntitlementSlot = -5
+    cdApplicationSlot = -4
+    cdResourceDirSlot = -3
+    cdRequirementsSlot = -2
+    cdInfoSlot = -1
 
 
 class Dylib(Signable):
-    def get_codedirectory_special_slots(self):
-        # not sure what the -1 slot is for dylibs
-        # possibly, it's the info.plist slot again?
-        # when resigning, we don't change it anyway
-        return {'cdRequirementsSlot': -2,
-                '???': -1}
+    """ In a .app, the dylib seems to have 2 special slots """
+    nSpecialSlots = 2
+    cdRequirementsSlot = -2
+    cdInfoSlot = -1
+
+
+class IpaDylib(Signable):
+    """ when (re)building an IPA, we seem to need five
+        slots like an executable. Except, in the normal way
+        of code signing, dylibs are signed before the seal
+        is created, so we make sure to leave this blank.  """
+    nSpecialSlots = 5
+    cdEntitlementSlot = -5
+    cdApplicationSlot = -4
+    # does not have cdResourceDirSlot; always blank
+    cdRequirementsSlot = -2
+    cdInfoSlot = -1
