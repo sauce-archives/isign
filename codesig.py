@@ -99,27 +99,32 @@ class Codesig(object):
         cd = self.get_blob('CSMAGIC_CODEDIRECTORY')
         # print cd
 
+        # just for convenience
+        signable = self.signable
+
         # The codedirectory contains "slots" for special hashes.
         # These slots are different between executable and dylib
-        slots = self.signable.get_codedirectory_special_slots()
-        assert cd.data.nSpecialSlots == len(slots)
+        # and also depend on what sort of app we're building
+        print cd.data.nSpecialSlots
+        print signable.nSpecialSlots
+        assert cd.data.nSpecialSlots == signable.nSpecialSlots
 
         # the slots are all negative offsets, matching what's in
         # codedirectory.h. We add the slots length to get positive subscripts
         # again. It will all work out in the end.
-        if 'cdEntitlementSlot' in slots:
-            hashnum = slots['cdEntitlementSlot'] + len(slots)
+        if hasattr(signable, 'cdEntitlementSlot'):
+            hashnum = signable.cdEntitlementSlot + signable.nSpecialSlots
             # this is an app, so by now we should have this
             entitlements_data = self.get_blob_data('CSMAGIC_ENTITLEMENT')
             cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
 
-        if 'cdResourceDirSlot' in slots:
-            hashnum = slots['cdResourceDirSlot'] + len(slots)
+        if hasattr(signable, 'cdResourceDirSlot'):
+            hashnum = signable.cdResourceDirSlot + signable.nSpecialSlots
             seal_contents = open(seal_path, "rb").read()
             cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
 
-        if 'cdRequirementsSlot' in slots:
-            hashnum = slots['cdRequirementsSlot'] + len(slots)
+        if hasattr(signable, 'cdRequirementsSlot'):
+            hashnum = signable.cdRequirementsSlot + signable.nSpecialSlots
             requirements_data = self.get_blob_data('CSMAGIC_REQUIREMENTS')
             cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
 
