@@ -66,14 +66,17 @@ class App(object):
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         print "wrote Entitlements to {0}".format(self.entitlements_path)
 
+    def sign_dylib(self, path, signer):
+        dylib = signable.Dylib(self, path)
+        dylib.sign(signer)
+
     def sign(self, signer):
         # first sign all the dylibs
         frameworks_path = os.path.join(self.app_dir, 'Frameworks')
         if os.path.exists(frameworks_path):
             dylib_paths = glob.glob(os.path.join(frameworks_path, '*.dylib'))
             for dylib_path in dylib_paths:
-                dylib = signable.Dylib(self, dylib_path)
-                dylib.sign(signer)
+                self.sign_dylib(dylib_path, signer)
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
@@ -115,6 +118,10 @@ class IpaApp(App):
         os.rename(temp, output_path)
         os.chdir(old_cwd)
         return output_path
+
+    def sign_dylib(self, path, signer):
+        dylib = signable.IpaDylib(self, path)
+        dylib.sign(signer)
 
 
 def absolute_path_argument(path):
