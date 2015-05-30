@@ -1,9 +1,67 @@
+from abc import ABCMeta
 import construct
 import hashlib
 import macho_cs
 import OpenSSL
 
 
+# See the documentation for an explanation of how
+# CodeDirectory slots work.
+class CodeDirectorySlot(object):
+    __metaclass__ = ABCMeta
+    offset = None
+
+    def __init__(self, codesig):
+        self.codesig = codesig
+
+    def get_hash(self):
+        return hashlib.sha1(self.get_contents()).digest()
+
+
+class EntitlementsSlot(CodeDirectorySlot):
+    offset = -5
+
+    def get_contents(self):
+        return self.codesig.get_blob_data('CSMAGIC_ENTITLEMENT')
+
+
+class ApplicationSlot(CodeDirectorySlot):
+    offset = -4
+
+    def get_contents(self):
+        return 0
+
+
+class ResourceDirSlot(CodeDirectorySlot):
+    offset = -3
+
+    def __init__(self, seal_path):
+        self.seal_path = seal_path
+
+    def get_contents(self):
+        return open(self.seal_path, "rb").read()
+
+
+class RequirementsSlot(CodeDirectorySlot):
+    offset = -2
+
+    def get_contents(self):
+        return self.codesig.get_blob_data('CSMAGIC_REQUIREMENTS')
+
+
+class InfoSlot(CodeDirectorySlot):
+    offset = -1
+
+    def get_contents(self):
+        # this will probably be similar to ResourceDir slot,
+        # a hash of file contents
+        raise "unimplemented"
+
+
+#
+# Represents a code signature object, aka the LC_CODE_SIGNATURE,
+# within the Signable
+#
 class Codesig(object):
     """ wrapper around construct for code signature """
     def __init__(self, signable, data):
@@ -94,40 +152,39 @@ class Codesig(object):
         print hashlib.sha1(requirements_data).hexdigest()
         print
 
+    def get_codedirectory(self):
+        return self.get_blob('CSMAGIC_CODEDIRECTORY')
+
+    def get_codedirectory_hash_index(self, slot):
+        """ The slots have negative offsets, because they start from the 'top'.
+            So to get the actual index, we add it to the length of the
+            slots. """
+        return slot.offset + self.get_codedirectory().data.nSpecialSlots
+
+    def has_codedirectory_slot(self, slot):
+        """ Some dylibs have all 5 slots, even though technically they only need
+            the first 2. If this dylib only has 2 slots, some of the calculated
+            indices for slots will be negative. This means we don't do
+            those slots when resigning (for dylibs, they don't add any
+            security anyway) """
+        return self.get_codedirectory_hash_index(slot) >= 0
+
+    def fill_codedirectory_slot(self, slot):
+        if self.signable.should_fill_slot(slot):
+            index = self.get_codedirectory_hash_index(slot)
+            self.get_codedirectory().data.hashes[index] = slot.get_hash()
+
     def set_codedirectory(self, seal_path, signer):
-        print "code directory:"
-        cd = self.get_blob('CSMAGIC_CODEDIRECTORY')
-        # print cd
+        if self.has_codedirectory_slot(EntitlementsSlot):
+            self.fill_codedirectory_slot(EntitlementsSlot(self))
 
-        # just for convenience
-        signable = self.signable
+        if self.has_codedirectory_slot(ResourceDirSlot):
+            self.fill_codedirectory_slot(ResourceDirSlot(seal_path))
 
-        # The codedirectory contains "slots" for special hashes.
-        # These slots are different between executable and dylib
-        # and also depend on what sort of app we're building
-        print cd.data.nSpecialSlots
-        print signable.nSpecialSlots
-        assert cd.data.nSpecialSlots == signable.nSpecialSlots
+        if self.has_codedirectory_slot(RequirementsSlot):
+            self.fill_codedirectory_slot(RequirementsSlot(self))
 
-        # the slots are all negative offsets, matching what's in
-        # codedirectory.h. We add the slots length to get positive subscripts
-        # again. It will all work out in the end.
-        if hasattr(signable, 'cdEntitlementSlot'):
-            hashnum = signable.cdEntitlementSlot + signable.nSpecialSlots
-            # this is an app, so by now we should have this
-            entitlements_data = self.get_blob_data('CSMAGIC_ENTITLEMENT')
-            cd.data.hashes[hashnum] = hashlib.sha1(entitlements_data).digest()
-
-        if hasattr(signable, 'cdResourceDirSlot'):
-            hashnum = signable.cdResourceDirSlot + signable.nSpecialSlots
-            seal_contents = open(seal_path, "rb").read()
-            cd.data.hashes[hashnum] = hashlib.sha1(seal_contents).digest()
-
-        if hasattr(signable, 'cdRequirementsSlot'):
-            hashnum = signable.cdRequirementsSlot + signable.nSpecialSlots
-            requirements_data = self.get_blob_data('CSMAGIC_REQUIREMENTS')
-            cd.data.hashes[hashnum] = hashlib.sha1(requirements_data).digest()
-
+        cd = self.get_codedirectory()
         cd.data.teamID = signer.team_id
 
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
