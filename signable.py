@@ -4,7 +4,11 @@
 #
 
 from abc import ABCMeta
-from codesig import Codesig
+from codesig import (Codesig,
+                     EntitlementsSlot,
+                     ResourceDirSlot,
+                     RequirementsSlot,
+                     InfoSlot)
 import macho
 import os
 import tempfile
@@ -13,12 +17,17 @@ import tempfile
 class Signable(object):
     __metaclass__ = ABCMeta
 
+    slot_classes = []
+
     def __init__(self, app, path):
         print "working on {0}".format(path)
         self.app = app
         self.path = path
         self.f = open(self.path, "rb")
         self.m = macho.MachoFile.parse_stream(self.f)
+
+    def should_fill_slot(self, slot):
+        return slot.__class__ in self.slot_classes
 
     def _sign_arch(self, arch_macho, arch_end, signer):
         cmds = {}
@@ -110,29 +119,13 @@ class Signable(object):
 
 
 class Executable(Signable):
-    nSpecialSlots = 5
-    cdEntitlementSlot = -5
-    cdApplicationSlot = -4
-    cdResourceDirSlot = -3
-    cdRequirementsSlot = -2
-    cdInfoSlot = -1
+    slot_classes = [EntitlementsSlot,
+                    ResourceDirSlot,
+                    RequirementsSlot,
+                    InfoSlot]
 
 
 class Dylib(Signable):
-    """ In a .app, the dylib seems to have 2 special slots """
-    nSpecialSlots = 2
-    cdRequirementsSlot = -2
-    cdInfoSlot = -1
-
-
-class IpaDylib(Signable):
-    """ when (re)building an IPA, we seem to need five
-        slots like an executable. Except, in the normal way
-        of code signing, dylibs are signed before the seal
-        is created, so we make sure to leave this blank.  """
-    nSpecialSlots = 5
-    cdEntitlementSlot = -5
-    cdApplicationSlot = -4
-    # does not have cdResourceDirSlot; always blank
-    cdRequirementsSlot = -2
-    cdInfoSlot = -1
+    slot_classes = [EntitlementsSlot,
+                    RequirementsSlot,
+                    InfoSlot]
