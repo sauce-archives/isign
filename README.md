@@ -33,6 +33,23 @@ iOS app signer / re-signer. Does not require OS X.
       -o <path>, --output <path>
                             Path to output file or directory
 
+
+Or, as a Python library:
+
+    from iresign.iresign import resign
+
+    new_app_path = resign(
+      app='some.app', 
+      certificate='mycert.pem',
+      key='mykey.p12',
+      apple_cert='applecert.pem',
+      output_path='signed'  # or signed.app; the extension will be corrected
+    )
+
+    print "re-signed app is at {0}".format(new_app_path)
+    # re-signed app is at signed.app
+
+
 Note that the app to sign can be an `.ipa` file or a `.app` directory. `iresign` will
 produce a re-signed app of the same kind.
 
