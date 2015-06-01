@@ -1,11 +1,14 @@
 import biplist
 import code_resources
+import distutils
 import glob
 import os
 import os.path
 import signable
 import shutil
 from subprocess import call
+
+ZIP_BIN = distutils.spawn.find_executable('zip')
 
 
 class App(object):
@@ -103,5 +106,3 @@ class IpaApp(App):
         os.rename(temp, output_path)
         os.chdir(old_cwd)
         return output_path
-
-
