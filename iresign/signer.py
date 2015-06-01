@@ -2,10 +2,12 @@
 # Small object that can be passed around easily, that represents
 # our signing credentials, and can sign data.
 #
+# TODO should we be using PyOpenSSL rather than piping to openssl?
 
 import distutils
 import os
 import subprocess
+import re
 
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
@@ -25,6 +27,10 @@ class Signer(object):
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
+        team_id = self._get_team_id()
+        if team_id is None:
+            raise Exception("Cert file does not contain Subject line"
+                            "with Apple Organizational Unit (OU)")
         self.team_id = team_id
 
     def sign(self, data):
@@ -56,3 +62,23 @@ class Signer(object):
         proc.stdin.write(data)
         out, err = proc.communicate()
         print out
+
+    def _get_team_id(self):
+        """ Same as Apple Organizational Unit. Should be in the cert """
+        team_id = None
+        cmd = [
+            OPENSSL,
+            'x509',
+            '-in', self.signer_cert_file,
+            '-text',
+            '-noout'
+        ]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        out, err = proc.communicate()
+        subject_with_ou_match = re.compile(r'\s+Subject:.*OU=(\w+)')
+        for line in out.splitlines():
+            match = subject_with_ou_match.match(line)
+            if match is not None:
+                team_id = match.group(1)
+                break
+        return team_id
