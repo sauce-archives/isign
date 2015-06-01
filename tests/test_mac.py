@@ -12,7 +12,7 @@ import subprocess
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 IRESIGN_BIN = join(dirname(dirname(abspath(__file__))),
-                   'iresign.py')
+                   'iresign/iresign.py')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
