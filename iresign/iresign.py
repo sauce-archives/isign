@@ -16,9 +16,6 @@ from subprocess import call
 ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
-# Sauce Labs Apple Organizational Unit
-TEAM_ID = 'JWKXD469L2'
-
 
 class App(object):
     def __init__(self, path):
@@ -56,11 +53,11 @@ class App(object):
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
 
-    def create_entitlements(self):
+    def create_entitlements(self, team_id):
         entitlements = {
-            "keychain-access-groups": [TEAM_ID + '.*'],
-            "com.apple.developer.team-identifier": TEAM_ID,
-            "application-identifier": TEAM_ID + '.*',
+            "keychain-access-groups": [team_id + '.*'],
+            "com.apple.developer.team-identifier": team_id,
+            "application-identifier": team_id + '.*',
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
@@ -218,8 +215,7 @@ if __name__ == '__main__':
 
     signer = Signer(signer_cert_file=args.certificate,
                     signer_key_file=args.key,
-                    apple_cert_file=args.apple_cert,
-                    team_id=TEAM_ID)
+                    apple_cert_file=args.apple_cert)
 
     if os.path.exists(args.stage_dir):
         shutil.rmtree(args.stage_dir)
@@ -227,7 +223,7 @@ if __name__ == '__main__':
 
     app = unpack_received_app(received_app_path, args.stage_dir)
     app.provision(args.provisioning_profile)
-    app.create_entitlements()
+    app.create_entitlements(signer.team_id)
     app.sign(signer)
     output_path = app.package(args.output_path)
 
