@@ -1,6 +1,8 @@
 import distutils
+import os
 from os.path import abspath
 from os.path import dirname
+from os.path import exists
 from os.path import join
 import platform
 import pprint
@@ -11,6 +13,7 @@ import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
+TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 IRESIGN_BIN = join(dirname(dirname(abspath(__file__))),
                    'iresign/iresign.py')
 ERROR_KEY = '_errors'
@@ -211,6 +214,25 @@ class TestMac:
         if cleanup:
             shutil.rmtree(app_path)
         return app_info
+
+    def test_simple_ipa(self, cleanup=True):
+        app_path = 'test-out.ipa'
+        cmd = [IRESIGN_BIN,
+               '-p', '~/neilkprofile.mobileprovision',
+               '-k', '~/devkey.p12',
+               '-c', '~/devcert.pem',
+               '-a', '~/applecerts.pem',
+               '-o', app_path,
+               TEST_IPA]
+        print ' '.join(cmd)
+        proc = subprocess.Popen(cmd)
+        proc.communicate()
+        assert proc.returncode == 0, "Return code not 0"
+        assert exists(app_path)
+
+        # TODO subject.CN from cert?
+        if cleanup:
+            os.remove(app_path)
 
 
 if __name__ == '__main__':
