@@ -10,7 +10,6 @@ import shutil
 from subprocess import call
 from app import App, IpaApp
 
-ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
 
