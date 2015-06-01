@@ -236,6 +236,10 @@ When building the CodeDirectory, We need to observe these constraints:
 * At least so far, we don't need to change the Info.plist
   slot when re-signing
 
+## Packaging
+
+This library is packaged similarly to [https://github.com/saucelabs/lwjp](lwjp). See the documentation
+there for information about deploying or modifying this library.
 
 ## Testing
 
