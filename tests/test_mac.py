@@ -26,7 +26,7 @@ ERROR_KEY = '_errors'
 OU = 'JWKXD469L2'
 
 
-class TestMac:
+class TestIntegration:
     def codesign_display(self, path):
         """ inspect a path with codesign """
         cmd = [CODESIGN_BIN, '-d', '-r-', '--verbose=20', path]
@@ -241,7 +241,7 @@ class TestMac:
 
 
 if __name__ == '__main__':
-    x = TestMac()
+    x = TestIntegration()
     pp = pprint.PrettyPrinter(indent=2)
     pp.pprint(x.test_simple_app(False))
     pp.pprint(x.test_simple_ipa(False))
