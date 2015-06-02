@@ -1,4 +1,5 @@
 import distutils
+from nose.plugins.skip import SkipTest
 import os
 from os.path import abspath
 from os.path import dirname
@@ -6,7 +7,6 @@ from os.path import exists
 from os.path import join
 import platform
 import pprint
-import pytest
 import re
 import shutil
 import subprocess
@@ -26,8 +26,6 @@ ERROR_KEY = '_errors'
 OU = 'JWKXD469L2'
 
 
-@pytest.mark.skipif(platform.system() != 'Darwin' or CODESIGN_BIN is None,
-                    reason="need a Mac with codesign to run")
 class TestMac:
     def codesign_display(self, path):
         """ inspect a path with codesign """
@@ -167,6 +165,8 @@ class TestMac:
         return hashes
 
     def test_simple_app(self, cleanup=True):
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
         app_path = 'test-out.app'
         cmd = [IRESIGN_BIN,
                '-p', PROVISIONING_PROFILE,
