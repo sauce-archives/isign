@@ -1,2 +1,2 @@
-# Most requirements should be in setup.py.
-# Put special requirements for development here.
+nose
+pytest
