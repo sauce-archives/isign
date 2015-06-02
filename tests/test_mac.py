@@ -16,6 +16,11 @@ TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 IRESIGN_BIN = join(dirname(dirname(abspath(__file__))),
                    'iresign/iresign.py')
+CREDS_DIR = os.environ['HOME']
+APPLE_CERTIFICATES = join(CREDS_DIR, 'applecerts.pem')
+CERTIFICATE = join(CREDS_DIR, 'mobdev.pem')
+KEY = join(CREDS_DIR, 'mobdev.p12')
+PROVISIONING_PROFILE = join(CREDS_DIR, 'mobdev1.mobileprovision')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
@@ -164,10 +169,10 @@ class TestMac:
     def test_simple_app(self, cleanup=True):
         app_path = 'test-out.app'
         cmd = [IRESIGN_BIN,
-               '-p', '~/neilkprofile.mobileprovision',
-               '-k', '~/devkey.p12',
-               '-c', '~/devcert.pem',
-               '-a', '~/applecerts.pem',
+               '-p', PROVISIONING_PROFILE,
+               '-k', KEY,
+               '-c', CERTIFICATE,
+               '-a', APPLE_CERTIFICATES,
                '-o', app_path,
                TEST_APP]
         print ' '.join(cmd)
@@ -218,10 +223,10 @@ class TestMac:
     def test_simple_ipa(self, cleanup=True):
         app_path = 'test-out.ipa'
         cmd = [IRESIGN_BIN,
-               '-p', '~/neilkprofile.mobileprovision',
-               '-k', '~/devkey.p12',
-               '-c', '~/devcert.pem',
-               '-a', '~/applecerts.pem',
+               '-p', PROVISIONING_PROFILE,
+               '-k', KEY,
+               '-c', CERTIFICATE,
+               '-a', APPLE_CERTIFICATES,
                '-o', app_path,
                TEST_IPA]
         print ' '.join(cmd)
@@ -239,3 +244,4 @@ if __name__ == '__main__':
     x = TestMac()
     pp = pprint.PrettyPrinter(indent=2)
     pp.pprint(x.test_simple_app(False))
+    pp.pprint(x.test_simple_ipa(False))
