@@ -45,7 +45,7 @@ setup(
         'pyOpenSSL==0.13'
     ],
     test_suite="tests",
-    tests_require=['nose'],
+    tests_require=['nose', 'pytest'],
     package_data={
         PACKAGE_NAME: ['version.json'],
     },
