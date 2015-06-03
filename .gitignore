@@ -90,4 +90,11 @@ Entitlements.plist
 stage
 out.app
 out.ipa
+
+# all credentials
 *.pem
+*.p12
+# except these
+!apple_credentials/applecerts.pem
+!tests/credentials/test.pem
+!tests/credentials/test.p12
