@@ -14,13 +14,14 @@ import subprocess
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
-IRESIGN_BIN = join(dirname(dirname(abspath(__file__))),
-                   'iresign/iresign.py')
-CREDS_DIR = os.environ['HOME']
-APPLE_CERTIFICATES = join(CREDS_DIR, 'applecerts.pem')
-CERTIFICATE = join(CREDS_DIR, 'mobdev.pem')
-KEY = join(CREDS_DIR, 'mobdev.p12')
-PROVISIONING_PROFILE = join(CREDS_DIR, 'mobdev1.mobileprovision')
+REPO_ROOT = dirname(dirname(abspath(__file__)))
+IRESIGN_BIN = join(REPO_ROOT, 'iresign', 'iresign.py')
+APPLE_CERTIFICATES = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
+TEST_CREDENTIALS_DIR = join(REPO_ROOT, 'tests', 'credentials')
+CERTIFICATE = join(TEST_CREDENTIALS_DIR, 'test.pem')
+KEY = join(TEST_CREDENTIALS_DIR, 'test.p12')
+PROVISIONING_PROFILE = join(TEST_CREDENTIALS_DIR,
+                            'integrationtests.mobileprovision')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
