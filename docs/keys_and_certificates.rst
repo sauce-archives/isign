@@ -108,13 +108,13 @@ will be "inside" the key, and vice versa.
 
 Finally, let's export these.
 
-In Keychain Access, open the *Keys*. Find the key you created and export
-it as a ``.p12`` file. If Keychain asks you for a password to protect
+In Keychain Access, open the *Keys*. Find the private key you created and export
+it as a `.p12` file. If Keychain asks you for a password to protect
 this file, just leave it blank. **This is your key file**.
 
 In Keychain Access, open the *Certificates*. Find the certificate you
 created and export it as a
-``.cer' file. Then, convert it to a``.pem\ ``file with``\ openssl\`:
+`.cer'` file. Then, convert it to a `.pem` file with `openssl`:
 
 .. code:: bash
 
