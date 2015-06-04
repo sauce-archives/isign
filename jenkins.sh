@@ -1,29 +1,10 @@
 #!/bin/bash
 package_name="iresign"
 
-load_environment() {
-    set +e
-
-    if [[ -s $HOME/.venvburrito/startup.sh ]]; then
-        echo "Loading virtualenv-burrito …"
-        . $HOME/.venvburrito/startup.sh
-    fi
-
-    if [[ -s $HOME/.rvm/scripts/rvm ]]; then
-        echo "Loading rvm …"
-        . $HOME/.rvm/scripts/rvm
-    fi
-
-    echo "Loading setenv.sh …"
-    . $HOME/setenv.sh
-
-    set -e
-}
-
 make_venv() {
     # For some reason mkvirtualenv returns with exit code 1 on success.  So we
     # have to just continue.
-    mkvirtualenv $TMPDIR || true
+    virtualenv $TMPDIR || true
     source $TMPDIR/bin/activate
     pip install -r dev/requirements.txt
 }
@@ -58,7 +39,6 @@ set -e
 TMPDIR=$(mktemp -d /tmp/${package_name}.XXXXXXXX)
 trap cleanup 0
 
-load_environment
 make_venv
 build_artifacts
 test_artifacts
