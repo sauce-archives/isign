@@ -9,10 +9,6 @@ PACKAGE_NAME = 'iresign'
 
 here = os.path.abspath(os.path.dirname(__file__))
 
-# Get the long description from the relevant file
-with open(os.path.join(here, 'README.rst'), encoding='utf-8') as f:
-    long_description = f.read()
-
 if os.path.exists(os.path.join(here, "version.sh")):
     version = check_output(os.path.join(here, "version.sh")).strip()
 else:
@@ -24,7 +20,6 @@ setup(
     name=PACKAGE_NAME,
     version=version,
     description='Signing or re-signing iOS apps without Apple tools',
-    long_description=long_description,
     url='https://github.com/saucelabs/' + PACKAGE_NAME,
     author='Sauce Labs',
     author_email='dev@saucelabs.com',
