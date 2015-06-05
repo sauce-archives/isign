@@ -5,11 +5,14 @@
 # TODO should we be using PyOpenSSL rather than piping to openssl?
 
 import distutils
+import logging
 import os
 import subprocess
 import re
 
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
+
+log = logging.getLogger(__name__)
 
 
 class Signer(object):
@@ -51,17 +54,17 @@ class Signer(object):
                                 shell=True)
         proc.stdin.write(data)
         out, err = proc.communicate()
-        print err
+        log.debug(err)
         return out
 
-    def _print_parsed_asn1(self, data):
+    def _log_parsed_asn1(self, data):
         proc = subprocess.Popen('%s asn1parse -inform DER -i' % (OPENSSL),
                                 stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 shell=True)
         proc.stdin.write(data)
         out, err = proc.communicate()
-        print out
+        log.debug(out)
 
     def _get_team_id(self):
         """ Same as Apple Organizational Unit. Should be in the cert """

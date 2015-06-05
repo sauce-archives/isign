@@ -9,9 +9,13 @@ from codesig import (Codesig,
                      ResourceDirSlot,
                      RequirementsSlot,
                      InfoSlot)
+import logging
 import macho
 import os
 import tempfile
+
+
+log = logging.getLogger(__name__)
 
 
 class Signable(object):
@@ -20,7 +24,7 @@ class Signable(object):
     slot_classes = []
 
     def __init__(self, app, path):
-        print "working on {0}".format(path)
+        log.debug("working on {0}".format(path))
         self.app = app
         self.path = path
         self.f = open(self.path, "rb")
@@ -38,12 +42,12 @@ class Signable(object):
         if 'LC_CODE_SIGNATURE' in cmds:
             lc_cmd = cmds['LC_CODE_SIGNATURE']
             # re-sign
-            print "re-signing"
+            log.debug("re-signing")
             codesig_offset = arch_macho.macho_start + lc_cmd.data.dataoff
             self.f.seek(codesig_offset)
             codesig_data = self.f.read(lc_cmd.data.datasize)
-            # print len(codesig_data)
-            # print hexdump(codesig_data)
+            # log.debug(len(codesig_data))
+            # log.debug(hexdump(codesig_data))
         else:
             raise Exception("not implemented")
             # TODO: this doesn't actually work :(
@@ -52,16 +56,16 @@ class Signable(object):
         codesig = Codesig(self, codesig_data)
         codesig.resign(self.app, signer)
 
-        # print new_codesig_cons
+        # log.debug(new_codesig_cons)
         new_codesig_data = codesig.build_data()
-        print "old len:", len(codesig_data)
-        print "new len:", len(new_codesig_data)
+        log.debug("old len: {0}".format(len(codesig_data)))
+        log.debug("new len: {0}".format(len(new_codesig_data)))
 
         padding_length = len(codesig_data) - len(new_codesig_data)
         new_codesig_data += "\x00" * padding_length
-        print "padded len:", len(new_codesig_data)
-        print "----"
-        # print hexdump(new_codesig_data)
+        log.debug("padded len: {0}".format(len(new_codesig_data)))
+        log.debug("----")
+        # log.debug(hexdump(new_codesig_data))
         # assert new_codesig_data != codesig_data
 
         lc_cmd = cmds['LC_CODE_SIGNATURE']
@@ -103,9 +107,9 @@ class Signable(object):
                                                        arch['macho_end'],
                                                        signer)
             write_offset = arch['macho'].macho_start + offset
-            print offset_fmt.format(write_offset,
-                                    len(new_codesig_data),
-                                    offset)
+            log.debug(offset_fmt.format(write_offset,
+                                        len(new_codesig_data),
+                                        offset))
             temp.seek(write_offset)
             temp.write(new_codesig_data)
 
@@ -114,7 +118,7 @@ class Signable(object):
         macho.MachoFile.build_stream(self.m, temp)
         temp.close()
 
-        print "moving temporary file to {0}".format(self.path)
+        log.debug("moving temporary file to {0}".format(self.path))
         os.rename(temp.name, self.path)
 
 
