@@ -117,7 +117,7 @@ def unpack_received_app(path, unpack_dir):
     return app
 
 
-def resign(app_path,
+def resign(input_path,
            certificate=CERTIFICATE_PATH,
            key=KEY_PATH,
            apple_cert=APPLE_CERT_PATH,
@@ -131,7 +131,7 @@ def resign(app_path,
 
     stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
 
-    app = unpack_received_app(app_path, stage_dir)
+    app = unpack_received_app(input_path, stage_dir)
     app.provision(provisioning_profile)
     app.create_entitlements(signer.team_id)
     app.sign(signer)
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
     args = parse_args()
     args_dict = vars(args)
-    args_dict['app_path'] = args.app_paths[0]
+    args_dict['input_path'] = args.app_paths[0]
     del args_dict['app_paths']
 
     # make sure defaults are triggered properly in
