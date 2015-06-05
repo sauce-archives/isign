@@ -3,12 +3,14 @@
 from app import App, IpaApp
 import argparse
 import distutils
+import logging
+from log_to_stderr import log_to_stderr
 # import makesig
-from signer import Signer
 import os
 import os.path
 from os.path import dirname, join, realpath
 import shutil
+from signer import Signer
 from subprocess import call
 import tempfile
 
@@ -24,6 +26,9 @@ CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.pem')
 KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.p12')
 PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
                                  'mobdev1.mobileprovision')
+
+
+log = logging.getLogger(__name__)
 
 
 def absolute_path_argument(path):
@@ -138,6 +143,8 @@ def resign(app_path,
 
 
 if __name__ == '__main__':
+    log_to_stderr(log)
+
     args = parse_args()
     args_dict = vars(args)
     args_dict['app_path'] = args.app_paths[0]
@@ -152,4 +159,4 @@ if __name__ == '__main__':
 
     output_path = resign(**args_dict)
 
-    print "Re-signed package: {0}".format(output_path)
+    log.info("Re-signed package: {0}".format(output_path))
