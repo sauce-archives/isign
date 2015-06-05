@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 PACKAGE_NAME="iresign"
-MAJMIN_VERSION="0.0"
+MAJMIN_VERSION="0.1"
 
 # figure out our path
 pushd $(dirname $0) >/dev/null
