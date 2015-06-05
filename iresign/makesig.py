@@ -34,9 +34,9 @@ def make_arg(data_type, arg):
             data = construct.Container(data=arg[1],
                                        length=len(arg[1]))
         return construct.Container(matchOp=matchOp, Data=data)
-    print data_type
-    print data_type.name
-    print arg
+    log.debug(data_type)
+    log.debug(data_type.name)
+    log.debug(arg)
     assert 0
 
 
@@ -182,7 +182,7 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
                     "abandoned since we think our customers will only give us signed"
                     "apps. But, it almost works, so it's preserved here.")
     # sign from scratch
-    print "signing from scratch"
+    log.debug("signing from scratch")
 
     drs = None
     drs_lc = cmds.get('LC_DYLIB_CODE_SIGN_DRS')
@@ -193,19 +193,19 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
 
     # generate code hashes
     hashes = []
-    #print "codesig offset:", codesig_offset
+    #log.debug("codesig offset:", codesig_offset)
     start_offset = arch_macho.macho_start
     end_offset = macho_end
-    #print "new start-end", start_offset, end_offset
+    #log.debug("new start-end", start_offset, end_offset)
     codeLimit = end_offset - start_offset
-    #print "new cL:", codeLimit
+    #log.debug("new cL:", codeLimit)
     nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
-    #print "new nCS:", nCodeSlots
+    #log.debug("new nCS:", nCodeSlots)
     for i in xrange(nCodeSlots):
         f.seek(start_offset + 0x1000 * i)
         actual_data = f.read(min(0x1000, end_offset - f.tell()))
         actual = hashlib.sha1(actual_data).digest()
-        #print actual.encode('hex')
+        #log.debug(actual.encode('hex'))
         hashes.append(actual)
 
     codesig_cons = make_basic_codesig(entitlements_file,
