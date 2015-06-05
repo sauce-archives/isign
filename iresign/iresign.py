@@ -130,11 +130,11 @@ def resign(app_path,
     app.provision(provisioning_profile)
     app.create_entitlements(signer.team_id)
     app.sign(signer)
-    actual_output_path = app.package(output_path)
+    packaged_path = app.package(output_path)
 
     shutil.rmtree(stage_dir)
 
-    return actual_output_path
+    return packaged_path
 
 
 if __name__ == '__main__':
