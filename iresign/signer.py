@@ -7,6 +7,7 @@
 import distutils
 import logging
 import os
+import os.path
 import subprocess
 import re
 
@@ -27,6 +28,11 @@ class Signer(object):
             signer_cert_file = your org's .pem
             apple_cert_file = apple certs in .pem form
             team_id = your Apple Organizational Unit code """
+        for filename in [signer_key_file, signer_cert_file, apple_cert_file]:
+            if not os.path.exists(filename):
+                msg = "Can't find {0}".format(filename)
+                log.warn(msg)
+                raise Exception(msg)
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
