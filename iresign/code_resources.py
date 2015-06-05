@@ -2,6 +2,8 @@ import binascii
 import copy
 # import distutils
 import hashlib
+import logging
+from log_to_stderr import log_to_stderr
 from memoizer import memoize
 from optparse import OptionParser
 import os
@@ -17,6 +19,8 @@ TEMPLATE_FILENAME = 'code_resources_template.xml'
 HASH_BLOCKSIZE = 65536
 
 # OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
+
+log = logging.getLogger(__name__)
 
 
 # have to monkey patch Plist, in order to make the values
@@ -104,7 +108,7 @@ class ResourceBuilder(object):
     def find_rule(self, path):
         best_rule = ResourceBuilder.NULL_PATH_RULE
         for rule in self.rules:
-            # print 'trying rule ' + str(rule) + ' against ' + path
+            # log.debug('trying rule ' + str(rule) + ' against ' + path)
             if rule.matches(path):
                 if rule.flags and rule.is_exclusion():
                     best_rule = rule
@@ -125,15 +129,13 @@ class ResourceBuilder(object):
         path relative to source_dir -> digest and other data
         """
         file_entries = {}
+        rule_debug_fmt = "rule: {0}, path: {1}, relative_path: {2}"
         for root, dirs, filenames in os.walk(self.app_dir):
-            print "root: {0}".format(root)
+            log.debug("root: {0}".format(root))
             for filename in filenames:
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
-                print "rule: {0}, path: {1}, relative_path: {2}".format(
-                        rule,
-                        path,
-                        relative_path)
+                log.debug(rule_debug_fmt.format(rule, path, relative_path))
 
                 if rule.is_exclusion():
                     continue
@@ -191,9 +193,9 @@ def get_template():
 #                             stderr=subprocess.PIPE)
 #     out, err = proc.communicate()
 #     if proc.returncode != 0:
-#         print "returncode from proc = {0}".format(proc.returncode)
+#         log.debug("returncode from proc = {0}".format(proc.returncode))
 #     if err != "":
-#         print "error hashing: <{0}>".format(err)
+#         log.debug("error hashing: <{0}>".format(err))
 #     # output line looks like
 #     # SHA1(yourfile)= 53aad19d86fe01a0e569951d6772105860bf425c
 #     return re.split(r'\s+', out)[1]
@@ -249,6 +251,7 @@ def make_seal(source_app_path, target_dir=None):
 
 
 if __name__ == '__main__':
+    log_to_stderr(log)
     parser = OptionParser()
     options, args = parser.parse_args()
     source_app, target_dir = args

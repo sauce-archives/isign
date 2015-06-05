@@ -2,6 +2,7 @@ import biplist
 import code_resources
 import distutils
 import glob
+import logging
 import os
 import os.path
 import signable
@@ -9,6 +10,8 @@ import shutil
 from subprocess import call
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
+
+log = logging.getLogger(__name__)
 
 
 class App(object):
@@ -55,7 +58,7 @@ class App(object):
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
-        print "wrote Entitlements to {0}".format(self.entitlements_path)
+        log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
 
     def sign(self, signer):
         # first sign all the dylibs

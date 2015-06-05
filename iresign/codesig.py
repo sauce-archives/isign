@@ -1,8 +1,11 @@
 from abc import ABCMeta
 import construct
 import hashlib
+import logging
 import macho_cs
 import OpenSSL
+
+log = logging.getLogger(__name__)
 
 
 # See the documentation for an explanation of how
@@ -83,31 +86,29 @@ class Codesig(object):
         return macho_cs.Blob_.build(blob)
 
     def set_entitlements(self, entitlements_path):
-        print "entitlements:"
+        log.debug("entitlements:")
         entitlements_data = None
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
         except KeyError:
-            print "no entitlements found"
+            log.debug("no entitlements found")
         else:
             # make entitlements data if slot was found
             # libraries do not have entitlements data
             # so this is actually a difference between libs and apps
             entitlements_data = macho_cs.Blob_.build(entitlements)
-            print hashlib.sha1(entitlements_data).hexdigest()
+            log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
             entitlements.bytes = open(entitlements_path, "rb").read()
             entitlements.length = len(entitlements.bytes) + 8
             entitlements_data = macho_cs.Blob_.build(entitlements)
-            print hashlib.sha1(entitlements_data).hexdigest()
-
-        print
+            log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
     def set_requirements(self, signer):
-        print "requirements:"
+        log.debug("requirements:")
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
         requirements_data = macho_cs.Blob_.build(requirements)
-        print hashlib.sha1(requirements_data).hexdigest()
+        log.debug(hashlib.sha1(requirements_data).hexdigest())
 
         # read in our cert, and get our Common Name
         signer_key_data = open(signer.signer_key_file, "rb").read()
@@ -124,8 +125,8 @@ class Codesig(object):
         try:
             cn = req_blob_0.data.expr.data[1].data[1].data[0].data[2].Data
         except Exception:
-            print "no signer CN rule found in requirements"
-            print requirements
+            log.debug("no signer CN rule found in requirements")
+            log.debug(requirements)
         else:
             # if we could find a signer CN rule, make requirements.
 
@@ -149,8 +150,7 @@ class Codesig(object):
 
         # then rebuild the whole data, but just to show the digest...?
         requirements_data = macho_cs.Blob_.build(requirements)
-        print hashlib.sha1(requirements_data).hexdigest()
-        print
+        log.debug(hashlib.sha1(requirements_data).hexdigest())
 
     def get_codedirectory(self):
         return self.get_blob('CSMAGIC_CODEDIRECTORY')
@@ -189,34 +189,32 @@ class Codesig(object):
 
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
         cd_data = macho_cs.Blob_.build(cd)
-        print len(cd_data)
+        log.debug(len(cd_data))
         # open("cdrip", "wb").write(cd_data)
-        print "CDHash:", hashlib.sha1(cd_data).hexdigest()
-        print
+        log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
 
     def set_signature(self, signer):
         # TODO how do we even know this blobwrapper contains the signature?
         # seems like this is a coincidence of the structure, where
         # it's the only blobwrapper at that level...
-        print "sig:"
+        log.debug("sig:")
         sigwrapper = self.get_blob('CSMAGIC_BLOBWRAPPER')
         oldsig = sigwrapper.bytes.value
-        # signer._print_parsed_asn1(sigwrapper.data.data.value)
+        # signer._log_parsed_asn1(sigwrapper.data.data.value)
         # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
         cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
         sig = signer.sign(cd_data)
-        print "sig len:", len(sig)
-        print "old sig len:", len(oldsig)
+        log.debug("sig len: {0}".format(len(sig)))
+        log.debug("old sig len: {0}".format(len(oldsig)))
         # open("my_sigrip.der", "wb").write(sig)
-        # print hexdump(oldsig)
+        # log.debug(hexdump(oldsig))
         sigwrapper.data = construct.Container(data=sig)
-        # signer._print_parsed_asn1(sig)
+        # signer._log_parsed_asn1(sig)
         # sigwrapper.data = construct.Container(data="hahaha")
         sigwrapper.length = len(sigwrapper.data.data) + 8
         sigwrapper.bytes = sigwrapper.data.data
-        # print len(sigwrapper.bytes)
-        # print hexdump(sigwrapper.bytes)
-        print
+        # log.debug(len(sigwrapper.bytes))
+        # log.debug(hexdump(sigwrapper.bytes))
 
     def update_offsets(self):
         # update section offsets, to account for any length changes
@@ -237,21 +235,21 @@ class Codesig(object):
         self.update_offsets()
 
     # TODO make this optional, in case we want to check hashes or something
-    # print hashes
+    # log.debug(hashes)
     # cd = codesig_cons.data.BlobIndex[0].blob.data
     # end_offset = arch_macho.macho_start + cd.codeLimit
     # start_offset = ((end_offset + 0xfff) & ~0xfff) - (cd.nCodeSlots * 0x1000)
 
     # for i in xrange(cd.nSpecialSlots):
     #    expected = cd.hashes[i]
-    #    print "special exp=%s" % expected.encode('hex')
+    #    log.debug("special exp=%s" % expected.encode('hex'))
 
     # for i in xrange(cd.nCodeSlots):
     #     expected = cd.hashes[cd.nSpecialSlots + i]
     #     f.seek(start_offset + 0x1000 * i)
     #     actual_data = f.read(min(0x1000, end_offset - f.tell()))
     #     actual = hashlib.sha1(actual_data).digest()
-    #     print '[%s] exp=%s act=%s' % (
+    #     log.debug('[%s] exp=%s act=%s' % ()
     #         ('bad', 'ok ')[expected == actual],
     #         expected.encode('hex'),
     #         actual.encode('hex')
