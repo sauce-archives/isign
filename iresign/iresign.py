@@ -54,42 +54,42 @@ def parse_args():
             '-p', '--provisioning-profile',
             dest='provisioning_profile',
             required=False,
-            metavar='<your.mobileprovision>',
+            metavar='<your.mobileprovision path>',
             type=exists_absolute_path_argument,
             help='Path to provisioning profile')
     parser.add_argument(
             '-a', '--apple-cert',
             dest='apple_cert',
             required=False,
-            metavar='<path>',
+            metavar='<apple cert>',
             type=exists_absolute_path_argument,
             help='Path to Apple certificate in .pem form')
     parser.add_argument(
             '-k', '--key',
             dest='key',
             required=False,
-            metavar='<path>',
+            metavar='<key path>',
             type=exists_absolute_path_argument,
             help='Path to your organization\'s key in .p12 format')
     parser.add_argument(
             '-c', '--certificate',
             dest='certificate',
             required=False,
-            metavar='<certificate>',
+            metavar='<certificate path>',
             type=exists_absolute_path_argument,
             help='Path to your organization\'s certificate in .pem form')
     parser.add_argument(
             '-o', '--output',
             dest='output_path',
             required=False,
-            metavar='<path>',
+            metavar='<output path>',
             type=absolute_path_argument,
             default=None,
             help='Path to output file or directory')
     parser.add_argument(
-            'app',
+            'app_paths',
             nargs=1,
-            metavar='<path>',
+            metavar='<app path>',
             type=app_argument,
             help='Path to application to re-sign, typically a '
                  'directory ending in .app or file ending in .ipa.')
@@ -112,7 +112,7 @@ def unpack_received_app(path, unpack_dir):
     return app
 
 
-def resign(app,
+def resign(app_path,
            certificate=CERTIFICATE_PATH,
            key=KEY_PATH,
            apple_cert=APPLE_CERT_PATH,
@@ -126,7 +126,7 @@ def resign(app,
 
     stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
 
-    app = unpack_received_app(app, stage_dir)
+    app = unpack_received_app(app_path, stage_dir)
     app.provision(provisioning_profile)
     app.create_entitlements(signer.team_id)
     app.sign(signer)
@@ -140,7 +140,8 @@ def resign(app,
 if __name__ == '__main__':
     args = parse_args()
     args_dict = vars(args)
-    args_dict['app'] = args.app[0]
+    args_dict['app_path'] = args.app_paths[0]
+    del args_dict['app_paths']
 
     # make sure defaults are triggered properly in
     # the signature for resign() -- rather than a value of None,
