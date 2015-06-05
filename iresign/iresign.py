@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from app import App, IpaApp
 import argparse
 import distutils
 # import makesig
@@ -9,7 +10,7 @@ import os.path
 from os.path import dirname, join, realpath
 import shutil
 from subprocess import call
-from app import App, IpaApp
+import tempfile
 
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
@@ -78,14 +79,6 @@ def parse_args():
             type=exists_absolute_path_argument,
             help='Path to your organization\'s certificate in .pem form')
     parser.add_argument(
-            '-s', '--staging',
-            dest='stage_dir',
-            required=False,
-            metavar='<path>',
-            type=absolute_path_argument,
-            default=None,
-            help='Path to stage directory.')
-    parser.add_argument(
             '-o', '--output',
             dest='output_path',
             required=False,
@@ -124,7 +117,6 @@ def resign(app,
            key=KEY_PATH,
            apple_cert=APPLE_CERT_PATH,
            provisioning_profile=PROVISIONING_PROFILE_PATH,
-           stage_dir=os.path.join(os.getcwd(), 'stage'),
            output_path=os.path.join(os.getcwd(), 'out')):
     """ resigns the app, returns path to new app """
 
@@ -132,9 +124,7 @@ def resign(app,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
 
-    if os.path.exists(stage_dir):
-        shutil.rmtree(stage_dir)
-    os.mkdir(stage_dir)
+    stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
 
     app = unpack_received_app(app, stage_dir)
     app.provision(provisioning_profile)
