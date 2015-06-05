@@ -6,11 +6,23 @@ import distutils
 from signer import Signer
 import os
 import os.path
+from os.path import dirname, join, realpath
 import shutil
 from subprocess import call
 from app import App, IpaApp
 
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
+
+# this comes with the repo
+REPO_ROOT = dirname(dirname(realpath(__file__)))
+APPLE_CERT_PATH = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
+
+# should be deployed with a fab task (as of June 2015, it's ios_rdc_creds)
+DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'iresign-credentials')
+CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.pem')
+KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.p12')
+PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
+                                 'mobdev1.mobileprovision')
 
 
 def absolute_path_argument(path):
@@ -40,28 +52,28 @@ def parse_args():
     parser.add_argument(
             '-p', '--provisioning-profile',
             dest='provisioning_profile',
-            required=True,
+            required=False,
             metavar='<your.mobileprovision>',
             type=exists_absolute_path_argument,
             help='Path to provisioning profile')
     parser.add_argument(
             '-a', '--apple-cert',
             dest='apple_cert',
-            required=True,
+            required=False,
             metavar='<path>',
             type=exists_absolute_path_argument,
             help='Path to Apple certificate in .pem form')
     parser.add_argument(
             '-k', '--key',
             dest='key',
-            required=True,
+            required=False,
             metavar='<path>',
             type=exists_absolute_path_argument,
             help='Path to your organization\'s key in .p12 format')
     parser.add_argument(
             '-c', '--certificate',
             dest='certificate',
-            required=True,
+            required=False,
             metavar='<certificate>',
             type=exists_absolute_path_argument,
             help='Path to your organization\'s certificate in .pem form')
@@ -108,10 +120,10 @@ def unpack_received_app(path, unpack_dir):
 
 
 def resign(app,
-           certificate,
-           key,
-           apple_cert,
-           provisioning_profile,
+           certificate=CERTIFICATE_PATH,
+           key=KEY_PATH,
+           apple_cert=APPLE_CERT_PATH,
+           provisioning_profile=PROVISIONING_PROFILE_PATH,
            stage_dir=os.path.join(os.getcwd(), 'stage'),
            output_path=os.path.join(os.getcwd(), 'out')):
     """ resigns the app, returns path to new app """
@@ -141,8 +153,9 @@ if __name__ == '__main__':
     args_dict['app'] = args.app[0]
 
     # make sure defaults are triggered properly in
-    # the signature for resign()
-    for key in ['stage_dir', 'output_path']:
+    # the signature for resign() -- rather than a value of None,
+    # they should be absent
+    for key in args_dict.keys():
         if key in args_dict and args_dict[key] is None:
             del args_dict[key]
 
