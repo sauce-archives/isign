@@ -77,8 +77,6 @@ class App(object):
         executable.sign(signer)
 
     def package(self, output_path):
-        if not output_path.endswith('.app'):
-            output_path = output_path + '.app'
         os.rename(self.app_dir, output_path)
         return output_path
 
@@ -97,8 +95,6 @@ class IpaApp(App):
         return apps[0]
 
     def package(self, output_path):
-        if not output_path.endswith('.ipa'):
-            output_path = output_path + '.ipa'
         temp = "out.ipa"
         # need to chdir and use relative paths, because zip is stupid
         old_cwd = os.getcwd()
