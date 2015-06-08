@@ -110,18 +110,19 @@ Finally, let's export these.
 
 In Keychain Access, open the *Keys*. Find the private key you created and export
 it as a `.p12` file. If Keychain asks you for a password to protect
-this file, just leave it blank. **This is your key file**.
+this file, just leave it blank. This `.p12` file contains both your key and 
+your certificate.
 
-In Keychain Access, open the *Certificates*. Find the certificate you
-created and export it as a
-`.cer'` file. Then, convert it to a `.pem` file with `openssl`:
+Next, let's use openssl to split that into a PEM cert and a PEM key. 
 
 .. code:: bash
 
-        $ openssl x509 -inform der -in <your.cer> -outform pem -out <your.pem>
+        $ openssl pkcs12 -in <your>.p12 -out <your>.cert.pem -clcerts -nokeys
+        $ openssl pkcs12 -in <your>.p12 -out <your>.key.pem -nocerts -nodes
 
-This PEM file can now serve as **your certificate file for code
-signing**.
+These files can now be used for code signing. Respectively, you can use them
+as the `signer_key_file` and `signer_cert_file` arguments to `iresign.resign()`,
+or, on the command line, the `-k` and `-c` arguments.
 
 Provisioning profile
 ~~~~~~~~~~~~~~~~~~~~
@@ -143,3 +144,10 @@ organizational unit plus dot-star works (``JWKXD469L2.\*``)
 
 Next, in 'Select certificates', select the certificates you want, which
 probably includes the you care about.
+
+Deploying keys, certs, and profiles
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We use ansible-vault to store these securely, under the `iresign-credentials`
+role, in the repo `sauce-ansible`.
+
