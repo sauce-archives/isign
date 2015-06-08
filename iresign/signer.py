@@ -6,6 +6,7 @@
 
 import distutils
 import logging
+import OpenSSL
 import os
 import os.path
 import subprocess
@@ -62,6 +63,13 @@ class Signer(object):
         out, err = proc.communicate()
         log.debug(err)
         return out
+
+    def get_common_name(self):
+        """ read in our cert, and get our Common Name """
+        key_data = open(self.signer_key_file, "rb").read()
+        p12 = OpenSSL.crypto.load_pkcs12(key_data)
+        subject = p12.get_certificate().get_subject()
+        return dict(subject.get_components())['CN']
 
     def _log_parsed_asn1(self, data):
         proc = subprocess.Popen('%s asn1parse -inform DER -i' % (OPENSSL),
