@@ -3,7 +3,6 @@ import construct
 import hashlib
 import logging
 import macho_cs
-import OpenSSL
 
 log = logging.getLogger(__name__)
 
@@ -110,11 +109,7 @@ class Codesig(object):
         requirements_data = macho_cs.Blob_.build(requirements)
         log.debug(hashlib.sha1(requirements_data).hexdigest())
 
-        # read in our cert, and get our Common Name
-        signer_key_data = open(signer.signer_key_file, "rb").read()
-        signer_p12 = OpenSSL.crypto.load_pkcs12(signer_key_data)
-        subject = signer_p12.get_certificate().get_subject()
-        signer_cn = dict(subject.get_components())['CN']
+        signer_cn = signer.get_common_name()
 
         # this is for convenience, a reference to the first blob
         # structure within requirements, which contains the data
