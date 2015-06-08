@@ -18,8 +18,8 @@ REPO_ROOT = dirname(dirname(abspath(__file__)))
 IRESIGN_BIN = join(REPO_ROOT, 'iresign', 'iresign.py')
 APPLE_CERTIFICATES = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
 TEST_CREDENTIALS_DIR = join(REPO_ROOT, 'tests', 'credentials')
-CERTIFICATE = join(TEST_CREDENTIALS_DIR, 'test.pem')
-KEY = join(TEST_CREDENTIALS_DIR, 'test.p12')
+CERTIFICATE = join(TEST_CREDENTIALS_DIR, 'test.cert.pem')
+KEY = join(TEST_CREDENTIALS_DIR, 'test.key.pem')
 PROVISIONING_PROFILE = join(TEST_CREDENTIALS_DIR,
                             'integrationtests.mobileprovision')
 ERROR_KEY = '_errors'
