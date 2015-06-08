@@ -6,7 +6,7 @@
 
 import distutils
 import logging
-import OpenSSL
+from OpenSSL import crypto
 import os
 import os.path
 import subprocess
@@ -25,8 +25,8 @@ class Signer(object):
                  signer_cert_file=None,
                  apple_cert_file=None,
                  team_id=None):
-        """ signer_key_file = your org's .p12
-            signer_cert_file = your org's .pem
+        """ signer_key_file = your org's key .pem
+            signer_cert_file = your org's cert .pem
             apple_cert_file = apple certs in .pem form
             team_id = your Apple Organizational Unit code """
         for filename in [signer_key_file, signer_cert_file, apple_cert_file]:
@@ -50,7 +50,7 @@ class Signer(object):
                                 " -certfile %s"
                                 " -signer %s"
                                 " -inkey %s"
-                                " -keyform pkcs12 "
+                                " -keyform pem "
                                 " -outform DER" %
                                 (OPENSSL,
                                  self.apple_cert_file,
@@ -66,9 +66,9 @@ class Signer(object):
 
     def get_common_name(self):
         """ read in our cert, and get our Common Name """
-        key_data = open(self.signer_key_file, "rb").read()
-        p12 = OpenSSL.crypto.load_pkcs12(key_data)
-        subject = p12.get_certificate().get_subject()
+        with open(self.signer_cert_file, 'rb') as fh:
+            cert = crypto.load_certificate(crypto.FILETYPE_PEM, fh.read())
+        subject = cert.get_subject()
         return dict(subject.get_components())['CN']
 
     def _log_parsed_asn1(self, data):
