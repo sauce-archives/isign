@@ -57,11 +57,14 @@ class Signer(object):
                                  self.signer_cert_file,
                                  self.signer_key_file),
                                 stdin=subprocess.PIPE,
+                                stderr=subprocess.PIPE,
                                 stdout=subprocess.PIPE,
                                 shell=True)
         proc.stdin.write(data)
         out, err = proc.communicate()
         log.debug(err)
+        if proc.returncode != 0:
+            raise Exception("signing failed: " + str(err))
         return out
 
     def get_common_name(self):
@@ -90,8 +93,12 @@ class Signer(object):
             '-text',
             '-noout'
         ]
-        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
+        proc = subprocess.Popen(cmd,
+                                stderr=subprocess.PIPE,
+                                stdout=subprocess.PIPE)
         out, err = proc.communicate()
+        if proc.returncode != 0:
+            raise Exception("getting team id failed: " + str(err))
         subject_with_ou_match = re.compile(r'\s+Subject:.*OU=(\w+)')
         for line in out.splitlines():
             match = subject_with_ou_match.match(line)
