@@ -13,6 +13,7 @@ import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
+TEST_APPZIP = TEST_APP + '.zip'
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
 IRESIGN_BIN = join(REPO_ROOT, 'iresign', 'iresign.py')
@@ -230,6 +231,25 @@ class TestIntegration:
                '-a', APPLE_CERTIFICATES,
                '-o', app_path,
                TEST_IPA]
+        print ' '.join(cmd)
+        proc = subprocess.Popen(cmd)
+        proc.communicate()
+        assert proc.returncode == 0, "Return code not 0"
+        assert exists(app_path)
+
+        # TODO subject.CN from cert?
+        if cleanup:
+            os.remove(app_path)
+
+    def test_simple_appzip(self, cleanup=True):
+        app_path = 'test-out.app.zip'
+        cmd = [IRESIGN_BIN,
+               '-p', PROVISIONING_PROFILE,
+               '-k', KEY,
+               '-c', CERTIFICATE,
+               '-a', APPLE_CERTIFICATES,
+               '-o', app_path,
+               TEST_APPZIP]
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
