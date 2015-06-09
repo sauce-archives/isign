@@ -8,13 +8,24 @@ import os.path
 import signable
 import shutil
 from subprocess import call
+import time
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
+UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
 log = logging.getLogger(__name__)
 
 
 class App(object):
+    extensions = ['.app']
+
+    @classmethod
+    def new_from_package(cls, path, target_dir):
+        app_name = os.path.basename(path)
+        app_dir = os.path.join(target_dir, app_name)
+        shutil.copytree(path, app_dir)
+        return cls(app_dir)
+
     def __init__(self, path):
         self.path = path
         self.entitlements_path = os.path.join(self.path,
@@ -78,15 +89,16 @@ class App(object):
 
     def package(self, output_path):
         os.rename(self.app_dir, output_path)
-        return output_path
 
 
-class IpaApp(App):
-    def _get_payload_dir(self):
-        return os.path.join(self.path, "Payload")
+class AppZip(App):
+    """ Just like an app, except it's zipped up, and when repackaged,
+        should be re-zipped """
+    extensions = ['.app.zip']
 
-    def get_app_dir(self):
-        glob_path = os.path.join(self._get_payload_dir(), '*.app')
+    @classmethod
+    def find_app(cls, path):
+        glob_path = os.path.join(path, '*.app')
         apps = glob.glob(glob_path)
         count = len(apps)
         if count != 1:
@@ -94,14 +106,67 @@ class IpaApp(App):
             raise Exception(err)
         return apps[0]
 
+    @classmethod
+    def new_from_package(cls, path, target_dir):
+        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
+        app_dir = cls.find_app(target_dir)
+        return cls(app_dir)
+
+    def _get_temp_zip_name(self):
+        return "out-" + str(os.getpid()) + '-' + str(int(time.time())) + ".zip"
+
     def package(self, output_path):
-        temp = "out.ipa"
+        # we assume the caller uses the right extension for the output path.
+        # need to chdir and use relative paths, because zip is stupid
+        old_cwd = os.getcwd()
+        os.chdir(os.path.dirname(self.path))
+        relative_app_path = os.path.basename(self.path)
+        temp = self._get_temp_zip_name()
+        call([ZIP_BIN, "-qr", temp, relative_app_path])
+        os.rename(temp, output_path)
+        os.chdir(old_cwd)
+
+
+class Ipa(AppZip):
+    """ IPA is Apple's standard for distributing apps. Very much like
+        an .app.zip, except different paths inside """
+    extensions = ['.ipa']
+
+    @classmethod
+    def _get_payload_dir(cls, path):
+        return os.path.join(path, "Payload")
+
+    @classmethod
+    def new_from_package(cls, path, target_dir):
+        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
+        return cls(target_dir)
+
+    def get_app_dir(self):
+        return self.find_app(self._get_payload_dir(self.path))
+
+    def package(self, output_path):
+        # we assume the caller uses the right extension for the output path.
         # need to chdir and use relative paths, because zip is stupid
         old_cwd = os.getcwd()
         os.chdir(self.path)
-        relative_payload_path = os.path.relpath(self._get_payload_dir(),
-                                                self.path)
+        relative_payload_path = os.path.relpath(
+                self._get_payload_dir(self.path),
+                self.path)
+        temp = self._get_temp_zip_name()
         call([ZIP_BIN, "-qr", temp, relative_payload_path])
         os.rename(temp, output_path)
         os.chdir(old_cwd)
-        return output_path
+
+
+APP_CLASSES = [Ipa, App, AppZip]
+
+
+def new_from_package(path, target_dir):
+    """ factory to unpack various app types """
+    for cls in APP_CLASSES:
+        for extension in cls.extensions:
+            if path.endswith(extension):
+                app = cls.new_from_package(path, target_dir)
+                # TODO test for re-signability
+                return app
+    return False

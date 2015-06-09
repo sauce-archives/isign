@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 
-from app import App, IpaApp
+import app as application
 import argparse
-import distutils
 import logging
 from log_to_stderr import log_to_stderr
 # import makesig
@@ -11,10 +10,8 @@ import os.path
 from os.path import dirname, join, realpath
 import shutil
 from signer import Signer
-from subprocess import call
 import tempfile
 
-UNZIP_BIN = distutils.spawn.find_executable('unzip')
 
 # this comes with the repo
 REPO_ROOT = dirname(dirname(realpath(__file__)))
@@ -39,15 +36,6 @@ def exists_absolute_path_argument(path):
     path = absolute_path_argument(path)
     if not os.path.exists(path):
         raise argparse.ArgumentTypeError("%s does not exist!" % path)
-    return path
-
-
-def app_argument(path):
-    path = exists_absolute_path_argument(path)
-    _, extension = os.path.splitext(path)
-    if not(extension == '.app' or extension == '.ipa'):
-        raise argparse.ArgumentTypeError(
-                "{0} doesn't seem to be an .app or .ipa".format(path))
     return path
 
 
@@ -95,26 +83,10 @@ def parse_args():
             'app_paths',
             nargs=1,
             metavar='<app path>',
-            type=app_argument,
+            type=exists_absolute_path_argument,
             help='Path to application to re-sign, typically a '
                  'directory ending in .app or file ending in .ipa.')
     return parser.parse_args()
-
-
-def unpack_received_app(path, unpack_dir):
-    _, extension = os.path.splitext(path)
-    if extension == '.app':
-        app_name = os.path.basename(path)
-        target_dir = os.path.join(unpack_dir, app_name)
-        shutil.copytree(path, target_dir)
-        app = App(target_dir)
-    elif extension == '.ipa':
-        call([UNZIP_BIN, "-qu", path, "-d", unpack_dir])
-        app = IpaApp(unpack_dir)
-    else:
-        # should be impossible
-        raise Exception("unrecognized extension: {0}".format(path))
-    return app
 
 
 def resign(input_path,
@@ -123,7 +95,8 @@ def resign(input_path,
            apple_cert=APPLE_CERT_PATH,
            provisioning_profile=PROVISIONING_PROFILE_PATH,
            output_path=os.path.join(os.getcwd(), 'out')):
-    """ resigns the app, returns path to new app """
+    """ resigns the app, returns path to new app, or False if
+        not re-signable """
 
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
@@ -131,15 +104,17 @@ def resign(input_path,
 
     stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
 
-    app = unpack_received_app(input_path, stage_dir)
+    app = application.new_from_package(input_path, stage_dir)
+    if app is False:
+        return False
     app.provision(provisioning_profile)
     app.create_entitlements(signer.team_id)
     app.sign(signer)
-    packaged_path = app.package(output_path)
+    app.package(output_path)
 
     shutil.rmtree(stage_dir)
 
-    return packaged_path
+    return True
 
 
 if __name__ == '__main__':
