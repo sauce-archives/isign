@@ -30,19 +30,19 @@ class App(object):
         self.path = path
         self.entitlements_path = os.path.join(self.path,
                                               'Entitlements.plist')
-        self.app_dir = self.get_app_dir()
+        self.app_dir = self._get_app_dir()
         self.provision_path = os.path.join(self.app_dir,
                                            'embedded.mobileprovision')
 
         # will be added later
         self.seal_path = None
 
-        info_path = os.path.join(self.get_app_dir(), 'Info.plist')
+        info_path = os.path.join(self.app_dir, 'Info.plist')
         if not os.path.exists(info_path):
             raise Exception('no Info.plist at {0}'.format(info_path))
         self.info = biplist.readPlist(info_path)
 
-    def get_app_dir(self):
+    def _get_app_dir(self):
         return self.path
 
     def get_executable_path(self):
@@ -82,7 +82,7 @@ class App(object):
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
-                                                  self.get_app_dir())
+                                                  self.app_dir)
         # then sign the app
         executable = signable.Executable(self, self.get_executable_path())
         executable.sign(signer)
@@ -141,7 +141,7 @@ class Ipa(AppZip):
         call([UNZIP_BIN, "-qu", path, "-d", target_dir])
         return cls(target_dir)
 
-    def get_app_dir(self):
+    def _get_app_dir(self):
         return self.find_app(self._get_payload_dir(self.path))
 
     def package(self, output_path):
