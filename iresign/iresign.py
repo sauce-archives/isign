@@ -19,8 +19,8 @@ APPLE_CERT_PATH = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
 
 # should be deployed with a fab task (as of June 2015, it's ios_rdc_creds)
 DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'iresign-credentials')
-CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.pem')
-KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.p12')
+CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.cert.pem')
+KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.key.pem')
 PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
                                  'mobdev1.mobileprovision')
 
