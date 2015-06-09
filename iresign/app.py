@@ -133,16 +133,15 @@ class Ipa(AppZip):
     extensions = ['.ipa']
 
     @classmethod
-    def _get_payload_dir(cls, path):
-        return os.path.join(path, "Payload")
-
-    @classmethod
     def new_from_package(cls, path, target_dir):
         call([UNZIP_BIN, "-qu", path, "-d", target_dir])
         return cls(target_dir)
 
+    def _get_payload_dir(self):
+        return os.path.join(self.path, "Payload")
+
     def _get_app_dir(self):
-        return self.find_app(self._get_payload_dir(self.path))
+        return self.find_app(self._get_payload_dir())
 
     def package(self, output_path):
         # we assume the caller uses the right extension for the output path.
@@ -150,7 +149,7 @@ class Ipa(AppZip):
         old_cwd = os.getcwd()
         os.chdir(self.path)
         relative_payload_path = os.path.relpath(
-                self._get_payload_dir(self.path),
+                self._get_payload_dir(),
                 self.path)
         temp = self._get_temp_zip_name()
         call([ZIP_BIN, "-qr", temp, relative_payload_path])
