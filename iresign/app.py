@@ -7,7 +7,7 @@ import os
 import os.path
 import signable
 import shutil
-from subprocess import call, Popen
+from subprocess import call
 import time
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
@@ -61,8 +61,7 @@ class App(object):
 
     def is_native(self):
         return (
-            'CFBundleSupportedPlatforms' in self.info
-            and
+            'CFBundleSupportedPlatforms' in self.info and
             'iPhoneOS' in self.info['CFBundleSupportedPlatforms']
         )
 
