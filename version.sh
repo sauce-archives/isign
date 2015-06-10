@@ -22,8 +22,8 @@ if [[ "$JOB_NAME" = "$PACKAGE_NAME" ]] && [[ -n "$BUILD_TAG" ]]; then
     test "$post_version" -gt 0 && version_suffix=".post${post_version}"
 # development version
 else
-    if [[ -n "$(git tag)" ]]; then
-        recent_tag=$(git describe --tags | cut -f 1 -d -)
+    if [[ -n "$(git tag --list 'v*')" ]]; then
+        recent_tag=$(git describe --tags --match 'v*' | cut -f 1 -d -)
         majmin_version=$(echo $recent_tag | tr "v-." " " | awk '{print $1"."$2}')
         patch_version=$(echo $recent_tag | tr "v-." " " | awk '{print $3}')
         dev_version=$(git rev-list --count ${recent_tag}...HEAD)
