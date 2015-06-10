@@ -166,21 +166,30 @@ class TestIntegration:
             assert str(i) in hashes
         return hashes
 
-    def test_simple_app(self, cleanup=True):
-        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
-            raise SkipTest
-        app_path = 'test-out.app'
+    def call_iresign(self,
+                     output_path,
+                     input_path,
+                     key=KEY,
+                     certificate=CERTIFICATE,
+                     provisioning_profile=PROVISIONING_PROFILE,
+                     apple_certificates=APPLE_CERTIFICATES):
         cmd = [IRESIGN_BIN,
-               '-p', PROVISIONING_PROFILE,
-               '-k', KEY,
-               '-c', CERTIFICATE,
-               '-a', APPLE_CERTIFICATES,
-               '-o', app_path,
-               TEST_APP]
+               '-k', key,
+               '-c', certificate,
+               '-p', provisioning_profile,
+               '-a', apple_certificates,
+               '-o', output_path,
+               input_path]
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
         assert proc.returncode == 0, "Return code not 0"
+
+    def test_simple_app(self, cleanup=True):
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
+        app_path = 'test-out.app'
+        self.call_iresign(input_path=TEST_APP, output_path=app_path)
 
         # When we ask for codesign to analyze the app directory, it
         # will default to showing info for the main executable
@@ -224,17 +233,7 @@ class TestIntegration:
 
     def test_simple_ipa(self, cleanup=True):
         app_path = 'test-out.ipa'
-        cmd = [IRESIGN_BIN,
-               '-p', PROVISIONING_PROFILE,
-               '-k', KEY,
-               '-c', CERTIFICATE,
-               '-a', APPLE_CERTIFICATES,
-               '-o', app_path,
-               TEST_IPA]
-        print ' '.join(cmd)
-        proc = subprocess.Popen(cmd)
-        proc.communicate()
-        assert proc.returncode == 0, "Return code not 0"
+        self.call_iresign(input_path=TEST_IPA, output_path=app_path)
         assert exists(app_path)
 
         # TODO subject.CN from cert?
@@ -243,17 +242,7 @@ class TestIntegration:
 
     def test_simple_appzip(self, cleanup=True):
         app_path = 'test-out.app.zip'
-        cmd = [IRESIGN_BIN,
-               '-p', PROVISIONING_PROFILE,
-               '-k', KEY,
-               '-c', CERTIFICATE,
-               '-a', APPLE_CERTIFICATES,
-               '-o', app_path,
-               TEST_APPZIP]
-        print ' '.join(cmd)
-        proc = subprocess.Popen(cmd)
-        proc.communicate()
-        assert proc.returncode == 0, "Return code not 0"
+        self.call_iresign(input_path=TEST_APPZIP, output_path=app_path)
         assert exists(app_path)
 
         # TODO subject.CN from cert?
