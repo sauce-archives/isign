@@ -12,9 +12,13 @@ import time
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
-FILE_BIN = distutils.spawn.find_executable('file')
+TAR_BIN = distutils.spawn.find_executable('tar')
 
 log = logging.getLogger(__name__)
+
+
+def get_unique_id():
+    return str(int(time.time())) + '-' + str(os.getpid())
 
 
 class App(object):
@@ -104,6 +108,10 @@ class AppZip(App):
     extensions = ['.app.zip']
 
     @classmethod
+    def unarchive(cls, path, target_dir):
+        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
+
+    @classmethod
     def find_app(cls, path):
         glob_path = os.path.join(path, '*.app')
         apps = glob.glob(glob_path)
@@ -115,12 +123,15 @@ class AppZip(App):
 
     @classmethod
     def new_from_package(cls, path, target_dir):
-        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
+        cls.unarchive(path, target_dir)
         app_dir = cls.find_app(target_dir)
         return cls(app_dir)
 
-    def _get_temp_zip_name(self):
-        return "out-" + str(os.getpid()) + '-' + str(int(time.time())) + ".zip"
+    def archive(self, path, source_dir):
+        call([ZIP_BIN, "-qr", path, source_dir])
+
+    def get_temp_archive_name(self):
+        return "out-" + get_unique_id() + self.extensions[0]
 
     def package(self, output_path):
         # we assume the caller uses the right extension for the output path.
@@ -128,10 +139,22 @@ class AppZip(App):
         old_cwd = os.getcwd()
         os.chdir(os.path.dirname(self.path))
         relative_app_path = os.path.basename(self.path)
-        temp = self._get_temp_zip_name()
-        call([ZIP_BIN, "-qr", temp, relative_app_path])
+        temp = self.get_temp_archive_name()
+        self.archive(temp, relative_app_path)
         os.rename(temp, output_path)
         os.chdir(old_cwd)
+
+
+class AppTarGz(AppZip):
+    """ Just like an app.zip, except tar.gz """
+    extensions = ['.tgz', '.tar.gz']
+
+    @classmethod
+    def unarchive(cls, path, target_dir):
+        call([TAR_BIN, "xzf", path, "-C", target_dir])
+
+    def archive(self, path, source_dir):
+        call([TAR_BIN, "czf", path, source_dir])
 
 
 class Ipa(AppZip):
@@ -141,7 +164,7 @@ class Ipa(AppZip):
 
     @classmethod
     def new_from_package(cls, path, target_dir):
-        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
+        cls.unarchive(path, target_dir)
         return cls(target_dir)
 
     def _get_payload_dir(self):
@@ -158,13 +181,13 @@ class Ipa(AppZip):
         relative_payload_path = os.path.relpath(
                 self._get_payload_dir(),
                 self.path)
-        temp = self._get_temp_zip_name()
-        call([ZIP_BIN, "-qr", temp, relative_payload_path])
+        temp = self.get_temp_archive_name()
+        self.archive(temp, relative_payload_path)
         os.rename(temp, output_path)
         os.chdir(old_cwd)
 
 
-APP_CLASSES = [Ipa, App, AppZip]
+APP_CLASSES = [Ipa, App, AppZip, AppTarGz]
 
 
 def new_from_package(path, target_dir):
