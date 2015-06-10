@@ -7,11 +7,12 @@ import os
 import os.path
 import signable
 import shutil
-from subprocess import call
+from subprocess import call, Popen
 import time
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
+FILE_BIN = distutils.spawn.find_executable('file')
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,13 @@ class App(object):
             raise Exception(
                     'could not find executable for {0}'.format(self.path))
         return executable
+
+    def is_native(self):
+        return (
+            'CFBundleSupportedPlatforms' in self.info
+            and
+            'iPhoneOS' in self.info['CFBundleSupportedPlatforms']
+        )
 
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
