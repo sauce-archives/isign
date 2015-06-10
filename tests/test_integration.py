@@ -14,6 +14,7 @@ import subprocess
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
 TEST_APPZIP = TEST_APP + '.zip'
+TEST_APPTGZ = join(dirname(__file__), 'SimpleSaucyApp.tgz')
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
 IRESIGN_BIN = join(REPO_ROOT, 'iresign', 'iresign.py')
@@ -245,13 +246,23 @@ class TestIntegration:
         self.call_iresign(input_path=TEST_APPZIP, output_path=app_path)
         assert exists(app_path)
 
-        # TODO subject.CN from cert?
+        # todo subject.cn from cert?
         if cleanup:
             os.remove(app_path)
 
+    def test_simple_apptgz(self, cleanup=True):
+        app_path = 'test-out.tgz'
+        self.call_iresign(input_path=TEST_APPTGZ, output_path=app_path)
+        assert exists(app_path)
+
+        # todo subject.cn from cert?
+        if cleanup:
+            os.remove(app_path)
 
 if __name__ == '__main__':
     x = TestIntegration()
     pp = pprint.PrettyPrinter(indent=2)
     pp.pprint(x.test_simple_app(False))
     pp.pprint(x.test_simple_ipa(False))
+    pp.pprint(x.test_simple_appzip(False))
+    pp.pprint(x.test_simple_apptgz(False))
