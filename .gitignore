@@ -96,5 +96,5 @@ out.ipa
 *.p12
 # except these
 !apple_credentials/applecerts.pem
-!tests/credentials/test.pem
-!tests/credentials/test.p12
+!tests/credentials/test.cert.pem
+!tests/credentials/test.key.pem
