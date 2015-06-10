@@ -97,6 +97,7 @@ def resign(input_path,
            output_path=os.path.join(os.getcwd(), 'out')):
     """ resigns the app, returns path to new app, or False if
         not re-signable """
+    success = False
 
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
@@ -105,16 +106,16 @@ def resign(input_path,
     stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
 
     app = application.new_from_package(input_path, stage_dir)
-    if app is False:
-        return False
-    app.provision(provisioning_profile)
-    app.create_entitlements(signer.team_id)
-    app.sign(signer)
-    app.package(output_path)
+    if app and app.is_native():
+        app.provision(provisioning_profile)
+        app.create_entitlements(signer.team_id)
+        app.sign(signer)
+        app.package(output_path)
+        success = True
 
     shutil.rmtree(stage_dir)
 
-    return True
+    return success
 
 
 if __name__ == '__main__':
@@ -132,6 +133,7 @@ if __name__ == '__main__':
         if key in args_dict and args_dict[key] is None:
             del args_dict[key]
 
-    output_path = resign(**args_dict)
-
-    log.info("Re-signed package: {0}".format(output_path))
+    if resign(**args_dict):
+        log.info("Re-signed package")
+    else:
+        log.info("Failed to re-sign package")
