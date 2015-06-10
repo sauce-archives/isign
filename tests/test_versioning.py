@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 import unittest
 
-import sauce_stats
+import iresign
 
 
 class VersioningTestCase(unittest.TestCase):
 
     def assert_proper_attribute(self, attribute):
         try:
-            assert getattr(sauce_stats, attribute), (
+            assert getattr(iresign, attribute), (
                 "{} improperly set".format(attribute))
         except AttributeError:
             assert False, "missing {}".format(attribute)
@@ -17,7 +17,7 @@ class VersioningTestCase(unittest.TestCase):
         self.assert_proper_attribute("__version__")
 
         # test major, minor, and patch are numbers
-        version_split = sauce_stats.__version__.split(".")[:3]
+        version_split = iresign.__version__.split(".")[:3]
         assert version_split, "__version__ is not set"
         for n in version_split:
             try:
