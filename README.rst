@@ -29,7 +29,7 @@ Synopsis
       -a <path>, --apple-cert <path>
                             Path to Apple certificate in .pem form
       -k <path>, --key <path>
-                            Path to your organization's key in .p12 format
+                            Path to your organization's key in .pem format
       -c <certificate>, --certificate <certificate>
                             Path to your organization's certificate in .pem form
       -s <path>, --staging <path>
@@ -37,22 +37,21 @@ Synopsis
       -o <path>, --output <path>
                             Path to output file or directory
 
-Or, as a Python library:
+Or, as a Python library, taking advantage of some default arguments:
 
 ::
 
     from isign.isign import resign
 
-    new_app_path = resign(
+    success = resign(
       app='some.app', 
       certificate='mycert.pem',
-      key='mykey.p12',
-      apple_cert='applecert.pem',
-      output_path='signed'  # or signed.app; the extension will be corrected
+      key='mykey.pem',
+      output_path='signed.app'
     )
 
-    print "re-signed app is at {0}".format(new_app_path)
-    # re-signed app is at signed.app
+    if success:
+      print "re-signed app!"
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
 directory. ``isign`` will produce a re-signed app of the same kind.
