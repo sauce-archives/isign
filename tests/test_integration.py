@@ -17,7 +17,7 @@ TEST_APPZIP = TEST_APP + '.zip'
 TEST_APPTGZ = join(dirname(__file__), 'SimpleSaucyApp.tgz')
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
-IRESIGN_BIN = join(REPO_ROOT, 'iresign', 'iresign.py')
+ISIGN_BIN = join(REPO_ROOT, 'isign', 'isign.py')
 APPLE_CERTIFICATES = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
 TEST_CREDENTIALS_DIR = join(REPO_ROOT, 'tests', 'credentials')
 CERTIFICATE = join(TEST_CREDENTIALS_DIR, 'test.cert.pem')
@@ -167,14 +167,14 @@ class TestIntegration:
             assert str(i) in hashes
         return hashes
 
-    def call_iresign(self,
-                     output_path,
-                     input_path,
-                     key=KEY,
-                     certificate=CERTIFICATE,
-                     provisioning_profile=PROVISIONING_PROFILE,
-                     apple_certificates=APPLE_CERTIFICATES):
-        cmd = [IRESIGN_BIN,
+    def call_isign(self,
+                   output_path,
+                   input_path,
+                   key=KEY,
+                   certificate=CERTIFICATE,
+                   provisioning_profile=PROVISIONING_PROFILE,
+                   apple_certificates=APPLE_CERTIFICATES):
+        cmd = [ISIGN_BIN,
                '-k', key,
                '-c', certificate,
                '-p', provisioning_profile,
@@ -190,7 +190,7 @@ class TestIntegration:
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
             raise SkipTest
         app_path = 'test-out.app'
-        self.call_iresign(input_path=TEST_APP, output_path=app_path)
+        self.call_isign(input_path=TEST_APP, output_path=app_path)
 
         # When we ask for codesign to analyze the app directory, it
         # will default to showing info for the main executable
@@ -234,7 +234,7 @@ class TestIntegration:
 
     def test_simple_ipa(self, cleanup=True):
         app_path = 'test-out.ipa'
-        self.call_iresign(input_path=TEST_IPA, output_path=app_path)
+        self.call_isign(input_path=TEST_IPA, output_path=app_path)
         assert exists(app_path)
 
         # TODO subject.CN from cert?
@@ -243,7 +243,7 @@ class TestIntegration:
 
     def test_simple_appzip(self, cleanup=True):
         app_path = 'test-out.app.zip'
-        self.call_iresign(input_path=TEST_APPZIP, output_path=app_path)
+        self.call_isign(input_path=TEST_APPZIP, output_path=app_path)
         assert exists(app_path)
 
         # todo subject.cn from cert?
@@ -252,7 +252,7 @@ class TestIntegration:
 
     def test_simple_apptgz(self, cleanup=True):
         app_path = 'test-out.tgz'
-        self.call_iresign(input_path=TEST_APPTGZ, output_path=app_path)
+        self.call_isign(input_path=TEST_APPTGZ, output_path=app_path)
         assert exists(app_path)
 
         # todo subject.cn from cert?
