@@ -94,7 +94,6 @@ out.ipa
 # all credentials
 *.pem
 *.p12
+*.mobileprovision
 # except these
 !apple_credentials/applecerts.pem
-!tests/credentials/test.cert.pem
-!tests/credentials/test.key.pem
