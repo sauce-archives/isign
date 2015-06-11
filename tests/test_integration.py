@@ -18,12 +18,6 @@ TEST_APPTGZ = join(dirname(__file__), 'SimpleSaucyApp.tgz')
 TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
 ISIGN_BIN = join(REPO_ROOT, 'isign', 'isign.py')
-APPLE_CERTIFICATES = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
-TEST_CREDENTIALS_DIR = join(REPO_ROOT, 'tests', 'credentials')
-CERTIFICATE = join(TEST_CREDENTIALS_DIR, 'test.cert.pem')
-KEY = join(TEST_CREDENTIALS_DIR, 'test.key.pem')
-PROVISIONING_PROFILE = join(TEST_CREDENTIALS_DIR,
-                            'integrationtests.mobileprovision')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
@@ -169,18 +163,8 @@ class TestIntegration:
 
     def call_isign(self,
                    output_path,
-                   input_path,
-                   key=KEY,
-                   certificate=CERTIFICATE,
-                   provisioning_profile=PROVISIONING_PROFILE,
-                   apple_certificates=APPLE_CERTIFICATES):
-        cmd = [ISIGN_BIN,
-               '-k', key,
-               '-c', certificate,
-               '-p', provisioning_profile,
-               '-a', apple_certificates,
-               '-o', output_path,
-               input_path]
+                   input_path):
+        cmd = [ISIGN_BIN, '-o', output_path, input_path]
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
