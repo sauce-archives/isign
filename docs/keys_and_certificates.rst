@@ -23,8 +23,8 @@ that invite link again to actually activate your account. Also, in
 general, things on the Apple site work better with Safari, so if
 something doesn't work, try that browser.
 
-Setting up credentials for iresign
-----------------------------------
+Setting up credentials
+----------------------
 
 Apple certificates
 ~~~~~~~~~~~~~~~~~~
@@ -121,7 +121,7 @@ Next, let's use openssl to split that into a PEM cert and a PEM key.
         $ openssl pkcs12 -in <your>.p12 -out <your>.key.pem -nocerts -nodes
 
 These files can now be used for code signing. Respectively, you can use them
-as the `signer_key_file` and `signer_cert_file` arguments to `iresign.resign()`,
+as the `signer_key_file` and `signer_cert_file` arguments to `isign.resign()`,
 or, on the command line, the `-k` and `-c` arguments.
 
 Provisioning profile
@@ -148,6 +148,6 @@ probably includes the you care about.
 Deploying keys, certs, and profiles
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We use ansible-vault to store these securely, under the `iresign-credentials`
+We use ansible-vault to store these securely, under the `isign-credentials`
 role, in the repo `sauce-ansible`.
 

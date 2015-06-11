@@ -1,5 +1,5 @@
-iresign
-=======
+isign
+=====
 
 iOS app signer / re-signer. Does not require OS X.
 
@@ -8,13 +8,13 @@ Synopsis
 
 ::
 
-    iresign.py [-h] -p <your.mobileprovision> 
-                    -a <path to applecerts.pem> 
-                    -k <path to your key in .p12 form> 
-                    -c <path to your cert in .pem form>
-                    [-s <staging path>] 
-                    [-o <output path>]
-                    <path to app to resign>
+    isign.py [-h] -p <your.mobileprovision> 
+                  -a <path to applecerts.pem> 
+                  -k <path to your key in .p12 form> 
+                  -c <path to your cert in .pem form>
+                  [-s <staging path>] 
+                  [-o <output path>]
+                  <path to app to resign>
 
     Resign an iOS application with a new identity and provisioning profile.
 
@@ -41,7 +41,7 @@ Or, as a Python library:
 
 ::
 
-    from iresign.iresign import resign
+    from isign.isign import resign
 
     new_app_path = resign(
       app='some.app', 
@@ -55,7 +55,7 @@ Or, as a Python library:
     # re-signed app is at signed.app
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
-directory. ``iresign`` will produce a re-signed app of the same kind.
+directory. ``isign`` will produce a re-signed app of the same kind.
 
 See `Keys and certificates <docs/keys_and_certificates.rst>`__ for how to
 obtain the keys and certificates.
@@ -66,7 +66,7 @@ A note on OpenSSL
 The OpenSSL that ships by default with Macs, as of May 2015 (0.9.8zd),
 is inadequate. Install OpenSSL >= 1.0.1j with brew. If for whatever
 reason you need to still have Apple's openssl around, set the
-environment variable OPENSSL to the correct binary and ``iresign.py``
+environment variable OPENSSL to the correct binary and ``isign.py``
 will do the right thing.
 
 Packaging

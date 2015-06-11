@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 from subprocess import check_output
 import json
 
-PACKAGE_NAME = 'iresign'
+PACKAGE_NAME = 'isign'
 
 here = os.path.abspath(os.path.dirname(__file__))
 
