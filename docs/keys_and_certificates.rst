@@ -145,9 +145,4 @@ organizational unit plus dot-star works (``JWKXD469L2.\*``)
 Next, in 'Select certificates', select the certificates you want, which
 probably includes the you care about.
 
-Deploying keys, certs, and profiles
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-We use ansible-vault to store these securely, under the `isign-credentials`
-role, in the repo `sauce-ansible`.
 
