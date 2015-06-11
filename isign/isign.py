@@ -18,7 +18,7 @@ REPO_ROOT = dirname(dirname(realpath(__file__)))
 APPLE_CERT_PATH = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
 
 # should be deployed with a fab task (as of June 2015, it's ios_rdc_creds)
-DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'iresign-credentials')
+DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'isign-credentials')
 CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.cert.pem')
 KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.key.pem')
 PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
@@ -103,7 +103,7 @@ def resign(input_path,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
 
-    stage_dir = tempfile.mkdtemp(prefix="iresign-stage")
+    stage_dir = tempfile.mkdtemp(prefix="isign-stage")
 
     app = application.new_from_package(input_path, stage_dir)
     if app and app.is_native():
