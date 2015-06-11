@@ -1,15 +1,58 @@
-Where to get certificates and keys
-==================================
+
+You need a key, certificate, and provisioning profile 
+to be able to sign apps. By default, ``isign`` uses the following files:
+
+.. code:: bash
+
+      $HOME/isign-credentials/mobdev.key
+      $HOME/isign-credentials/mobdev.cert
+      $HOME/isign-credentials/mobdev1.mobileprovision
+
+You can specify other locations for these files on the command line, or in
+the arguments to ``isign.isign.resign()``.
+
+If you don't have these files already, you should get them from our Ansible repo. If not,
+read on for how to create them from scratch.
+
+
+Getting credentials from Ansible
+================================
+
+
+You can obtain these from the ``isign_creds`` role in the ``sauce-ansible`` repository. The files
+are encrypted there. Just run the associated task with ansible, and it 
+should drop the proper files into your home directory. 
+
+There are two different sets of credentials. One for development, and one
+for production. For simplicity they are exported with the same filenames (shown above)
+but they have different contents. In particular, the development credentials can't be used
+to run apps in the production cloud. The development credentials also work with random
+devices that we use for testing at Sauce Labs YVR.
+
+The production credentials are tied to the ``mobdev@saucelabs.com`` mail alias. This is chosen for
+convenience, as it reaches the whole mobile development team. This account can control the 
+devices in the production Real Device Cloud.
+
+There's another one for development and testing, tied to ``neilk+buildtest@saucelabs.com``. That
+should be sufficient for testing in the dev cloud, as well as random devices we have in
+the Sauce Labs YVR office.
+
+Look in Passpack for the details about how to sign into these accounts.
+
+
+
+Creating credentials from scratch
+=================================
 
 Account
 -------
 
-We already have an account for the Real Device Cloud, not owned by any
-single developer, tied to the ``mobdev@saucelabs.com`` mail alias. Look
-in Passpack for the details about how to sign into this account.
+You might want to make your own account if you want to experiment with
+your own devices, or if any of the above accounts expire. You may also need
+to re-issue a provisioning profile if we start testing on new devices.
+Here's how to do this (as of June 2015).
 
-If you want to make your own account, say for development on your own
-machine: first, find an administrator for our developer organization at
+First, find an administrator for our developer organization at
 Apple. At this moment, @neilk, @filmaj, and @admc are all admins. Get
 them to invite you to the organization under your @saucelabs.com
 account, in the iOS Developer Program.
@@ -68,7 +111,7 @@ touch an app that is signed for Distribution. (Incidentally, welcome to
 `Richard Stallman's
 nightmare <http://www.gnu.org/philosophy/right-to-read.en.html>`__.)
 
-The following procedure works as of May 2015, for adding a new account
+The following procedure works as of June 2015, for adding a new account
 from scratch. You need to use a Mac to follow these instructions, as
 they rely on Apple tools to get you started.
 
