@@ -83,7 +83,7 @@ target/
 tmtags
 
 # iresign version
-iresign/version.json
+isign/version.json
 
 # iresign temp files
 Entitlements.plist

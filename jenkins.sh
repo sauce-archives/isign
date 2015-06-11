@@ -1,5 +1,5 @@
 #!/bin/bash
-package_name="iresign"
+package_name="isign"
 
 make_venv() {
     # For some reason mkvirtualenv returns with exit code 1 on success.  So we

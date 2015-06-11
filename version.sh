@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-PACKAGE_NAME="iresign"
+PACKAGE_NAME="isign"
 MAJMIN_VERSION="0.1"
 
 # figure out our path
