@@ -12,12 +12,16 @@ import shutil
 import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
-TEST_APP = join(dirname(__file__), 'SimpleSaucyApp.app')
+TEST_DIR = dirname(__file__)
+TEST_APP = join(TEST_DIR, 'SimpleSaucyApp.app')
 TEST_APPZIP = TEST_APP + '.zip'
-TEST_APPTGZ = join(dirname(__file__), 'SimpleSaucyApp.tgz')
-TEST_IPA = join(dirname(__file__), 'SimpleSaucyApp.ipa')
+TEST_APPTGZ = join(TEST_DIR, 'SimpleSaucyApp.tgz')
+TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
 ISIGN_BIN = join(REPO_ROOT, 'isign', 'isign.py')
+KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
+CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
+PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
 ERROR_KEY = '_errors'
 # Sauce Labs apple organizational unit
 OU = 'JWKXD469L2'
@@ -164,7 +168,12 @@ class TestIntegration:
     def call_isign(self,
                    output_path,
                    input_path):
-        cmd = [ISIGN_BIN, '-o', output_path, input_path]
+        cmd = [ISIGN_BIN,
+               '-k', KEY,
+               '-c', CERTIFICATE,
+               '-p', PROVISIONING_PROFILE,
+               '-o', output_path,
+               input_path]
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
