@@ -1,5 +1,9 @@
 #!/bin/bash
-package_name="isign"
+
+# figure out our package name from the name of repo
+pushd $(dirname $0) >/dev/null
+package_name=$(basename $PWD)
+popd >/dev/null
 
 make_venv() {
     # For some reason mkvirtualenv returns with exit code 1 on success.  So we
@@ -7,6 +11,10 @@ make_venv() {
     virtualenv $TMPDIR || true
     source $TMPDIR/bin/activate
     pip install -r dev/requirements.txt
+}
+
+build_artifacts() {
+    python setup.py sdist
 }
 
 test_artifacts() {
@@ -18,20 +26,16 @@ test_artifacts() {
     mv dist/${package_name}-${version}.tar.gz dist-release/
 }
 
-build_artifacts() {
-    python setup.py sdist
-}
-
-cleanup() {
-    rm -rf $TMPDIR
-}
-
 # to push tags: add the repo to the "bots" team
 tag_release() {
     tag="v$(./version.sh)"
     echo "Tagging $head as $tag"
     git tag $tag $head
     git push origin $tag
+}
+
+cleanup() {
+    rm -rf $TMPDIR
 }
 
 
