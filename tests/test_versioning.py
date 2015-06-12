@@ -1,14 +1,18 @@
 #!/usr/bin/env python
+import os.path
+import importlib
 import unittest
 
-import isign
+tests_dir = os.path.abspath(os.path.dirname(__file__))
+package_name = tests_dir.split(os.path.sep)[-2].replace('-', '_')
+package = importlib.import_module(package_name)
 
 
 class VersioningTestCase(unittest.TestCase):
 
     def assert_proper_attribute(self, attribute):
         try:
-            assert getattr(isign, attribute), (
+            assert getattr(package, attribute), (
                 "{} improperly set".format(attribute))
         except AttributeError:
             assert False, "missing {}".format(attribute)
@@ -17,7 +21,7 @@ class VersioningTestCase(unittest.TestCase):
         self.assert_proper_attribute("__version__")
 
         # test major, minor, and patch are numbers
-        version_split = isign.__version__.split(".")[:3]
+        version_split = package.__version__.split(".")[:3]
         assert version_split, "__version__ is not set"
         for n in version_split:
             try:
