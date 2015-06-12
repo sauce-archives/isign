@@ -97,3 +97,6 @@ out.ipa
 *.mobileprovision
 # except these
 !apple_credentials/applecerts.pem
+!tests/credentials/test.key.pem
+!tests/credentials/test.cert.pem
+!tests/credentials/test.mobileprovision
