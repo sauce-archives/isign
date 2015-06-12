@@ -1,17 +1,17 @@
 #!/bin/bash
 set -e
-PACKAGE_NAME="isign"
 MAJMIN_VERSION="0.1"
 
-# figure out our path
 pushd $(dirname $0) >/dev/null
 working_dir=$PWD
+name=$(basename $PWD)
 popd >/dev/null
-version_json="${working_dir}/$PACKAGE_NAME/version.json"
+package=$(echo $name | sed 's/-/_/g')
+version_json="${working_dir}/${package}/version.json"
 
 version_suffix=""
 # official version
-if [[ "$JOB_NAME" = "$PACKAGE_NAME" ]] && [[ -n "$BUILD_TAG" ]]; then
+if [[ "$JOB_NAME" = "${name}" ]] && [[ -n "$BUILD_TAG" ]]; then
     patch_version=0
     if [[ -n "$(git tag --list v$MAJMIN_VERSION.0)" ]]; then
         # number of commits since vMAJOR.MINOR.0
@@ -22,8 +22,8 @@ if [[ "$JOB_NAME" = "$PACKAGE_NAME" ]] && [[ -n "$BUILD_TAG" ]]; then
     test "$post_version" -gt 0 && version_suffix=".post${post_version}"
 # development version
 else
-    if [[ -n "$(git tag --list 'v*')" ]]; then
-        recent_tag=$(git describe --tags --match 'v*' | cut -f 1 -d -)
+    if [[ -n "$(git tag --list 'v[0-9]*')" ]]; then
+        recent_tag=$(git describe --tags --match 'v[0-9]*' | cut -f 1 -d -)
         majmin_version=$(echo $recent_tag | tr "v-." " " | awk '{print $1"."$2}')
         patch_version=$(echo $recent_tag | tr "v-." " " | awk '{print $3}')
         dev_version=$(git rev-list --count ${recent_tag}...HEAD)
