@@ -1,11 +1,13 @@
+Overview
+=================================
 
 You need a key, certificate, and provisioning profile 
 to be able to sign apps. By default, ``isign`` uses the following files:
 
 .. code:: bash
 
-      $HOME/isign-credentials/mobdev.key
-      $HOME/isign-credentials/mobdev.cert
+      $HOME/isign-credentials/mobdev.key.pem
+      $HOME/isign-credentials/mobdev.cert.pem
       $HOME/isign-credentials/mobdev1.mobileprovision
 
 You can specify other locations for these files on the command line, or in
@@ -29,13 +31,14 @@ but they have different contents. In particular, the development credentials can
 to run apps in the production cloud. The development credentials also work with random
 devices that we use for testing at Sauce Labs YVR.
 
-The production credentials are tied to the ``mobdev@saucelabs.com`` mail alias. This is chosen for
-convenience, as it reaches the whole mobile development team. This account can control the 
-devices in the production Real Device Cloud.
+The production credentials are tied to the ``mobdev@saucelabs.com`` mail alias with the name 
+"Moby Dev". This is chosen for convenience, as it reaches the whole mobile development team. 
+This account can control the devices in the production Real Device Cloud.
 
-There's another one for development and testing, tied to ``neilk+buildtest@saucelabs.com``. That
-should be sufficient for testing in the dev cloud, as well as random devices we have in
-the Sauce Labs YVR office.
+There's another one for development and testing, tied to ``neilk+buildtest@saucelabs.com``, with
+the name "Bill D. Tester". That should be sufficient for testing in the dev cloud, the build 
+tests, as well as random devices we have in the Sauce Labs YVR office. It using 
+'integrationtests.'
 
 Look in Passpack for the details about how to sign into these accounts.
 
