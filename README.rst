@@ -12,7 +12,6 @@ Synopsis
                   -a <path to applecerts.pem> 
                   -k <path to your key in .p12 form> 
                   -c <path to your cert in .pem form>
-                  [-s <staging path>] 
                   [-o <output path>]
                   <path to app to resign>
 
@@ -32,21 +31,20 @@ Synopsis
                             Path to your organization's key in .pem format
       -c <certificate>, --certificate <certificate>
                             Path to your organization's certificate in .pem form
-      -s <path>, --staging <path>
-                            Path to stage directory.
       -o <path>, --output <path>
                             Path to output file or directory
 
-Or, as a Python library, taking advantage of some default arguments:
+If you have credentials in a well-known location (see below) then you can omit most 
+of the arguments.
 
-::
+You can also call it from Python:
+
+.. code:: python
 
     from isign.isign import resign
 
     success = resign(
-      app='some.app', 
-      certificate='mycert.pem',
-      key='mykey.pem',
+      input_path='some.app', 
       output_path='signed.app'
     )
 
@@ -54,10 +52,12 @@ Or, as a Python library, taking advantage of some default arguments:
       print "re-signed app!"
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
-directory. ``isign`` will produce a re-signed app of the same kind.
+directory, or an archive like ``app.tar.gz``, ``app.tgz`` or ``app.zip``. 
+``isign`` will produce a re-signed file of the same kind.
 
 See `Keys and certificates <docs/keys_and_certificates.rst>`__ for how to
-obtain the keys and certificates.
+obtain the credentials, and where to put them so that the library
+will use them by default.
 
 A note on OpenSSL
 -----------------
@@ -71,20 +71,21 @@ will do the right thing.
 Packaging
 ---------
 
-This library is packaged similarly to
-`https://github.com/saucelabs/lwjp <lwjp>`__. See the documentation
-there for information about deploying or modifying this library.
+This library is packaged according to the new Sauce standard for 
+Python Packages. See `https://saucedev.atlassian.net/wiki/display/AD/Python+packaging` for details
+about deploying or modifying this library.
 
 Testing
 -------
 
 ``./run_tests.sh``
 
-Most tests require Apple's
+Some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
-to run, so they only run on a Macintosh computer with developer tools.
-You'll also need to put your developer key, certificate, and Apple
-certificates into your home directory (read the source for details.)
+to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
+
+The tests assume you have credentials in a well-known location (see above).
+
 
 Rationale
 ---------
@@ -97,7 +98,7 @@ This signature is built right into the format of how executables are
 laid out on iOS, the LC\_CODE\_SIGNATURE structure in a Mach-O binary.
 
 Apps from the app store are already signed in a way that allows them to
-run on any computer. Developers need to be a special 'provisioning' file
+run on any computer. Developers need to get a special 'provisioning' file
 from Apple to test their apps on their devices.
 
 So, with Sauce Labs, we have the problem that our customers' apps are
