@@ -8,10 +8,10 @@ Synopsis
 
 ::
 
-    isign.py [-h] -p <your.mobileprovision> 
-                  -a <path to applecerts.pem> 
-                  -k <path to your key in .p12 form> 
-                  -c <path to your cert in .pem form>
+    isign.py [-h] [-p <your.mobileprovision>] 
+                  [-a <path to applecerts.pem>] 
+                  [-k <path to your key in .pem form>] 
+                  [-c <path to your cert in .pem form>]
                   [-o <output path>]
                   <path to app to resign>
 
@@ -35,7 +35,7 @@ Synopsis
                             Path to output file or directory
 
 If you have credentials in a well-known location (see below) then you can omit most 
-of the arguments.
+of the arguments. If you omit the output path, it goes to a file called ``out``.
 
 You can also call it from Python:
 
@@ -43,10 +43,7 @@ You can also call it from Python:
 
     from isign.isign import resign
 
-    success = resign(
-      input_path='some.app', 
-      output_path='signed.app'
-    )
+    success = resign('some.app', output_path='signed.app')
 
     if success:
       print "re-signed app!"
