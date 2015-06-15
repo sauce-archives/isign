@@ -196,6 +196,5 @@ def new_from_package(path, target_dir):
         for extension in cls.extensions:
             if path.endswith(extension):
                 app = cls.new_from_package(path, target_dir)
-                # TODO test for re-signability
                 return app
     return False
