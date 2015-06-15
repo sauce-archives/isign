@@ -23,6 +23,7 @@ def get_unique_id():
 
 class App(object):
     extensions = ['.app']
+    helpers = []
 
     @classmethod
     def new_from_package(cls, path, target_dir):
@@ -46,6 +47,12 @@ class App(object):
         if not os.path.exists(info_path):
             raise Exception('no Info.plist at {0}'.format(info_path))
         self.info = biplist.readPlist(info_path)
+
+        # check if all needed helper apps are around
+        for helper in self.helpers:
+            if helper is None:
+                msg = "Missing helpers for {}".format(self.__class__.__name__)
+                raise Exception(msg)
 
     def _get_app_dir(self):
         return self.path
@@ -106,6 +113,7 @@ class AppZip(App):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped """
     extensions = ['.app.zip']
+    helpers = [ZIP_BIN, UNZIP_BIN]
 
     @classmethod
     def unarchive(cls, path, target_dir):
@@ -148,6 +156,7 @@ class AppZip(App):
 class AppTarGz(AppZip):
     """ Just like an app.zip, except tar.gz """
     extensions = ['.tgz', '.tar.gz']
+    helpers = [TAR_BIN]
 
     @classmethod
     def unarchive(cls, path, target_dir):
