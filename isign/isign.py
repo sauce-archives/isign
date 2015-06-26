@@ -8,9 +8,7 @@ from log_to_stderr import log_to_stderr
 import os
 import os.path
 from os.path import dirname, join, realpath
-import shutil
 from signer import Signer
-import tempfile
 
 
 # this comes with the repo
@@ -89,33 +87,36 @@ def parse_args():
     return parser.parse_args()
 
 
-def resign(input_path,
+class NotSignable(Exception):
+    pass
+
+
+def new_from_archive(path):
+    try:
+        app = application.new_from_archive(path)
+    except Exception, e:
+        raise NotSignable(e)
+    return app
+
+
+def resign(app,
            certificate=CERTIFICATE_PATH,
            key=KEY_PATH,
            apple_cert=APPLE_CERT_PATH,
            provisioning_profile=PROVISIONING_PROFILE_PATH,
            output_path=os.path.join(os.getcwd(), 'out')):
-    """ resigns the app, returns path to new app, or False if
-        not re-signable """
-    success = False
+    """ Given app object, returns path of newly resigned app """
 
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
 
-    stage_dir = tempfile.mkdtemp(prefix="isign-stage")
+    app.provision(provisioning_profile)
+    app.create_entitlements(signer.team_id)
+    app.sign(signer)
+    app.package(output_path)
 
-    app = application.new_from_package(input_path, stage_dir)
-    if app and app.is_native():
-        app.provision(provisioning_profile)
-        app.create_entitlements(signer.team_id)
-        app.sign(signer)
-        app.package(output_path)
-        success = True
-
-    shutil.rmtree(stage_dir)
-
-    return success
+    return output_path
 
 
 if __name__ == '__main__':
@@ -133,7 +134,7 @@ if __name__ == '__main__':
         if key in args_dict and args_dict[key] is None:
             del args_dict[key]
 
-    if resign(**args_dict):
-        log.info("Re-signed package")
-    else:
-        log.info("Failed to re-sign package")
+    # this deliberately does not catch exceptions
+    with new_from_archive(args_dict['input_path']) as app:
+        del args_dict['input_path']
+        resign(app, **args_dict)

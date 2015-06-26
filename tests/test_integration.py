@@ -1,8 +1,18 @@
 import distutils
+from common_isign_test import TEST_APP
+from common_isign_test import TEST_APPZIP
+from common_isign_test import TEST_APPTGZ
+from common_isign_test import TEST_IPA
+from common_isign_test import TEST_NONAPP_TXT
+from common_isign_test import TEST_NONAPP_IPA
+from common_isign_test import ISIGN_BIN
+from common_isign_test import KEY
+from common_isign_test import CERTIFICATE
+from common_isign_test import PROVISIONING_PROFILE
+from common_isign_test import ERROR_KEY
+from common_isign_test import OU
 from nose.plugins.skip import SkipTest
 import os
-from os.path import abspath
-from os.path import dirname
 from os.path import exists
 from os.path import join
 import platform
@@ -12,19 +22,6 @@ import shutil
 import subprocess
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
-TEST_DIR = dirname(__file__)
-TEST_APP = join(TEST_DIR, 'SimpleSaucyApp.app')
-TEST_APPZIP = TEST_APP + '.zip'
-TEST_APPTGZ = join(TEST_DIR, 'SimpleSaucyApp.tgz')
-TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
-REPO_ROOT = dirname(dirname(abspath(__file__)))
-ISIGN_BIN = join(REPO_ROOT, 'isign', 'isign.py')
-KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
-CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
-PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
-ERROR_KEY = '_errors'
-# Sauce Labs apple organizational unit
-OU = 'JWKXD469L2'
 
 
 class TestIntegration:
@@ -167,7 +164,8 @@ class TestIntegration:
 
     def call_isign(self,
                    output_path,
-                   input_path):
+                   input_path,
+                   is_success_expected=True):
         cmd = [ISIGN_BIN,
                '-k', KEY,
                '-c', CERTIFICATE,
@@ -177,7 +175,10 @@ class TestIntegration:
         print ' '.join(cmd)
         proc = subprocess.Popen(cmd)
         proc.communicate()
-        assert proc.returncode == 0, "Return code not 0"
+        if is_success_expected:
+            assert proc.returncode == 0, "Return code not 0"
+        else:
+            assert proc.returncode != 0, "Return code unexpectedly 0"
 
     def test_simple_app(self, cleanup=True):
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
@@ -251,6 +252,29 @@ class TestIntegration:
         # todo subject.cn from cert?
         if cleanup:
             os.remove(app_path)
+
+    def test_nonapp(self, cleanup=True):
+        app_path = 'test-out.txt'
+        self.call_isign(input_path=TEST_NONAPP_TXT,
+                        output_path=app_path,
+                        is_success_expected=False)
+        assert not exists(app_path)
+
+        # todo subject.cn from cert?
+        if exists(app_path) and cleanup:
+            os.remove(app_path)
+
+    def test_nonapp_ipa(self, cleanup=True):
+        app_path = 'test-out.ipa'
+        self.call_isign(input_path=TEST_NONAPP_IPA,
+                        output_path=app_path,
+                        is_success_expected=False)
+        assert not exists(app_path)
+
+        # todo subject.cn from cert?
+        if exists(app_path) and cleanup:
+            os.remove(app_path)
+
 
 if __name__ == '__main__':
     x = TestIntegration()
