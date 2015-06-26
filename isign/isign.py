@@ -9,6 +9,7 @@ import os
 import os.path
 from os.path import dirname, join, realpath
 from signer import Signer
+import sys
 
 
 # this comes with the repo
@@ -24,6 +25,7 @@ PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
 
 
 log = logging.getLogger(__name__)
+# log.setLevel(logging.INFO)
 
 
 def absolute_path_argument(path):
@@ -115,6 +117,7 @@ def resign(app,
     app.create_entitlements(signer.team_id)
     app.sign(signer)
     app.package(output_path)
+    log.info("Created resigned app at <%s>", output_path)
 
     return output_path
 
@@ -134,7 +137,12 @@ if __name__ == '__main__':
         if key in args_dict and args_dict[key] is None:
             del args_dict[key]
 
-    # this deliberately does not catch exceptions
-    with new_from_archive(args_dict['input_path']) as app:
-        del args_dict['input_path']
-        resign(app, **args_dict)
+    input_path = args_dict['input_path']
+    del args_dict['input_path']
+
+    try:
+        with new_from_archive(input_path) as app:
+            resign(app, **args_dict)
+    except NotSignable, e:
+        log.debug("Can't sign <{0}>: {1}\n".format(input_path, e))
+        sys.exit(1)

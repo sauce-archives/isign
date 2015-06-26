@@ -16,6 +16,7 @@ UNZIP_BIN = distutils.spawn.find_executable('unzip')
 TAR_BIN = distutils.spawn.find_executable('tar')
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 def get_unique_id():
