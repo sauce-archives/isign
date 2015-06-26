@@ -20,11 +20,24 @@ import pprint
 import re
 import shutil
 import subprocess
+import tempfile
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 
 
 class TestIntegration:
+
+    def _is_file_with_contents(self, path):
+        """ for output paths, we're using tempfile.mkstemp(), which creates
+            the temporary file as a zero-length file. So if we want to
+            test if we had some effect, we need to check for length """
+        return os.path.exists(path) and os.path.getsize(path) > 0
+
+    def _get_temp_file(self):
+        (fd, path) = tempfile.mkstemp()
+        os.close(fd)
+        return path
+
     def codesign_display(self, path):
         """ inspect a path with codesign """
         cmd = [CODESIGN_BIN, '-d', '-r-', '--verbose=20', path]
@@ -173,7 +186,9 @@ class TestIntegration:
                '-o', output_path,
                input_path]
         print ' '.join(cmd)
-        proc = subprocess.Popen(cmd)
+        proc = subprocess.Popen(cmd,
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.PIPE)
         proc.communicate()
         if is_success_expected:
             assert proc.returncode == 0, "Return code not 0"
@@ -183,7 +198,7 @@ class TestIntegration:
     def test_simple_app(self, cleanup=True):
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
             raise SkipTest
-        app_path = 'test-out.app'
+        app_path = tempfile.mkdtemp()
         self.call_isign(input_path=TEST_APP, output_path=app_path)
 
         # When we ask for codesign to analyze the app directory, it
@@ -227,49 +242,49 @@ class TestIntegration:
         return app_info
 
     def test_simple_ipa(self, cleanup=True):
-        app_path = 'test-out.ipa'
+        app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_IPA, output_path=app_path)
-        assert exists(app_path)
+        assert self._is_file_with_contents(app_path)
 
         # TODO subject.CN from cert?
         if cleanup:
             os.remove(app_path)
 
     def test_simple_appzip(self, cleanup=True):
-        app_path = 'test-out.app.zip'
+        app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_APPZIP, output_path=app_path)
-        assert exists(app_path)
+        assert self._is_file_with_contents(app_path)
 
         # todo subject.cn from cert?
         if cleanup:
             os.remove(app_path)
 
     def test_simple_apptgz(self, cleanup=True):
-        app_path = 'test-out.tgz'
+        app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_APPTGZ, output_path=app_path)
-        assert exists(app_path)
+        assert self._is_file_with_contents(app_path)
 
         # todo subject.cn from cert?
         if cleanup:
             os.remove(app_path)
 
     def test_nonapp(self, cleanup=True):
-        app_path = 'test-out.txt'
+        app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_NONAPP_TXT,
                         output_path=app_path,
                         is_success_expected=False)
-        assert not exists(app_path)
+        assert not self._is_file_with_contents(app_path)
 
         # todo subject.cn from cert?
         if exists(app_path) and cleanup:
             os.remove(app_path)
 
     def test_nonapp_ipa(self, cleanup=True):
-        app_path = 'test-out.ipa'
+        app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_NONAPP_IPA,
                         output_path=app_path,
                         is_success_expected=False)
-        assert not exists(app_path)
+        assert not self._is_file_with_contents(app_path)
 
         # todo subject.cn from cert?
         if exists(app_path) and cleanup:
