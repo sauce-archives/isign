@@ -14,8 +14,8 @@ import macho
 import os
 import tempfile
 
-
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class Signable(object):
