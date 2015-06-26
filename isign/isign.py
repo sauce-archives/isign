@@ -96,7 +96,8 @@ class NotSignable(Exception):
 def new_from_archive(path):
     try:
         app = application.new_from_archive(path)
-    except Exception, e:
+    except (application.NotMatched, application.NotNative) as e:
+        log.debug(e)
         raise NotSignable(e)
     return app
 
