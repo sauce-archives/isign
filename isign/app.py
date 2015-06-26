@@ -9,6 +9,7 @@ import signable
 import shutil
 from subprocess import call
 import time
+import tempfile
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
 UNZIP_BIN = distutils.spawn.find_executable('unzip')
@@ -26,9 +27,15 @@ class App(object):
     helpers = []
 
     @classmethod
-    def new_from_package(cls, path, target_dir):
+    def make_temp_dir(cls):
+        return tempfile.mkdtemp(prefix="isign-")
+
+    @classmethod
+    def new_from_archive(cls, path):
+        target_dir = cls.make_temp_dir()
         app_name = os.path.basename(path)
         app_dir = os.path.join(target_dir, app_name)
+        log.debug("copying <%s> to <%s>", path, app_dir)
         shutil.copytree(path, app_dir)
         return cls(app_dir)
 
@@ -53,6 +60,21 @@ class App(object):
             if helper is None:
                 msg = "Missing helpers for {}".format(self.__class__.__name__)
                 raise Exception(msg)
+
+    def __enter__(self):
+        """ handle `with` initialization """
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):
+        """ handle `with` destruction """
+        log.debug('__exiting__')
+        self.cleanup()
+
+    def cleanup(self):
+        """ remove our temporary directories. Sometimes this
+            has already been moved away """
+        if os.path.exists(self.path):
+            shutil.rmtree(self.path)
 
     def _get_app_dir(self):
         return self.path
@@ -130,7 +152,8 @@ class AppZip(App):
         return apps[0]
 
     @classmethod
-    def new_from_package(cls, path, target_dir):
+    def new_from_archive(cls, path):
+        target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
         app_dir = cls.find_app(target_dir)
         return cls(app_dir)
@@ -172,7 +195,8 @@ class Ipa(AppZip):
     extensions = ['.ipa']
 
     @classmethod
-    def new_from_package(cls, path, target_dir):
+    def new_from_archive(cls, path):
+        target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
         return cls(target_dir)
 
@@ -199,11 +223,13 @@ class Ipa(AppZip):
 APP_CLASSES = [Ipa, App, AppZip, AppTarGz]
 
 
-def new_from_package(path, target_dir):
+def new_from_archive(path):
     """ factory to unpack various app types """
     for cls in APP_CLASSES:
         for extension in cls.extensions:
             if path.endswith(extension):
-                app = cls.new_from_package(path, target_dir)
+                app = cls.new_from_archive(path)
+                if not app.is_native():
+                    raise Exception('not a native app')
                 return app
-    return False
+    raise Exception('no matching extension for {}'.format(path))
