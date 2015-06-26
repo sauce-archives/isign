@@ -41,12 +41,15 @@ You can also call it from Python:
 
 .. code:: python
 
-    from isign.isign import resign
+    from isign import isign
+   
+    try:
+        with isign.new_from_archive(input_path) as app:
+            output_path = "resigned." + input_path
+            isign.resign(app, output_path=output_path)
+    except isign.NotSignable, e:
+        pass  # this wasn't an iOS native app
 
-    success = resign('some.app', output_path='signed.app')
-
-    if success:
-      print "re-signed app!"
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
 directory, or an archive like ``app.tar.gz``, ``app.tgz`` or ``app.zip``. 
