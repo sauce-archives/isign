@@ -48,11 +48,14 @@ You can also call it from Python:
             output_path = "resigned." + input_path
             isign.resign(app, output_path=output_path)
     except isign.NotSignable, e:
-        pass  # this wasn't an iOS native app
+        # this wasn't an iOS native app
+    except Exception, e:
+        # we thought it was an app and tried to sign it,
+        # but something else went wrong
 
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
-directory, or an archive like ``app.tar.gz``, ``app.tgz`` or ``app.zip``. 
+directory, or an archive like ``.app.tar.gz``, ``.app.tgz`` or ``.app.zip``. 
 ``isign`` will produce a re-signed file of the same kind.
 
 See `Keys and certificates <docs/keys_and_certificates.rst>`__ for how to
