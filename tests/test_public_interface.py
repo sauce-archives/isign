@@ -3,6 +3,9 @@ from common_isign_test import TEST_APP
 from common_isign_test import TEST_IPA
 from common_isign_test import TEST_NONAPP_TXT
 from common_isign_test import TEST_NONAPP_IPA
+from common_isign_test import KEY
+from common_isign_test import CERTIFICATE
+from common_isign_test import PROVISIONING_PROFILE
 import os
 from os.path import exists
 from isign import isign
@@ -11,19 +14,36 @@ import unittest
 
 
 class TestPublicInterface(unittest.TestCase):
+    credentials = {
+        "key": KEY,
+        "certificate": CERTIFICATE,
+        "provisioning_profile": PROVISIONING_PROFILE
+    }
+
+    def _remove(self, path):
+        if exists(path):
+            if os.path.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.unlink(path)
+
+    def _resign(self, filename, **args):
+        """ resign with test credentials """
+        args.update(self.credentials)
+        return isign.resign(filename, **args)
+
     def _test_signable(self, filename):
         with isign.new_from_archive(filename) as app:
             output_path = os.tmpnam()
-            resigned_path = isign.resign(app, output_path=output_path)
-            print("resigned path:" + resigned_path)
-            assert not exists(resigned_path)
-            shutil.rmtree(resigned_path)
+            resigned_path = self._resign(app, output_path=output_path)
+            assert exists(resigned_path)
+            self._remove(resigned_path)
 
     def _test_unsignable(self, filename):
         with self.assertRaises(isign.NotSignable):
             with isign.new_from_archive(filename) as app:
                 output_path = os.tmpnam()
-                isign.resign(app, output_path=output_path)
+                self._resign(app, output_path=output_path)
 
     def test_app(self):
         self._test_signable(TEST_APP)
