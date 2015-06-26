@@ -25,7 +25,7 @@ PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
 
 
 log = logging.getLogger(__name__)
-# log.setLevel(logging.INFO)
+log.setLevel(logging.INFO)
 
 
 def absolute_path_argument(path):
