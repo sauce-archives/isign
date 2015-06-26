@@ -221,6 +221,15 @@ class Ipa(AppZip):
         os.chdir(old_cwd)
 
 
+
+class NotNative(Exception):
+    pass
+
+
+class NotMatched(Exception):
+    pass
+
+
 APP_CLASSES = [Ipa, App, AppZip, AppTarGz]
 
 
@@ -231,6 +240,6 @@ def new_from_archive(path):
             if path.endswith(extension):
                 app = cls.new_from_archive(path)
                 if not app.is_native():
-                    raise Exception('not a native app')
+                    raise NotNative("no native code detected: {}".format(path))
                 return app
-    raise Exception('no matching extension for {}'.format(path))
+    raise NotMatched("no matching class for {}".format(path))

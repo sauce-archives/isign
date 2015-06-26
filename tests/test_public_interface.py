@@ -50,6 +50,11 @@ class TestPublicInterface(unittest.TestCase):
             with isign.new_from_archive(filename) as app:
                 self._resign(app, output_path=output_path)
 
+    def _test_failed_to_sign(self, filename, output_path):
+        with self.assertRaises(Exception):
+            with isign.new_from_archive(filename) as app:
+                self._resign(app, output_path=output_path)
+
     def test_app(self):
         self._test_signable(TEST_APP, tempfile.mkdtemp())
 
@@ -60,4 +65,4 @@ class TestPublicInterface(unittest.TestCase):
         self._test_unsignable(TEST_NONAPP_TXT, self._get_temp_file())
 
     def test_non_app_ipa(self):
-        self._test_unsignable(TEST_NONAPP_IPA, self._get_temp_file())
+        self._test_failed_to_sign(TEST_NONAPP_IPA, self._get_temp_file())
