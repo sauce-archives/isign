@@ -189,9 +189,10 @@ class TestIntegration:
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.PIPE)
-        proc.communicate()
+        (stdout_data, stderr_data) = proc.communicate()
         if is_success_expected:
-            assert proc.returncode == 0, "Return code not 0"
+            msg = "Return code not 0. Stderr follows:\n" + stderr_data
+            assert proc.returncode == 0, msg
         else:
             assert proc.returncode != 0, "Return code unexpectedly 0"
 
