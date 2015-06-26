@@ -15,6 +15,7 @@ import re
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 class Signer(object):
