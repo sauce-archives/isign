@@ -5,6 +5,7 @@ import logging
 import macho_cs
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 # See the documentation for an explanation of how

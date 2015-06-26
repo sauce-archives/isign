@@ -21,6 +21,7 @@ HASH_BLOCKSIZE = 65536
 # OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
 
 log = logging.getLogger(__name__)
+log.setLevel(logging.INFO)
 
 
 # have to monkey patch Plist, in order to make the values
