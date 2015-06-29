@@ -1,2 +1,3 @@
 include isign/version.json
 include isign/apple_credentials/applecerts.pem
+include isign/code_resources_template.xml
