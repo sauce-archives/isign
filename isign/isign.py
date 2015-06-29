@@ -13,8 +13,8 @@ import sys
 
 
 # this comes with the repo
-REPO_ROOT = dirname(dirname(realpath(__file__)))
-APPLE_CERT_PATH = join(REPO_ROOT, 'apple_credentials', 'applecerts.pem')
+PACKAGE_ROOT = dirname(realpath(__file__))
+APPLE_CERT_PATH = join(PACKAGE_ROOT, 'apple_credentials', 'applecerts.pem')
 
 # should be deployed with a fab task (as of June 2015, it's ios_rdc_creds)
 DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'isign-credentials')
