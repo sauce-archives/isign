@@ -47,7 +47,6 @@ class Signable(object):
             self.f.seek(codesig_offset)
             codesig_data = self.f.read(lc_cmd.data.datasize)
             # log.debug(len(codesig_data))
-            # log.debug(hexdump(codesig_data))
         else:
             raise Exception("not implemented")
             # TODO: this doesn't actually work :(
@@ -65,7 +64,6 @@ class Signable(object):
         new_codesig_data += "\x00" * padding_length
         log.debug("padded len: {0}".format(len(new_codesig_data)))
         log.debug("----")
-        # log.debug(hexdump(new_codesig_data))
         # assert new_codesig_data != codesig_data
 
         lc_cmd = cmds['LC_CODE_SIGNATURE']
