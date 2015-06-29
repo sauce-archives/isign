@@ -36,7 +36,6 @@ setup(
     install_requires=[
         'biplist==0.9',
         'construct==2.5.2',
-        'hexdump==3.2',
         'memoizer==0.0.1',
         'pyOpenSSL==0.13'
     ],

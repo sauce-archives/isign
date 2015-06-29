@@ -203,14 +203,12 @@ class Codesig(object):
         log.debug("sig len: {0}".format(len(sig)))
         log.debug("old sig len: {0}".format(len(oldsig)))
         # open("my_sigrip.der", "wb").write(sig)
-        # log.debug(hexdump(oldsig))
         sigwrapper.data = construct.Container(data=sig)
         # signer._log_parsed_asn1(sig)
         # sigwrapper.data = construct.Container(data="hahaha")
         sigwrapper.length = len(sigwrapper.data.data) + 8
         sigwrapper.bytes = sigwrapper.data.data
         # log.debug(len(sigwrapper.bytes))
-        # log.debug(hexdump(sigwrapper.bytes))
 
     def update_offsets(self):
         # update section offsets, to account for any length changes
