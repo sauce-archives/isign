@@ -40,6 +40,6 @@ setup(
         'pyOpenSSL==0.13'
     ],
     package_data={
-        package: ['version.json'],
+        package: ['apple_credentials/applecerts.pem', 'version.json'],
     },
 )
