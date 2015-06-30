@@ -129,7 +129,9 @@ class App(object):
         executable.sign(signer)
 
     def package(self, output_path):
-        os.rename(self.app_dir, output_path)
+        if os.path.exists(output_path):
+            shutil.rmtree(output_path)
+        shutil.move(self.app_dir, output_path)
 
 
 class AppZip(App):
@@ -173,7 +175,7 @@ class AppZip(App):
         relative_app_path = os.path.basename(self.path)
         temp = self.get_temp_archive_name()
         self.archive(temp, relative_app_path)
-        os.rename(temp, output_path)
+        shutil.move(temp, output_path)
         os.chdir(old_cwd)
 
 
@@ -217,9 +219,8 @@ class Ipa(AppZip):
                 self.path)
         temp = self.get_temp_archive_name()
         self.archive(temp, relative_payload_path)
-        os.rename(temp, output_path)
+        shutil.move(temp, output_path)
         os.chdir(old_cwd)
-
 
 
 class NotNative(Exception):
