@@ -20,27 +20,31 @@ read on for how to create them from scratch.
 Getting credentials from Ansible
 ================================
 
-
 You can obtain these from the ``isign_creds`` role in the ``sauce-ansible`` repository. The files
 are encrypted there. Just run the associated task with ansible, and it 
 should drop the proper files into your home directory. 
 
-There are two different sets of credentials. One for development, and one
-for production. For simplicity they are exported with the same filenames (shown above)
-but they have different contents. In particular, the development credentials can't be used
-to run apps in the production cloud. The development credentials also work with random
-devices that we use for testing at Sauce Labs YVR.
+There are three different sets of credentials: development, build test, and production.
+For simplicity, when they are exported out of ansible, they all get the same filenames, 
+but they have different contents. The identities are associated with a pseudo-user in our
+"Organizational Unit" in Apple, and each have their own Apple Developer Accounts. The 
+.mobileprovision files tie the credentials to different sets of devices.
 
-The production credentials are tied to the ``mobdev@saucelabs.com`` mail alias with the name 
-"Moby Dev". This is chosen for convenience, as it reaches the whole mobile development team. 
-This account can control the devices in the production Real Device Cloud.
+**Development** - pseudo-user called "Moby Dev", associated with the mail alias
+``mobdev@saucelabs.com``, which goes to all the mobile developers at Sauce Labs.
 
-There's another one for development and testing, tied to ``neilk+buildtest@saucelabs.com``, with
-the name "Bill D. Tester". That should be sufficient for testing in the dev cloud, the build 
-tests, as well as random devices we have in the Sauce Labs YVR office. It using 
-'integrationtests.'
+**Build Test** - pseudo-user called "Bill D. Tester", associated with
+``neilk+buildtest@saucelabs.com`` for now. Possibly it will be ``mobbuild@saucelabs.com`` by the time
+you read this. That email should be available to all mobile developers at Sauce 
+Labs. We use 'buildtest.mobileprovision' to hold
+the UDIDs of the devices attached to the build-somen.
 
-Look in Passpack for the details about how to sign into these accounts.
+**Production** is associated with "Moby Prod", associated with 
+``neilk+mobprod@saucelabs.com`` for now. Possibly it will be ``mobprod@saucelabs.com`` by the time
+you read this, which would go to all mobile developers plus some operations people. 
+We don't have any .mobileprovision yet because there aren't any devices in a production RDC yet.
+
+Look in Passpack for the passwords to the associated Apple Developer accounts.
 
 
 
@@ -75,6 +79,9 @@ Setting up credentials
 Apple certificates
 ~~~~~~~~~~~~~~~~~~
 
+You probably don't need to change this, not for a long time (we did this
+in May 2015).
+
 The ``applecerts.pem`` file can be constructed by these steps. In theory
 you can export them from Keychain Access, but when I tried it the certs
 were outdated. I think there's a way to update them, but this procedure
@@ -106,6 +113,9 @@ certs' for code signing.**
 Your keys and certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+If you need to create a new key or cert, or change the existing ones we 
+are using, here's how.
+
 If you intend to use this account to sign apps for later testing with
 Appium, it's important that everything in this account be for
 "Developer", not "Distribution". At this moment, Appium uses Instruments
@@ -115,7 +125,7 @@ touch an app that is signed for Distribution. (Incidentally, welcome to
 nightmare <http://www.gnu.org/philosophy/right-to-read.en.html>`__.)
 
 The following procedure works as of June 2015, for adding a new account
-from scratch. You need to use a Mac to follow these instructions, as
+from scratch. You will need a Mac to follow these instructions, as
 they rely on Apple tools to get you started.
 
 Log into your Apple account.
@@ -191,4 +201,27 @@ organizational unit plus dot-star works (``JWKXD469L2.\*``)
 Next, in 'Select certificates', select the certificates you want, which
 probably includes the you care about.
 
+Putting credentials into Ansible
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+There are different files for each environment (development, build test, production)
+As of July 2015 these files are all called ``isign-creds``, located in different
+directories.
+
+The credentials are all Vault-encrypted together into a single YAML file like, with
+the following keys and values. n.b. the keys are ALWAYS "mobdev_*", even if it's for
+build or prod or whatever.
+
+`mobdev_cert_pem`: cert in PEM format, as created above
+
+`mobdev_key_pem`: key in PEM format, as created above
+
+`mobdev1_mobileprovision_base64`: .mobileprovision file converted to base64, wrapped
+with a short line length, like 62 characters. The following commands should work.
+
+.. code:: bash
+        Mac OS X:
+        $ base64 -b 62 <your.mobileprovision>
+
+        Linux: 
+        $ base64 -w 62 <your.mobileprovision>
