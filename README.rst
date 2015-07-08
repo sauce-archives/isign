@@ -87,8 +87,6 @@ Some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
 to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
 
-The tests assume you have credentials in a well-known location (see above).
-
 
 Rationale
 ---------
