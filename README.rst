@@ -136,3 +136,5 @@ But we could still do better in the general case:
 3) We could cache entire re-signed apps. It's possible that sometimes the customer will upload
    the exact same app as last time, with a modified test. Pantry already takes the MD5 of the entire
    file, so we could use that as a cache key.
+
+4) Use separate processes to hash files, to exploit multiple cores.
