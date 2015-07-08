@@ -16,7 +16,7 @@ import sys
 PACKAGE_ROOT = dirname(realpath(__file__))
 APPLE_CERT_PATH = join(PACKAGE_ROOT, 'apple_credentials', 'applecerts.pem')
 
-# should be deployed with a fab task (as of June 2015, it's ios_rdc_creds)
+# should be deployed with Ansible (as of July 2015, the playbook is isign.yml)
 DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'isign-credentials')
 CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.cert.pem')
 KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.key.pem')
