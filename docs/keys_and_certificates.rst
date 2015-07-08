@@ -204,24 +204,4 @@ probably includes the you care about.
 Putting credentials into Ansible
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There are different files for each environment (development, build test, production)
-As of July 2015 these files are all called ``isign-creds``, located in different
-directories.
-
-The credentials are all Vault-encrypted together into a single YAML file like, with
-the following keys and values. n.b. the keys are ALWAYS "mobdev_*", even if it's for
-build or prod or whatever.
-
-`mobdev_cert_pem`: cert in PEM format, as created above
-
-`mobdev_key_pem`: key in PEM format, as created above
-
-`mobdev1_mobileprovision_base64`: .mobileprovision file converted to base64, wrapped
-with a short line length, like 62 characters. The following commands should work.
-
-.. code:: bash
-        Mac OS X:
-        $ base64 -b 62 <your.mobileprovision>
-
-        Linux: 
-        $ base64 -w 62 <your.mobileprovision>
+See `deploy.rst <deploy.rst>`__.
