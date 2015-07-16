@@ -38,10 +38,13 @@ class App(object):
         app_dir = os.path.join(target_dir, app_name)
         log.debug("copying <%s> to <%s>", path, app_dir)
         shutil.copytree(path, app_dir)
-        return cls(app_dir)
+        return cls(app_dir, target_dir)
 
-    def __init__(self, path):
+    def __init__(self, path, containing_dir=None):
         self.path = path
+        if containing_dir is None:
+            containing_dir = self.path
+        self.containing_dir = containing_dir
         self.entitlements_path = os.path.join(self.path,
                                               'Entitlements.plist')
         self.app_dir = self._get_app_dir()
@@ -74,8 +77,8 @@ class App(object):
     def cleanup(self):
         """ remove our temporary directories. Sometimes this
             has already been moved away """
-        if os.path.exists(self.path):
-            shutil.rmtree(self.path)
+        if os.path.exists(self.containing_dir):
+            shutil.rmtree(self.containing_dir)
 
     def _get_app_dir(self):
         return self.path
@@ -159,7 +162,7 @@ class AppZip(App):
         target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
         app_dir = cls.find_app(target_dir)
-        return cls(app_dir)
+        return cls(app_dir, target_dir)
 
     def archive(self, path, source_dir):
         call([ZIP_BIN, "-qr", path, source_dir])
