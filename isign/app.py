@@ -23,6 +23,10 @@ def get_unique_id():
     return str(int(time.time())) + '-' + str(os.getpid())
 
 
+class AppNotFound(Exception):
+    pass
+
+
 class App(object):
     extensions = ['.app']
     helpers = []
@@ -154,14 +158,20 @@ class AppZip(App):
         count = len(apps)
         if count != 1:
             err = "Expected 1 app in {0}, found {1}".format(glob_path, count)
-            raise Exception(err)
+            raise AppNotFound(err)
         return apps[0]
 
     @classmethod
     def new_from_archive(cls, path):
         target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
-        app_dir = cls.find_app(target_dir)
+        try:
+            app_dir = cls.find_app(target_dir)
+        except AppNotFound:
+            # We are in a class method, so we can't rely
+            # on __exit__ to clean up for us
+            shutil.rmtree(target_dir)
+            raise
         return cls(app_dir, target_dir)
 
     def archive(self, path, source_dir):
@@ -204,7 +214,13 @@ class Ipa(AppZip):
     def new_from_archive(cls, path):
         target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
-        return cls(target_dir)
+        try:
+            return cls(target_dir)
+        except AppNotFound:
+            # We are in a class method, so we can't rely
+            # on __exit__ to clean up for us
+            shutil.rmtree(target_dir)
+            raise
 
     def _get_payload_dir(self):
         return os.path.join(self.path, "Payload")
