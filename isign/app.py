@@ -18,10 +18,30 @@ TAR_BIN = distutils.spawn.find_executable('tar')
 log = logging.getLogger(__name__)
 
 
+class NotSignable(Exception):
+    """ superclass of exceptions, if anything about this app
+        prevented us from signing it """
+    pass
+
+
+class NotFound(NotSignable):
+    """ thrown if no app found in archive """
+    pass
+
+
+class NotNative(NotSignable):
+    """ thrown if app is not a native iOS app """
+    pass
+
+
+class NotMatched(NotSignable):
+    """ thrown if we can't find any app class for
+        this file path """
+    pass
+
+
 def get_unique_id():
     return str(int(time.time())) + '-' + str(os.getpid())
-
-
 
 
 class App(object):
@@ -72,12 +92,13 @@ class App(object):
 
     def __exit__(self, exception_type, exception_value, traceback):
         """ handle `with` destruction """
-        log.debug('__exiting__')
+        log.debug('__exiting__ App class')
         self.cleanup()
 
     def cleanup(self):
         """ remove our temporary directories. Sometimes this
             has already been moved away """
+        log.debug("cleaning up %s", self.containing_dir)
         if os.path.exists(self.containing_dir):
             shutil.rmtree(self.containing_dir)
 
@@ -94,7 +115,7 @@ class App(object):
         executable = os.path.join(self.app_dir, executable_name)
         if not os.path.exists(executable):
             raise Exception(
-                    'could not find executable for {0}'.format(self.path))
+                'could not find executable for {0}'.format(self.path))
         return executable
 
     def is_native(self):
@@ -231,27 +252,13 @@ class Ipa(AppZip):
         old_cwd = os.getcwd()
         os.chdir(self.path)
         relative_payload_path = os.path.relpath(
-                self._get_payload_dir(),
-                self.path)
+            self._get_payload_dir(),
+            self.path
+        )
         temp = self.get_temp_archive_name()
         self.archive(temp, relative_payload_path)
         shutil.move(temp, output_path)
         os.chdir(old_cwd)
-
-class ContentError(Exception):
-    pass
-
-
-class NotFound(ContentError):
-    pass
-
-
-class NotNative(ContentError):
-    pass
-
-
-class NotMatched(ContentError):
-    pass
 
 
 APP_CLASSES = [Ipa, App, AppZip, AppTarGz]
