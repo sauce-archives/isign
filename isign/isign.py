@@ -103,17 +103,6 @@ def parse_args():
     return parser.parse_args()
 
 
-class NotSignable(Exception):
-    pass
-
-
-def new_from_archive(path):
-    try:
-        app = application.new_from_archive(path)
-    except application.ContentError as e:
-        raise NotSignable(e)
-    return app
-
 
 def resign(app,
            certificate=CERTIFICATE_PATH,
@@ -160,8 +149,9 @@ if __name__ == '__main__':
     del args_dict['input_path']
 
     try:
-        with new_from_archive(input_path) as app:
+        with application.new_from_archive(input_path) as app:
             resign(app, **args_dict)
-    except NotSignable, e:
-        log.info("Input path <{0}> is not a signable file: {1}\n".format(input_path, e))
+    except application.NotSignable, e:
+        msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
+        log.info(msg)
         sys.exit(1)
