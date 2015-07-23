@@ -262,8 +262,9 @@ def new_from_archive(path):
     for cls in APP_CLASSES:
         for extension in cls.extensions:
             if path.endswith(extension):
-                app = cls.new_from_archive(path)
-                if not app.is_native():
-                    raise NotNative("no native code detected: {}".format(path))
+                with cls.new_from_archive(path) as app:
+                    if not app.is_native():
+                        msg = "no native code detected: {}".format(path)
+                        raise NotNative(msg)
                 return app
     raise NotMatched("no matching class for {}".format(path))
