@@ -16,15 +16,12 @@ UNZIP_BIN = distutils.spawn.find_executable('unzip')
 TAR_BIN = distutils.spawn.find_executable('tar')
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 
 def get_unique_id():
     return str(int(time.time())) + '-' + str(os.getpid())
 
 
-class AppNotFound(Exception):
-    pass
 
 
 class App(object):
@@ -158,7 +155,7 @@ class AppZip(App):
         count = len(apps)
         if count != 1:
             err = "Expected 1 app in {0}, found {1}".format(glob_path, count)
-            raise AppNotFound(err)
+            raise NotFound(err)
         return apps[0]
 
     @classmethod
@@ -167,7 +164,7 @@ class AppZip(App):
         cls.unarchive(path, target_dir)
         try:
             app_dir = cls.find_app(target_dir)
-        except AppNotFound:
+        except NotFound:
             # We are in a class method, so we can't rely
             # on __exit__ to clean up for us
             shutil.rmtree(target_dir)
@@ -216,7 +213,7 @@ class Ipa(AppZip):
         cls.unarchive(path, target_dir)
         try:
             return cls(target_dir)
-        except AppNotFound:
+        except NotFound:
             # We are in a class method, so we can't rely
             # on __exit__ to clean up for us
             shutil.rmtree(target_dir)
@@ -241,12 +238,19 @@ class Ipa(AppZip):
         shutil.move(temp, output_path)
         os.chdir(old_cwd)
 
-
-class NotNative(Exception):
+class ContentError(Exception):
     pass
 
 
-class NotMatched(Exception):
+class NotFound(ContentError):
+    pass
+
+
+class NotNative(ContentError):
+    pass
+
+
+class NotMatched(ContentError):
     pass
 
 
