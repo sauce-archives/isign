@@ -25,7 +25,6 @@ PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
 
 
 log = logging.getLogger(__name__)
-log.setLevel(logging.INFO)
 
 
 def absolute_path_argument(path):
@@ -41,51 +40,66 @@ def exists_absolute_path_argument(path):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-            description='Resign an iOS application with a new identity '
-                        'and provisioning profile.')
+        description='Resign an iOS application with a new identity '
+                    'and provisioning profile.')
     parser.add_argument(
-            '-p', '--provisioning-profile',
-            dest='provisioning_profile',
-            required=False,
-            metavar='<your.mobileprovision path>',
-            type=exists_absolute_path_argument,
-            help='Path to provisioning profile')
+        '-p', '--provisioning-profile',
+        dest='provisioning_profile',
+        required=False,
+        metavar='<your.mobileprovision path>',
+        type=exists_absolute_path_argument,
+        help='Path to provisioning profile'
+    )
     parser.add_argument(
-            '-a', '--apple-cert',
-            dest='apple_cert',
-            required=False,
-            metavar='<apple cert>',
-            type=exists_absolute_path_argument,
-            help='Path to Apple certificate in .pem form')
+        '-a', '--apple-cert',
+        dest='apple_cert',
+        required=False,
+        metavar='<apple cert>',
+        type=exists_absolute_path_argument,
+        help='Path to Apple certificate in .pem form'
+    )
     parser.add_argument(
-            '-k', '--key',
-            dest='key',
-            required=False,
-            metavar='<key path>',
-            type=exists_absolute_path_argument,
-            help='Path to your organization\'s key in .p12 format')
+        '-k', '--key',
+        dest='key',
+        required=False,
+        metavar='<key path>',
+        type=exists_absolute_path_argument,
+        help='Path to your organization\'s key in .p12 format'
+    )
     parser.add_argument(
-            '-c', '--certificate',
-            dest='certificate',
-            required=False,
-            metavar='<certificate path>',
-            type=exists_absolute_path_argument,
-            help='Path to your organization\'s certificate in .pem form')
+        '-c', '--certificate',
+        dest='certificate',
+        required=False,
+        metavar='<certificate path>',
+        type=exists_absolute_path_argument,
+        help='Path to your organization\'s certificate in .pem form'
+    )
     parser.add_argument(
-            '-o', '--output',
-            dest='output_path',
-            required=False,
-            metavar='<output path>',
-            type=absolute_path_argument,
-            default=None,
-            help='Path to output file or directory')
+        '-o', '--output',
+        dest='output_path',
+        required=False,
+        metavar='<output path>',
+        type=absolute_path_argument,
+        default=None,
+        help='Path to output file or directory'
+    )
     parser.add_argument(
-            'app_paths',
-            nargs=1,
-            metavar='<app path>',
-            type=exists_absolute_path_argument,
-            help='Path to application to re-sign, typically a '
-                 'directory ending in .app or file ending in .ipa.')
+        'app_paths',
+        nargs=1,
+        metavar='<app path>',
+        type=exists_absolute_path_argument,
+        help='Path to application to re-sign, typically a '
+             'directory ending in .app or file ending in .ipa.'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        dest='verbose',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Set logging level to debug.'
+    )
+
     return parser.parse_args()
 
 
@@ -96,8 +110,7 @@ class NotSignable(Exception):
 def new_from_archive(path):
     try:
         app = application.new_from_archive(path)
-    except (application.NotMatched, application.NotNative) as e:
-        log.debug(e)
+    except application.ContentError as e:
         raise NotSignable(e)
     return app
 
@@ -124,8 +137,6 @@ def resign(app,
 
 
 if __name__ == '__main__':
-    log_to_stderr(log)
-
     args = parse_args()
     args_dict = vars(args)
     args_dict['input_path'] = args.app_paths[0]
@@ -138,6 +149,13 @@ if __name__ == '__main__':
         if key in args_dict and args_dict[key] is None:
             del args_dict[key]
 
+    if args_dict['verbose']:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    log_to_stderr(level)
+
     input_path = args_dict['input_path']
     del args_dict['input_path']
 
@@ -145,5 +163,5 @@ if __name__ == '__main__':
         with new_from_archive(input_path) as app:
             resign(app, **args_dict)
     except NotSignable, e:
-        log.debug("Can't sign <{0}>: {1}\n".format(input_path, e))
+        log.info("Input path <{0}> is not a signable file: {1}\n".format(input_path, e))
         sys.exit(1)
