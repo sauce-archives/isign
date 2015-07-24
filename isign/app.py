@@ -19,8 +19,14 @@ log = logging.getLogger(__name__)
 
 
 class NotSignable(Exception):
-    """ superclass of exceptions, if anything about this app
-        prevented us from signing it """
+    """ superclass for any reason why app shouldn't be
+        signable """
+    pass
+
+
+class NotMatched(NotSignable):
+    """ thrown if we can't find any app class for
+        this file path """
     pass
 
 
@@ -30,13 +36,17 @@ class NotFound(NotSignable):
 
 
 class NotNative(NotSignable):
-    """ thrown if app is not a native iOS app """
+    """ app was not native iOS """
     pass
 
 
-class NotMatched(NotSignable):
-    """ thrown if we can't find any app class for
-        this file path """
+class ContentError(NotSignable):
+    """ something wrong with app contents """
+    pass
+
+
+class HelpersMissing(NotSignable):
+    """ Missing needed apps to unzip, etc. """
     pass
 
 
@@ -75,16 +85,23 @@ class App(object):
         # will be added later
         self.seal_path = None
 
-        info_path = os.path.join(self.app_dir, 'Info.plist')
-        if not os.path.exists(info_path):
-            raise Exception('no Info.plist at {0}'.format(info_path))
-        self.info = biplist.readPlist(info_path)
+        try:
+            info_path = os.path.join(self.app_dir, 'Info.plist')
+            if not os.path.exists(info_path):
+                raise ContentError('no Info.plist at {0}'.format(info_path))
+            self.info = biplist.readPlist(info_path)
 
-        # check if all needed helper apps are around
-        for helper in self.helpers:
-            if helper is None:
-                msg = "Missing helpers for {}".format(self.__class__.__name__)
-                raise Exception(msg)
+            # check if all needed helper apps are around
+            for helper in self.helpers:
+                if helper is None:
+                    msg = "Missing helpers for {}".format(self.__class__.__name__)
+                    raise HelpersMissing(msg)
+
+            if not self.is_native():
+                raise NotNative("Not a native app")
+        except:
+            self.cleanup()
+            raise
 
     def __enter__(self):
         """ handle `with` initialization """
@@ -261,17 +278,12 @@ class Ipa(AppZip):
         os.chdir(old_cwd)
 
 
-APP_CLASSES = [Ipa, App, AppZip, AppTarGz]
-
+APPLICATION_CLASSES = [Ipa, App, AppZip, AppTarGz]
 
 def new_from_archive(path):
     """ factory to unpack various app types """
-    for cls in APP_CLASSES:
+    for cls in APPLICATION_CLASSES:
         for extension in cls.extensions:
             if path.endswith(extension):
-                with cls.new_from_archive(path) as app:
-                    if not app.is_native():
-                        msg = "no native code detected: {}".format(path)
-                        raise NotNative(msg)
-                return app
+                return cls.new_from_archive(path)
     raise NotMatched("no matching class for {}".format(path))
