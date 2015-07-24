@@ -27,6 +27,11 @@ PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
 log = logging.getLogger(__name__)
 
 
+class NotSignable(Exception):
+    """ all purpose exception """
+    pass
+
+
 def absolute_path_argument(path):
     return os.path.abspath(os.path.expanduser(path))
 
@@ -103,6 +108,16 @@ def parse_args():
     return parser.parse_args()
 
 
+def new_from_archive(path):
+    """ facade mostly so it is easy to import
+        and to re-raise under one Exception class """
+    try:
+        app = application.new_from_archive(path)
+    except application.NotSignable as e:
+        log.error(e)
+        raise NotSignable(e)
+    return app
+
 
 def resign(app,
            certificate=CERTIFICATE_PATH,
@@ -142,6 +157,7 @@ if __name__ == '__main__':
         level = logging.DEBUG
     else:
         level = logging.INFO
+    del args_dict['verbose']
 
     log_to_stderr(level)
 
@@ -151,7 +167,7 @@ if __name__ == '__main__':
     try:
         with application.new_from_archive(input_path) as app:
             resign(app, **args_dict)
-    except application.NotSignable, e:
+    except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
-        log.info(msg)
+        log.error(msg)
         sys.exit(1)
