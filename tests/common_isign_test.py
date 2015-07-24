@@ -1,6 +1,5 @@
 from os.path import abspath
 from os.path import dirname
-from os.path import exists
 from os.path import join
 
 TEST_DIR = dirname(__file__)
@@ -10,6 +9,7 @@ TEST_APPTGZ = join(TEST_DIR, 'SimpleSaucyApp.tgz')
 TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
 TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
 TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
+TEST_SIMULATOR_APP = join(TEST_DIR, 'IosSimulatorApp.app.zip')
 REPO_ROOT = dirname(dirname(abspath(__file__)))
 ISIGN_BIN = join(REPO_ROOT, 'isign', 'isign.py')
 KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
