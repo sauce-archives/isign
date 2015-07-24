@@ -3,6 +3,7 @@ from common_isign_test import TEST_APP
 from common_isign_test import TEST_IPA
 from common_isign_test import TEST_NONAPP_TXT
 from common_isign_test import TEST_NONAPP_IPA
+from common_isign_test import TEST_SIMULATOR_APP
 from common_isign_test import KEY
 from common_isign_test import CERTIFICATE
 from common_isign_test import PROVISIONING_PROFILE
@@ -68,3 +69,6 @@ class TestPublicInterface(unittest.TestCase):
 
     def test_non_app_ipa(self):
         self._test_failed_to_sign(TEST_NONAPP_IPA, self._get_temp_file())
+
+    def test_simulator_app(self):
+        self._test_unsignable(TEST_SIMULATOR_APP, self._get_temp_file())
