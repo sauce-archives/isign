@@ -21,8 +21,8 @@ class TestPublicInterface(unittest.TestCase):
         "provisioning_profile": PROVISIONING_PROFILE
     }
 
-    def _get_temp_file(self):
-        (fd, path) = tempfile.mkstemp()
+    def _get_temp_file(self, prefix='isign-test-'):
+        (fd, path) = tempfile.mkstemp(prefix=prefix)
         os.close(fd)
         return path
 
@@ -49,14 +49,16 @@ class TestPublicInterface(unittest.TestCase):
         with self.assertRaises(isign.NotSignable):
             with isign.new_from_archive(filename) as app:
                 self._resign(app, output_path=output_path)
+        self._remove(output_path)
 
     def _test_failed_to_sign(self, filename, output_path):
         with self.assertRaises(Exception):
             with isign.new_from_archive(filename) as app:
                 self._resign(app, output_path=output_path)
+        self._remove(output_path)
 
     def test_app(self):
-        self._test_signable(TEST_APP, tempfile.mkdtemp())
+        self._test_signable(TEST_APP, tempfile.mkdtemp('isign-test-'))
 
     def test_app_ipa(self):
         self._test_signable(TEST_IPA, self._get_temp_file())
