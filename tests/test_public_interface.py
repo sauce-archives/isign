@@ -7,6 +7,7 @@ from common_isign_test import TEST_SIMULATOR_APP
 from common_isign_test import KEY
 from common_isign_test import CERTIFICATE
 from common_isign_test import PROVISIONING_PROFILE
+from monkey_patch_temp_file import MonkeyPatchTempFile
 import os
 from os.path import exists
 from isign import isign
@@ -21,6 +22,12 @@ class TestPublicInterface(unittest.TestCase):
         "certificate": CERTIFICATE,
         "provisioning_profile": PROVISIONING_PROFILE
     }
+
+    def setUp(self):
+        MonkeyPatchTempFile.patch()
+
+    def tearDown(self):
+        MonkeyPatchTempFile.restore()
 
     def _get_temp_file(self, prefix='isign-test-'):
         (fd, path) = tempfile.mkstemp(prefix=prefix)
@@ -45,18 +52,21 @@ class TestPublicInterface(unittest.TestCase):
             assert exists(resigned_path)
             assert os.path.getsize(resigned_path) > 0
             self._remove(resigned_path)
+        assert MonkeyPatchTempFile.has_no_temp_files()
 
     def _test_unsignable(self, filename, output_path):
         with self.assertRaises(isign.NotSignable):
             with isign.new_from_archive(filename) as app:
                 self._resign(app, output_path=output_path)
         self._remove(output_path)
+        assert MonkeyPatchTempFile.has_no_temp_files()
 
     def _test_failed_to_sign(self, filename, output_path):
         with self.assertRaises(Exception):
             with isign.new_from_archive(filename) as app:
                 self._resign(app, output_path=output_path)
         self._remove(output_path)
+        assert MonkeyPatchTempFile.has_no_temp_files()
 
     def test_app(self):
         self._test_signable(TEST_APP, tempfile.mkdtemp('isign-test-'))
