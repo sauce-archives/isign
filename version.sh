@@ -24,8 +24,8 @@ if [[ "$JOB_NAME" = "${name}" ]] && [[ -n "$BUILD_TAG" ]]; then
 else
     if [[ -n "$(git tag --list 'v[0-9]*')" ]]; then
         recent_tag=$(git describe --tags --match 'v[0-9]*' | cut -f 1 -d -)
-        majmin_version=$(echo $recent_tag | tr "v-." " " | awk '{print $1"."$2}')
-        patch_version=$(echo $recent_tag | tr "v-." " " | awk '{print $3}')
+        majmin_version=$(echo $recent_tag | tr "v.-" " " | awk '{print $1"."$2}')
+        patch_version=$(echo $recent_tag | tr "v.-" " " | awk '{print $3}')
         dev_version=$(git rev-list --count ${recent_tag}...HEAD)
     else  # start of dev, nothing tagged
         majmin_version="0.0"
