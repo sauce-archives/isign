@@ -8,5 +8,5 @@ cd ..
 SRC_DIR=$PWD
 popd >/dev/null
 
-pip install -r ${DEV_DIR}/requirements.txt
-pip install -e ${SRC_DIR}
+pip install -U -r ${DEV_DIR}/requirements.txt
+pip install -U -e ${SRC_DIR}
