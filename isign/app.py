@@ -195,29 +195,21 @@ class AppZip(App):
     def precheck(cls, path):
         """ Checks if a path looks like this kind of app,
             return stuff we'll need to know about its structure """
-        log.info("precheck: %s %s", cls, path)
         relative_app_dir = None
         is_native = False
         if (cls.is_archive_extension_match(path) and zipfile.is_zipfile(path)):
-            log.info("is an extension match, and is zipfile")
             z = zipfile.ZipFile(path)
             apps = []
             file_list = z.namelist()
-            log.info("looking for app dir")
             for file_name in file_list:
-                log.info("looking for app dir: %s", file_name)
                 if re.match(cls.app_dir_pattern, file_name):
-                    log.info("found app dir: %s", file_name)
                     apps.append(file_name)
-            log.info("found apps: %s", apps)
             if len(apps) == 1:
                 relative_app_dir = apps[0]
                 plist_path = join(relative_app_dir, "Info.plist")
-                log.info("plist path: %s", plist_path)
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = cls.is_plist_native(plist)
-                log.info("is_native? %s", is_native)
         return (relative_app_dir, is_native)
 
     @classmethod
@@ -253,11 +245,8 @@ class Ipa(AppZip):
         # need to chdir and use relative paths, because zip is stupid
         old_cwd = os.getcwd()
         os.chdir(self.containing_dir)
-        log.info("inside %s", self.path)
         temp = self.get_temp_archive_name()
-        log.info("archiving %s, %s", temp, "./Payload")
         self.archive(temp, "./Payload")
-        log.info("moving %s to %s", temp, output_path)
         shutil.move(temp, output_path)
         os.chdir(old_cwd)
 
@@ -270,9 +259,7 @@ def new_from_archive(path):
     """ factory to unpack various app types """
 
     for cls in FORMAT_CLASSES:
-        log.info("trying format_class %s", cls.__name__)
         obj = cls.new_from_archive(path)
-        log.info("obj is %s", obj)
         if obj is not False:
             return obj
 
