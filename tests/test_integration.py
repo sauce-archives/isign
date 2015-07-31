@@ -171,7 +171,7 @@ class TestIntegration:
         assert 'Hash' in info
         assert '_' in info['Hash']
         hashes = info['Hash']['_']
-        for i in range(start_index, end_index+1):
+        for i in range(start_index, end_index + 1):
             assert str(i) in hashes
         return hashes
 
