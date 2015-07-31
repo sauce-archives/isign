@@ -4,7 +4,7 @@ import distutils
 import glob
 import logging
 import os
-import os.path
+from os.path import abspath, basename, dirname, exists, join, splitext
 import re
 import signable
 import shutil
@@ -72,8 +72,8 @@ class App(object):
         is_native = False
         if cls.is_archive_extension_match(path):
             relative_app_dir = '.'
-            plist_path = os.path.join(path, "Info.plist")
-            if os.path.exists(plist_path):
+            plist_path = join(path, "Info.plist")
+            if exists(plist_path):
                 plist = biplist.readPlist(plist_path)
                 is_native = cls.is_plist_native(plist)
         return (relative_app_dir, is_native)
@@ -81,6 +81,7 @@ class App(object):
     @classmethod
     def unarchive(cls, path, target_dir):
         log.debug("copying <%s> to <%s>", path, target_dir)
+        shutil.rmtree(target_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(path, target_dir)
 
     @classmethod
@@ -93,7 +94,7 @@ class App(object):
             return False
         target_dir = cls.make_temp_dir()
         cls.unarchive(path, target_dir)
-        app_dir = os.path.abspath(os.path.join(target_dir, relative_app_dir))
+        app_dir = abspath(os.path.join(target_dir, relative_app_dir))
         return cls(app_dir, target_dir)
 
     def __init__(self, path, containing_dir=None):
@@ -101,17 +102,17 @@ class App(object):
         if containing_dir is None:
             containing_dir = self.path
         self.containing_dir = containing_dir
-        self.entitlements_path = os.path.join(self.path,
-                                              'Entitlements.plist')
+        self.entitlements_path = join(self.path,
+                                      'Entitlements.plist')
         self.app_dir = self._get_app_dir()
-        self.provision_path = os.path.join(self.app_dir,
-                                           'embedded.mobileprovision')
+        self.provision_path = join(self.app_dir,
+                                   'embedded.mobileprovision')
 
         # will be added later
         self.seal_path = None
 
         try:
-            info_path = os.path.join(self.app_dir, 'Info.plist')
+            info_path = join(self.app_dir, 'Info.plist')
             self.info = biplist.readPlist(info_path)
         except:
             self.cleanup()
@@ -130,7 +131,7 @@ class App(object):
         """ remove our temporary directories. Sometimes this
             has already been moved away """
         log.debug("cleaning up %s", self.containing_dir)
-        if os.path.exists(self.containing_dir):
+        if exists(self.containing_dir):
             shutil.rmtree(self.containing_dir)
 
     def _get_app_dir(self):
@@ -141,10 +142,9 @@ class App(object):
         if 'CFBundleExecutable' in self.info:
             executable_name = self.info['CFBundleExecutable']
         else:
-            basename = os.path.basename(self.app_dir)
-            executable_name, _ = os.path.splitext(basename)
-        executable = os.path.join(self.app_dir, executable_name)
-        if not os.path.exists(executable):
+            executable_name, _ = splitext(basename(self.app_dir))
+        executable = join(self.app_dir, executable_name)
+        if not exists(executable):
             raise Exception(
                 'could not find executable for {0}'.format(self.path))
         return executable
@@ -164,9 +164,9 @@ class App(object):
 
     def sign(self, signer):
         # first sign all the dylibs
-        frameworks_path = os.path.join(self.app_dir, 'Frameworks')
-        if os.path.exists(frameworks_path):
-            dylib_paths = glob.glob(os.path.join(frameworks_path, '*.dylib'))
+        frameworks_path = join(self.app_dir, 'Frameworks')
+        if exists(frameworks_path):
+            dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
             for dylib_path in dylib_paths:
                 dylib = signable.Dylib(self, dylib_path)
                 dylib.sign(signer)
@@ -179,7 +179,7 @@ class App(object):
         executable.sign(signer)
 
     def package(self, output_path):
-        if os.path.exists(output_path):
+        if exists(output_path):
             shutil.rmtree(output_path)
         shutil.move(self.app_dir, output_path)
 
@@ -187,7 +187,7 @@ class App(object):
 class AppZip(App):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
-    app_dir_pattern = r'[^/]+.app/'
+    app_dir_pattern = r'^[^/]+\.app/$'
     extensions = ['.zip']
     helpers = [ZIP_BIN, UNZIP_BIN]
 
@@ -195,21 +195,29 @@ class AppZip(App):
     def precheck(cls, path):
         """ Checks if a path looks like this kind of app,
             return stuff we'll need to know about its structure """
+        log.info("precheck: %s %s", cls, path)
         relative_app_dir = None
         is_native = False
         if (cls.is_archive_extension_match(path) and zipfile.is_zipfile(path)):
+            log.info("is an extension match, and is zipfile")
             z = zipfile.ZipFile(path)
             apps = []
             file_list = z.namelist()
+            log.info("looking for app dir")
             for file_name in file_list:
+                log.info("looking for app dir: %s", file_name)
                 if re.match(cls.app_dir_pattern, file_name):
+                    log.info("found app dir: %s", file_name)
                     apps.append(file_name)
+            log.info("found apps: %s", apps)
             if len(apps) == 1:
                 relative_app_dir = apps[0]
-                plist_path = path.join(relative_app_dir, "Info.plist")
+                plist_path = join(relative_app_dir, "Info.plist")
+                log.info("plist path: %s", plist_path)
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = cls.is_plist_native(plist)
+                log.info("is_native? %s", is_native)
         return (relative_app_dir, is_native)
 
     @classmethod
@@ -226,8 +234,8 @@ class AppZip(App):
         # we assume the caller uses the right extension for the output path.
         # need to chdir and use relative paths, because zip is stupid
         old_cwd = os.getcwd()
-        os.chdir(os.path.dirname(self.path))
-        relative_app_path = os.path.basename(self.path)
+        os.chdir(self.containing_dir)
+        relative_app_path = basename(self.path)
         temp = self.get_temp_archive_name()
         self.archive(temp, relative_app_path)
         shutil.move(temp, output_path)
@@ -238,15 +246,18 @@ class Ipa(AppZip):
     """ IPA is Apple's standard for distributing apps. Very much like
         an .app.zip, except different paths inside """
     extensions = ['.ipa']
-    app_dir_pattern = r'Payload/[^/]+.app/'
+    app_dir_pattern = r'^Payload/[^/]+\.app/$'
 
     def package(self, output_path):
         # we assume the caller uses the right extension for the output path.
         # need to chdir and use relative paths, because zip is stupid
         old_cwd = os.getcwd()
-        os.chdir(self.path)
+        os.chdir(self.containing_dir)
+        log.info("inside %s", self.path)
         temp = self.get_temp_archive_name()
+        log.info("archiving %s, %s", temp, "./Payload")
         self.archive(temp, "./Payload")
+        log.info("moving %s to %s", temp, output_path)
         shutil.move(temp, output_path)
         os.chdir(old_cwd)
 
@@ -259,8 +270,11 @@ def new_from_archive(path):
     """ factory to unpack various app types """
 
     for cls in FORMAT_CLASSES:
+        log.info("trying format_class %s", cls.__name__)
         obj = cls.new_from_archive(path)
+        log.info("obj is %s", obj)
         if obj is not False:
             return obj
 
+    log.info("failed to find a format_class!")
     return False
