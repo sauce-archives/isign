@@ -5,7 +5,6 @@ from os.path import join
 TEST_DIR = dirname(__file__)
 TEST_APP = join(TEST_DIR, 'SimpleSaucyApp.app')
 TEST_APPZIP = TEST_APP + '.zip'
-TEST_APPTGZ = join(TEST_DIR, 'SimpleSaucyApp.tgz')
 TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
 TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
 TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
