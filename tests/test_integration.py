@@ -1,7 +1,6 @@
 import distutils
 from common_isign_test import TEST_APP
 from common_isign_test import TEST_APPZIP
-from common_isign_test import TEST_APPTGZ
 from common_isign_test import TEST_IPA
 from common_isign_test import TEST_NONAPP_TXT
 from common_isign_test import TEST_NONAPP_IPA
@@ -254,15 +253,6 @@ class TestIntegration:
     def test_simple_appzip(self, cleanup=True):
         app_path = self._get_temp_file()
         self.call_isign(input_path=TEST_APPZIP, output_path=app_path)
-        assert self._is_file_with_contents(app_path)
-
-        # todo subject.cn from cert?
-        if cleanup:
-            os.remove(app_path)
-
-    def test_simple_apptgz(self, cleanup=True):
-        app_path = self._get_temp_file()
-        self.call_isign(input_path=TEST_APPTGZ, output_path=app_path)
         assert self._is_file_with_contents(app_path)
 
         # todo subject.cn from cert?
