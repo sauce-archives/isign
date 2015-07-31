@@ -4,7 +4,7 @@ import distutils
 import glob
 import logging
 import os
-from os.path import abspath, basename, dirname, exists, join, splitext
+from os.path import abspath, basename, exists, join, splitext
 import re
 import signable
 import shutil
