@@ -67,10 +67,13 @@ class MonitorTempFile(object):
         cls.TEMP_DIR = None
 
     @classmethod
+    def get_temp_files(cls):
+        return os.listdir(cls.TEMP_DIR)
+
+    @classmethod
     def has_no_temp_files(cls):
         """ check if this test has created any temp files which
             aren't cleaned up """
         if cls.TEMP_DIR is None:
             raise Exception("temp dir is None. Maybe call patch() first?")
-
-        return len(os.listdir(cls.TEMP_DIR)) == 0
+        return len(cls.get_temp_files()) == 0

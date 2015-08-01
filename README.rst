@@ -44,14 +44,9 @@ You can also call it from Python:
     from isign import isign
    
     try:
-        with isign.new_from_archive(input_path) as app:
-            output_path = "resigned." + input_path
-            isign.resign(app, output_path=output_path)
-    except isign.NotSignable, e:
+        isign.resign(app, output_path=output_path)
+    except isign.NotSignable as e:
         # this wasn't an iOS native app
-    except Exception, e:
-        # we thought it was an app and tried to sign it,
-        # but something else went wrong
 
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
