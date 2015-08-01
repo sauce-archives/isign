@@ -8,7 +8,7 @@ from log_to_stderr import log_to_stderr
 import os
 import os.path
 from os.path import dirname, join, realpath
-
+import sys
 
 # this comes with the repo
 PACKAGE_ROOT = dirname(realpath(__file__))
@@ -47,13 +47,6 @@ def absolute_path_argument(path):
     return os.path.abspath(os.path.expanduser(path))
 
 
-def exists_absolute_path_argument(path):
-    path = absolute_path_argument(path)
-    if not os.path.exists(path):
-        raise argparse.ArgumentTypeError("%s does not exist!" % path)
-    return path
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description='Resign an iOS application with a new identity '
@@ -64,7 +57,7 @@ def parse_args():
         default=PROVISIONING_PROFILE_PATH,
         required=False,
         metavar='<your.mobileprovision path>',
-        type=exists_absolute_path_argument,
+        type=absolute_path_argument,
         help='Path to provisioning profile'
     )
     parser.add_argument(
@@ -73,7 +66,7 @@ def parse_args():
         default=APPLE_CERT_PATH,
         required=False,
         metavar='<apple cert>',
-        type=exists_absolute_path_argument,
+        type=absolute_path_argument,
         help='Path to Apple certificate in .pem form'
     )
     parser.add_argument(
@@ -82,7 +75,7 @@ def parse_args():
         default=KEY_PATH,
         required=False,
         metavar='<key path>',
-        type=exists_absolute_path_argument,
+        type=absolute_path_argument,
         help='Path to your organization\'s key in .p12 format'
     )
     parser.add_argument(
@@ -91,7 +84,7 @@ def parse_args():
         default=CERTIFICATE_PATH,
         required=False,
         metavar='<certificate path>',
-        type=exists_absolute_path_argument,
+        type=absolute_path_argument,
         help='Path to your organization\'s certificate in .pem form'
     )
     parser.add_argument(
@@ -107,7 +100,7 @@ def parse_args():
         'app_paths',
         nargs=1,
         metavar='<app path>',
-        type=exists_absolute_path_argument,
+        type=absolute_path_argument,
         help='Path to application to re-sign, typically a '
              'directory ending in .app or file ending in .ipa.'
     )
