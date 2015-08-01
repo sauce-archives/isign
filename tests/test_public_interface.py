@@ -43,23 +43,16 @@ class TestPublicInterface(unittest.TestCase):
             else:
                 os.unlink(path)
 
-    def _resign(self, filename, **args):
-        """ resign with test credentials """
-        args.update(self.credentials)
-        return isign.resign(filename, **args)
-
     def _test_signable(self, filename, output_path):
-        with isign.new_from_archive(filename) as app:
-            resigned_path = self._resign(app, output_path=output_path)
-            assert exists(resigned_path)
-            assert os.path.getsize(resigned_path) > 0
-            self._remove(resigned_path)
+        isign.resign(filename, output_path=output_path)
+        assert exists(output_path)
+        assert os.path.getsize(output_path) > 0
+        self._remove(output_path)
         assert MonitorTempFile.has_no_temp_files()
 
     def _test_unsignable(self, filename, output_path):
         with self.assertRaises(isign.NotSignable):
-            with isign.new_from_archive(filename) as app:
-                self._resign(app, output_path=output_path)
+            isign.resign(filename, output_path=output_path)
         self._remove(output_path)
         assert MonitorTempFile.has_no_temp_files()
 
