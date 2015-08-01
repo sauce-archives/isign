@@ -7,6 +7,7 @@ from common_isign_test import TEST_SIMULATOR_APP
 from common_isign_test import KEY
 from common_isign_test import CERTIFICATE
 from common_isign_test import PROVISIONING_PROFILE
+import logging
 from monitor_temp_file import MonitorTempFile
 import os
 from os.path import exists
@@ -14,6 +15,8 @@ from isign import isign
 import shutil
 import unittest
 import tempfile
+
+log = logging.getLogger(__name__)
 
 
 class TestPublicInterface(unittest.TestCase):
@@ -43,32 +46,32 @@ class TestPublicInterface(unittest.TestCase):
             else:
                 os.unlink(path)
 
-    def _resign(self, filename, **args):
+    def _resign_with_test_credentials(self, filename, **args):
         """ resign with test credentials """
         args.update(self.credentials)
         return isign.resign(filename, **args)
 
+    def _check_no_temp_files_left(self):
+        remaining_temp_files = MonitorTempFile.get_temp_files()
+        if len(remaining_temp_files) != 0:
+            log.error("remaining temp files: %s",
+                      ', '.join(remaining_temp_files))
+        assert len(remaining_temp_files) == 0
+
     def _test_signable(self, filename, output_path):
-        with isign.new_from_archive(filename) as app:
-            resigned_path = self._resign(app, output_path=output_path)
-            assert exists(resigned_path)
-            assert os.path.getsize(resigned_path) > 0
-            self._remove(resigned_path)
-        assert MonitorTempFile.has_no_temp_files()
+        self._resign_with_test_credentials(filename,
+                                           output_path=output_path)
+        assert exists(output_path)
+        assert os.path.getsize(output_path) > 0
+        self._remove(output_path)
+        self._check_no_temp_files_left()
 
     def _test_unsignable(self, filename, output_path):
         with self.assertRaises(isign.NotSignable):
-            with isign.new_from_archive(filename) as app:
-                self._resign(app, output_path=output_path)
+            self._resign_with_test_credentials(filename,
+                                               output_path=output_path)
         self._remove(output_path)
-        assert MonitorTempFile.has_no_temp_files()
-
-    def _test_failed_to_sign(self, filename, output_path):
-        with self.assertRaises(Exception):
-            with isign.new_from_archive(filename) as app:
-                self._resign(app, output_path=output_path)
-        self._remove(output_path)
-        assert MonitorTempFile.has_no_temp_files()
+        self._check_no_temp_files_left()
 
     def test_app(self):
         self._test_signable(TEST_APP, tempfile.mkdtemp('isign-test-'))
@@ -80,7 +83,7 @@ class TestPublicInterface(unittest.TestCase):
         self._test_unsignable(TEST_NONAPP_TXT, self._get_temp_file())
 
     def test_non_app_ipa(self):
-        self._test_failed_to_sign(TEST_NONAPP_IPA, self._get_temp_file())
+        self._test_unsignable(TEST_NONAPP_IPA, self._get_temp_file())
 
     def test_simulator_app(self):
         self._test_unsignable(TEST_SIMULATOR_APP, self._get_temp_file())
