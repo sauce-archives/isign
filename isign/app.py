@@ -4,12 +4,12 @@ import distutils
 import glob
 import logging
 import os
-from os.path import abspath, basename, exists, join, splitext
+from os.path import abspath, basename, exists, isdir, join, splitext
 import re
+from signer import Signer
 import signable
 import shutil
 from subprocess import call
-import time
 import tempfile
 import zipfile
 
@@ -32,118 +32,63 @@ class NotMatched(NotSignable):
     pass
 
 
-def get_unique_id():
-    return str(int(time.time())) + '-' + str(os.getpid())
+def make_temp_dir():
+    return tempfile.mkdtemp(prefix="isign-")
 
 
-class App(object):
-    extensions = ['.app']
+def is_plist_native(plist):
+    return (
+        'CFBundleSupportedPlatforms' in plist and
+        'iPhoneOS' in plist['CFBundleSupportedPlatforms']
+    )
+
+
+class App():
     helpers = []
 
-    @classmethod
-    def is_helpers_present(cls):
-        """ returns False if any of our helper apps wasn't found in class init """
-        return reduce(lambda accum, h: accum and h is not None, cls.helpers, True)
-
-    @classmethod
-    def is_archive_extension_match(cls, path):
-        """ does this path have the right extension """
-        for extension in cls.extensions:
-            if path.endswith(extension):
-                return True
-        return False
-
-    @classmethod
-    def is_plist_native(cls, plist):
-        return (
-            'CFBundleSupportedPlatforms' in plist and
-            'iPhoneOS' in plist['CFBundleSupportedPlatforms']
-        )
-
-    @classmethod
-    def make_temp_dir(cls):
-        return tempfile.mkdtemp(prefix="isign-")
-
-    @classmethod
-    def precheck(cls, path):
+    def precheck(self):
         """ Checks if a path looks like this kind of app,
             return stuff we'll need to know about its structure """
-        relative_app_dir = None
+        log.info("precheck")
         is_native = False
-        if cls.is_archive_extension_match(path):
-            relative_app_dir = '.'
-            plist_path = join(path, "Info.plist")
-            if exists(plist_path):
-                plist = biplist.readPlist(plist_path)
-                is_native = cls.is_plist_native(plist)
-        return (relative_app_dir, is_native)
+        plist_path = join(self.path, "Info.plist")
+        if exists(plist_path):
+            plist = biplist.readPlist(plist_path)
+            is_native = is_plist_native(plist)
+        return is_native
 
-    @classmethod
-    def unarchive(cls, path, target_dir):
-        log.debug("copying <%s> to <%s>", path, target_dir)
-        shutil.rmtree(target_dir)  # quirk of copytree, top dir can't exist already
-        shutil.copytree(path, target_dir)
+    def unarchive_to_temp(self):
+        containing_dir = make_temp_dir()
+        log.info("unarchiving to temp... %s -> %s", self.path, containing_dir)
+        shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
+        shutil.copytree(self.path, containing_dir)
+        return containing_dir, App(containing_dir)
 
-    @classmethod
-    def new_from_archive(cls, path):
-        if not cls.is_helpers_present():
-            log.error("Missing helpers for {}".format(cls.__name__))
-            return False
-        relative_app_dir, is_native = cls.precheck(path)
-        if relative_app_dir is None or not is_native:
-            return False
-        target_dir = cls.make_temp_dir()
-        cls.unarchive(path, target_dir)
-        app_dir = abspath(os.path.join(target_dir, relative_app_dir))
-        return cls(app_dir, target_dir)
-
-    def __init__(self, path, containing_dir=None):
+    def __init__(self, path):
+        log.info("init")
         self.path = path
-        if containing_dir is None:
-            containing_dir = self.path
-        self.containing_dir = containing_dir
+        is_native = self.precheck()
+        if not is_native:
+            raise NotMatched("not a native iOS app")
+
         self.entitlements_path = join(self.path,
                                       'Entitlements.plist')
-        self.app_dir = self._get_app_dir()
-        self.provision_path = join(self.app_dir,
+        self.provision_path = join(self.path,
                                    'embedded.mobileprovision')
 
         # will be added later
         self.seal_path = None
 
-        try:
-            info_path = join(self.app_dir, 'Info.plist')
-            self.info = biplist.readPlist(info_path)
-        except:
-            self.cleanup()
-            raise
-
-    def __enter__(self):
-        """ handle `with` initialization """
-        return self
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        """ handle `with` destruction """
-        log.debug('__exiting__ App class')
-        self.cleanup()
-
-    def cleanup(self):
-        """ remove our temporary directories. Sometimes this
-            has already been moved away """
-        log.debug("cleaning up %s", self.containing_dir)
-        if exists(self.containing_dir):
-            shutil.rmtree(self.containing_dir)
-
-    def _get_app_dir(self):
-        return self.path
+        info_path = join(self.path, 'Info.plist')
+        self.info = biplist.readPlist(info_path)
 
     def get_executable_path(self):
         executable_name = None
         if 'CFBundleExecutable' in self.info:
             executable_name = self.info['CFBundleExecutable']
         else:
-            executable_name, _ = splitext(basename(self.app_dir))
-        executable = join(self.app_dir, executable_name)
+            executable_name, _ = splitext(basename(self.path))
+        executable = join(self.path, executable_name)
         if not exists(executable):
             raise Exception(
                 'could not find executable for {0}'.format(self.path))
@@ -164,7 +109,7 @@ class App(object):
 
     def sign(self, signer):
         # first sign all the dylibs
-        frameworks_path = join(self.app_dir, 'Frameworks')
+        frameworks_path = join(self.path, 'Frameworks')
         if exists(frameworks_path):
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
             for dylib_path in dylib_paths:
@@ -173,95 +118,162 @@ class App(object):
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
-                                                  self.app_dir)
+                                                  self.path)
         # then sign the app
         executable = signable.Executable(self, self.get_executable_path())
         executable.sign(signer)
 
-    def package(self, output_path):
+    @classmethod
+    def archive(cls, path, output_path):
         if exists(output_path):
             shutil.rmtree(output_path)
-        shutil.move(self.app_dir, output_path)
+        shutil.move(path, output_path)
+        log.info("archived %s to %s" % (cls.__name__, output_path))
+
+    def resign(self, signer, provisioning_profile):
+        """ signs app, modifies appdir in place """
+        self.provision(provisioning_profile)
+        self.create_entitlements(signer.team_id)
+        self.sign(signer)
+        log.info("Resigned app dir at <%s>", self.path)
 
 
-class AppZip(App):
+class AppZip(object):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
     app_dir_pattern = r'^[^/]+\.app/$'
     extensions = ['.zip']
     helpers = [ZIP_BIN, UNZIP_BIN]
 
-    @classmethod
-    def precheck(cls, path):
-        """ Checks if a path looks like this kind of app,
-            return stuff we'll need to know about its structure """
+    def is_helpers_present(self):
+        """ returns False if any of our helper apps wasn't found in class init """
+        return reduce(lambda accum, h: accum and h is not None, self.helpers, True)
+
+    def is_archive_extension_match(self):
+        """ does this path have the right extension """
+        for extension in self.extensions:
+            if self.path.endswith(extension):
+                return True
+        return False
+
+    def precheck(self):
+        """ Checks if an archive looks like this kind of app. Have to examine
+            within the zipfile, b/c we don't want to make temp dirs just yet """
         relative_app_dir = None
         is_native = False
-        if (cls.is_archive_extension_match(path) and zipfile.is_zipfile(path)):
-            z = zipfile.ZipFile(path)
+        if (self.is_archive_extension_match() and
+                zipfile.is_zipfile(self.path)):
+            z = zipfile.ZipFile(self.path)
             apps = []
             file_list = z.namelist()
             for file_name in file_list:
-                if re.match(cls.app_dir_pattern, file_name):
+                if re.match(self.app_dir_pattern, file_name):
                     apps.append(file_name)
             if len(apps) == 1:
                 relative_app_dir = apps[0]
                 plist_path = join(relative_app_dir, "Info.plist")
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
-                is_native = cls.is_plist_native(plist)
+                is_native = is_plist_native(plist)
         return (relative_app_dir, is_native)
 
+    def __init__(self, path):
+        self.path = path
+        if not self.is_helpers_present():
+            log.error("Missing helpers for {}".format(self.__class__.__name__))
+            return False
+        relative_app_dir, is_native = self.precheck()
+        self.relative_app_dir = relative_app_dir
+        if relative_app_dir is None:
+            raise NotMatched("no app directory found")
+        if not is_native:
+            raise NotMatched("not a native iOS app")
+
+    def unarchive_to_temp(self):
+        containing_dir = make_temp_dir()
+        call([UNZIP_BIN, "-qu", self.path, "-d", containing_dir])
+        app_dir = abspath(os.path.join(containing_dir, self.relative_app_dir))
+        return containing_dir, App(app_dir)
+
     @classmethod
-    def unarchive(cls, path, target_dir):
-        call([UNZIP_BIN, "-qu", path, "-d", target_dir])
-
-    def archive(self, path, source_dir):
-        call([ZIP_BIN, "-qr", path, source_dir])
-
-    def get_temp_archive_name(self):
-        return "out-" + get_unique_id() + self.extensions[0]
-
-    def package(self, output_path):
-        # we assume the caller uses the right extension for the output path.
-        # need to chdir and use relative paths, because zip is stupid
-        old_cwd = os.getcwd()
-        os.chdir(self.containing_dir)
-        relative_app_path = basename(self.path)
-        temp = self.get_temp_archive_name()
-        self.archive(temp, relative_app_path)
-        shutil.move(temp, output_path)
-        os.chdir(old_cwd)
+    def archive(cls, containing_dir, output_path):
+        # the temp file is necessary because zip always adds ".zip" if it
+        # does not have an extension. But we want to respect the desired
+        # output_path's extension, which could be ".ipa" or who knows.
+        # So we move it to the output_path later.
+        #
+        # We also do a little dance with making another temp directory just
+        # to construct the zip file. This is the best way to ensure the an unused
+        # filename. Also, `zip` won't overwrite existing files, so this is safer.
+        temp_zip_dir = None
+        old_cwd = None
+        try:
+            # need to chdir and use relative paths, because zip is stupid
+            old_cwd = os.getcwd()
+            os.chdir(containing_dir)
+            temp_zip_dir = tempfile.mkdtemp(prefix="isign-zip-")
+            temp_zip_file = join(temp_zip_dir, 'temp.zip')
+            call([ZIP_BIN, "-qr", temp_zip_file, "."])
+            shutil.move(temp_zip_file, output_path)
+            log.info("archived %s to %s" % (cls.__name__, output_path))
+        finally:
+            if temp_zip_dir is not None and isdir(temp_zip_dir):
+                shutil.rmtree(temp_zip_dir)
+            if old_cwd is not None and isdir(old_cwd):
+                os.chdir(old_cwd)
 
 
 class Ipa(AppZip):
-    """ IPA is Apple's standard for distributing apps. Very much like
-        an .app.zip, except different paths inside """
+    """ IPA is Apple's standard for distributing apps. Much like an AppZip,
+        but slightly different paths """
     extensions = ['.ipa']
     app_dir_pattern = r'^Payload/[^/]+\.app/$'
 
-    def package(self, output_path):
-        # we assume the caller uses the right extension for the output path.
-        # need to chdir and use relative paths, because zip is stupid
-        old_cwd = os.getcwd()
-        os.chdir(self.containing_dir)
-        temp = self.get_temp_archive_name()
-        self.archive(temp, "./Payload")
-        shutil.move(temp, output_path)
-        os.chdir(old_cwd)
 
-
-# in order of popularity on Pantry (aka sauce-storage)
-FORMAT_CLASSES = [AppZip, Ipa, App]
-
-
-def new_from_archive(path):
-    """ factory to unpack various app types """
-
-    for cls in FORMAT_CLASSES:
-        obj = cls.new_from_archive(path)
-        if obj is not False:
+def app_archive_factory(path):
+    """ factory to unpack various app types. """
+    if isdir(path):
+        try:
+            return App(path)
+        except NotSignable as e:
+            log.error("Error initializing app dir: %s", e)
+            raise NotSignable(e)
+    else:
+        obj = None
+        for cls in [AppZip, Ipa]:
+            try:
+                obj = cls(path)
+                log.info("File %s matched as %s", path, cls.__name__)
+                break
+            except NotMatched as e:
+                log.info("File %s not matched as %s: %s", path, cls, e)
+        if obj is not None:
             return obj
 
-    log.info("failed to find a format_class!")
-    return False
+    raise NotSignable("No matching app format found for %s", path)
+
+
+def resign(input_path,
+           certificate,
+           key,
+           apple_cert,
+           provisioning_profile,
+           output_path):
+    log.info("resigning")
+    signer = Signer(signer_cert_file=certificate,
+                    signer_key_file=key,
+                    apple_cert_file=apple_cert)
+
+    temp_dir = None
+    try:
+        appArchive = app_archive_factory(input_path)
+        (temp_dir, app) = appArchive.unarchive_to_temp()
+        app.resign(signer, provisioning_profile)
+        appArchive.__class__.archive(temp_dir, output_path)
+    except NotSignable as e:
+        msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
+        log.error(msg)
+        raise
+    finally:
+        if temp_dir is not None and isdir(temp_dir):
+            shutil.rmtree(temp_dir)
