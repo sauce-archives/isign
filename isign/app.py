@@ -195,21 +195,27 @@ class AppZip(object):
 
     @classmethod
     def archive(cls, containing_dir, output_path):
-        # need to chdir and use relative paths, because zip is stupid
-        old_cwd = os.getcwd()
-        os.chdir(containing_dir)
         # the temp file is necessary because zip always adds ".zip" if it
         # does not have an extension. But we want to respect the desired
-        # output_path
-        (fp, temp) = tempfile.mkstemp(suffix='.zip')
-        os.close(fp)
-        # This was just to get a unique name; zip won't overwrite.
-        # Yes, in theory it's a race condition, if you have a better idea
-        # let me know
-        os.unlink(temp)
-        call([ZIP_BIN, "-qr", temp, "."])
-        shutil.move(temp, output_path)
-        os.chdir(old_cwd)
+        # output_path's extension, which could be ".ipa" or who knows.
+        # So we move it to the output_path later.
+        #
+        # We also do a little dance with making another temp directory just
+        # to construct the zip file. This is the best way to ensure the an unused
+        # filename. Also, `zip` won't overwrite existing files, so this is safer.
+        temp_zip_dir = None
+        try:
+            # need to chdir and use relative paths, because zip is stupid
+            old_cwd = os.getcwd()
+            os.chdir(containing_dir)
+            temp_zip_dir = tempfile.mkdtemp(prefix="isign-zip-")
+            temp_zip_file = join(temp_zip_dir, 'temp.zip')
+            call([ZIP_BIN, "-qr", temp_zip_file, "."])
+            shutil.move(temp_zip_file, output_path)
+        finally:
+            if temp_zip_dir is not None and isdir(temp_zip_dir):
+                shutil.rmtree(temp_zip_dir)
+            os.chdir(old_cwd)
 
 
 class Ipa(AppZip):
