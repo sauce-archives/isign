@@ -11,7 +11,6 @@ import signable
 import shutil
 from subprocess import call
 import tempfile
-import time
 import zipfile
 
 ZIP_BIN = distutils.spawn.find_executable('zip')
@@ -204,7 +203,10 @@ class AppZip(object):
         # output_path
         (fp, temp) = tempfile.mkstemp(suffix='.zip')
         os.close(fp)
-        os.unlink(temp) # this was just to get a unique name; zip won't overwrite
+        # This was just to get a unique name; zip won't overwrite.
+        # Yes, in theory it's a race condition, if you have a better idea
+        # let me know
+        os.unlink(temp)
         call([ZIP_BIN, "-qr", temp, "."])
         shutil.move(temp, output_path)
         os.chdir(old_cwd)
@@ -263,5 +265,4 @@ def resign(input_path,
         raise
     finally:
         if temp_dir is not None and isdir(temp_dir):
-            pass
-        #    shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_dir)
