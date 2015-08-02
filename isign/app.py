@@ -204,6 +204,7 @@ class AppZip(object):
         # to construct the zip file. This is the best way to ensure the an unused
         # filename. Also, `zip` won't overwrite existing files, so this is safer.
         temp_zip_dir = None
+        old_cwd = None
         try:
             # need to chdir and use relative paths, because zip is stupid
             old_cwd = os.getcwd()
@@ -215,7 +216,8 @@ class AppZip(object):
         finally:
             if temp_zip_dir is not None and isdir(temp_zip_dir):
                 shutil.rmtree(temp_zip_dir)
-            os.chdir(old_cwd)
+            if old_cwd is not None and isdir(old_cwd):
+                os.chdir(old_cwd)
 
 
 class Ipa(AppZip):
