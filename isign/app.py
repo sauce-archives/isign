@@ -128,6 +128,7 @@ class App():
         if exists(output_path):
             shutil.rmtree(output_path)
         shutil.move(path, output_path)
+        log.info("archived %s to %s" % (cls.__name__, output_path))
 
     def resign(self, signer, provisioning_profile):
         """ signs app, modifies appdir in place """
