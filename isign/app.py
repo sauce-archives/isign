@@ -69,8 +69,7 @@ class App():
         self.path = path
         is_native = self.precheck()
         if not is_native:
-            log.error("not native!")
-            raise NotMatched("Was not a %s", self.__class__.__name__)
+            raise NotMatched("not a native iOS app")
 
         self.entitlements_path = join(self.path,
                                       'Entitlements.plist')
@@ -184,8 +183,10 @@ class AppZip(object):
             return False
         relative_app_dir, is_native = self.precheck()
         self.relative_app_dir = relative_app_dir
-        if relative_app_dir is None or not is_native:
-            raise NotMatched("Was not a %s", self.__class__.__name__)
+        if relative_app_dir is None:
+            raise NotMatched("no app directory found")
+        if not is_native:
+            raise NotMatched("not a native iOS app")
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
@@ -213,6 +214,7 @@ class AppZip(object):
             temp_zip_file = join(temp_zip_dir, 'temp.zip')
             call([ZIP_BIN, "-qr", temp_zip_file, "."])
             shutil.move(temp_zip_file, output_path)
+            log.info("archived %s to %s" % (cls.__name__, output_path))
         finally:
             if temp_zip_dir is not None and isdir(temp_zip_dir):
                 shutil.rmtree(temp_zip_dir)
@@ -243,7 +245,7 @@ def app_archive_factory(path):
                 log.info("File %s matched as %s", path, cls.__name__)
                 break
             except NotMatched as e:
-                log.error("File %s not matched as %s: %s", path, cls, e)
+                log.info("File %s not matched as %s: %s", path, cls, e)
         if obj is not None:
             return obj
 
