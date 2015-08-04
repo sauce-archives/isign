@@ -8,7 +8,6 @@ from log_to_stderr import log_to_stderr
 import os
 import os.path
 from os.path import dirname, join, realpath
-import sys
 
 # this comes with the repo
 PACKAGE_ROOT = dirname(realpath(__file__))
@@ -30,7 +29,7 @@ def resign(input_path,
            key=KEY_PATH,
            apple_cert=APPLE_CERT_PATH,
            provisioning_profile=PROVISIONING_PROFILE_PATH,
-           output_path="out"):
+           output_path=join(os.getcwd(), "out")):
     """ simply for convenience, and to omit default args """
     return app.resign(input_path,
                       certificate,
@@ -48,13 +47,15 @@ def absolute_path_argument(path):
 
 
 def parse_args():
+    # note that for arguments which eventually get fed into
+    # isign.resign, we deliberately don't set defaults. The kwarg
+    # defaults in isign.resign will be used
     parser = argparse.ArgumentParser(
         description='Resign an iOS application with a new identity '
                     'and provisioning profile.')
     parser.add_argument(
         '-p', '--provisioning-profile',
         dest='provisioning_profile',
-        default=PROVISIONING_PROFILE_PATH,
         required=False,
         metavar='<your.mobileprovision path>',
         type=absolute_path_argument,
@@ -63,7 +64,6 @@ def parse_args():
     parser.add_argument(
         '-a', '--apple-cert',
         dest='apple_cert',
-        default=APPLE_CERT_PATH,
         required=False,
         metavar='<apple cert>',
         type=absolute_path_argument,
@@ -72,7 +72,6 @@ def parse_args():
     parser.add_argument(
         '-k', '--key',
         dest='key',
-        default=KEY_PATH,
         required=False,
         metavar='<key path>',
         type=absolute_path_argument,
@@ -81,7 +80,6 @@ def parse_args():
     parser.add_argument(
         '-c', '--certificate',
         dest='certificate',
-        default=CERTIFICATE_PATH,
         required=False,
         metavar='<certificate path>',
         type=absolute_path_argument,
@@ -93,7 +91,6 @@ def parse_args():
         required=False,
         metavar='<output path>',
         type=absolute_path_argument,
-        default=None,
         help='Path to output file or directory'
     )
     parser.add_argument(
@@ -125,9 +122,18 @@ if __name__ == '__main__':
         level = logging.INFO
     log_to_stderr(level)
 
-    app.resign(args.app_paths[0],
-               args.certificate,
-               args.key,
-               args.apple_cert,
-               args.provisioning_profile,
-               args.output_path)
+    # Filter out args that don't matter to the
+    # resign call, like verbosity or help
+    resign_args = ['certificate',
+                   'key',
+                   'apple_cert',
+                   'provisioning_profile',
+                   'output_path']
+    kwargs = {}
+    # we want the unused command line args to be
+    # missing in kwargs, so the defaults are used
+    for k, v in vars(args).iteritems():
+        if k in resign_args and v is not None:
+            kwargs[k] = v
+
+    resign(args.app_paths[0], **kwargs)
