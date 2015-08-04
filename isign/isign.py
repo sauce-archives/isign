@@ -24,6 +24,11 @@ PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
 log = logging.getLogger(__name__)
 
 
+class NotSignable(Exception):
+    """ This is just so we don't expose isign.app.NotSignable """
+    pass
+
+
 def resign(input_path,
            certificate=CERTIFICATE_PATH,
            key=KEY_PATH,
@@ -31,12 +36,17 @@ def resign(input_path,
            provisioning_profile=PROVISIONING_PROFILE_PATH,
            output_path=join(os.getcwd(), "out")):
     """ simply for convenience, and to omit default args """
-    return app.resign(input_path,
-                      certificate,
-                      key,
-                      apple_cert,
-                      provisioning_profile,
-                      output_path)
+    try:
+        return app.resign(input_path,
+                          certificate,
+                          key,
+                          apple_cert,
+                          provisioning_profile,
+                          output_path)
+    except app.NotSignable as e:
+        # re-raise the exception without exposing internal
+        # details of how it happened
+        raise NotSignable(e)
 
 
 # The rest is all about parsing command line args

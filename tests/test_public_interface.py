@@ -67,7 +67,7 @@ class TestPublicInterface(unittest.TestCase):
         self._check_no_temp_files_left()
 
     def _test_unsignable(self, filename, output_path):
-        with self.assertRaises(isign.app.NotSignable):
+        with self.assertRaises(isign.NotSignable):
             self._resign_with_test_credentials(filename,
                                                output_path=output_path)
         self._remove(output_path)
