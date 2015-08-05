@@ -44,4 +44,5 @@ setup(
                   'code_resources_template.xml',
                   'version.json'],
     },
+    scripts=["bin/isign"]
 )

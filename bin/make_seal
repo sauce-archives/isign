@@ -1,3 +1,7 @@
+#!/usr/bin/env python
+
+from optparse import OptionParser
+import isign.code_resources
 import logging
 
 FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -9,3 +13,11 @@ def log_to_stderr(level=logging.INFO):
     handler = logging.StreamHandler()
     handler.setFormatter(FORMATTER)
     root.addHandler(handler)
+
+
+if __name__ == '__main__':
+    log_to_stderr()
+    parser = OptionParser()
+    options, args = parser.parse_args()
+    source_app, target_dir = args
+    isign.code_resources.make_seal(source_app, target_dir)
