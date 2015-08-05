@@ -1,21 +1,9 @@
 import distutils
-from common_isign_test import TEST_APP
-from common_isign_test import TEST_APPZIP
-from common_isign_test import TEST_IPA
-from common_isign_test import TEST_NONAPP_TXT
-from common_isign_test import TEST_NONAPP_IPA
-from common_isign_test import ISIGN_BIN
-from common_isign_test import KEY
-from common_isign_test import CERTIFICATE
-from common_isign_test import PROVISIONING_PROFILE
-from common_isign_test import ERROR_KEY
-from common_isign_test import OU
+from isign_base_test import IsignBaseTest
+import logging
 from nose.plugins.skip import SkipTest
-import os
-from os.path import exists
 from os.path import join
 import platform
-import pprint
 import re
 import shutil
 import subprocess
@@ -23,20 +11,10 @@ import tempfile
 
 CODESIGN_BIN = distutils.spawn.find_executable('codesign')
 
+log = logging.getLogger(__name__)
 
-class TestIntegration:
 
-    def _is_file_with_contents(self, path):
-        """ for output paths, we're using tempfile.mkstemp(), which creates
-            the temporary file as a zero-length file. So if we want to
-            test if we had some effect, we need to check for length """
-        return os.path.exists(path) and os.path.getsize(path) > 0
-
-    def _get_temp_file(self):
-        (fd, path) = tempfile.mkstemp()
-        os.close(fd)
-        return path
-
+class TestVersusApple(IsignBaseTest):
     def codesign_display(self, path):
         """ inspect a path with codesign """
         cmd = [CODESIGN_BIN, '-d', '-r-', '--verbose=20', path]
@@ -109,9 +87,9 @@ class TestIntegration:
             else:
                 # probably an error of some kind. These
                 # get appended into the output too. :(
-                if ERROR_KEY not in ret:
-                    ret[ERROR_KEY] = []
-                ret[ERROR_KEY].append(line)
+                if self.ERROR_KEY not in ret:
+                    ret[self.ERROR_KEY] = []
+                ret[self.ERROR_KEY].append(line)
             if key is not None:
                 if key in ret:
                     if not isinstance(ret[key], list):
@@ -157,13 +135,13 @@ class TestIntegration:
 
         assert 'TeamIdentifier' in info
         # TODO get this from an arg
-        assert info['TeamIdentifier'] == OU
+        assert info['TeamIdentifier'] == self.OU
 
         assert 'designated' in info
         assert 'anchor apple generic' in info['designated']
 
         # should have no errors
-        assert ERROR_KEY not in info
+        assert self.ERROR_KEY not in info
 
     def assert_common_signed_hashes(self, info, start_index, end_index):
         # has a set of hashes
@@ -174,32 +152,11 @@ class TestIntegration:
             assert str(i) in hashes
         return hashes
 
-    def call_isign(self,
-                   output_path,
-                   input_path,
-                   is_success_expected=True):
-        cmd = [ISIGN_BIN,
-               '-k', KEY,
-               '-c', CERTIFICATE,
-               '-p', PROVISIONING_PROFILE,
-               '-o', output_path,
-               input_path]
-        print ' '.join(cmd)
-        proc = subprocess.Popen(cmd,
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
-        (stdout_data, stderr_data) = proc.communicate()
-        if is_success_expected:
-            msg = "Return code not 0. Stderr follows:\n" + stderr_data
-            assert proc.returncode == 0, msg
-        else:
-            assert proc.returncode != 0, "Return code unexpectedly 0"
-
-    def test_simple_app(self, cleanup=True):
+    def test_app(self):
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
             raise SkipTest
         app_path = tempfile.mkdtemp()
-        self.call_isign(input_path=TEST_APP, output_path=app_path)
+        self.resign(self.TEST_APP, output_path=app_path)
 
         # When we ask for codesign to analyze the app directory, it
         # will default to showing info for the main executable
@@ -237,55 +194,5 @@ class TestIntegration:
         assert '-3' not in lib_hashes
 
         # TODO subject.CN from cert?
-        if cleanup:
-            shutil.rmtree(app_path)
-        return app_info
 
-    def test_simple_ipa(self, cleanup=True):
-        app_path = self._get_temp_file()
-        self.call_isign(input_path=TEST_IPA, output_path=app_path)
-        assert self._is_file_with_contents(app_path)
-
-        # TODO subject.CN from cert?
-        if cleanup:
-            os.remove(app_path)
-
-    def test_simple_appzip(self, cleanup=True):
-        app_path = self._get_temp_file()
-        self.call_isign(input_path=TEST_APPZIP, output_path=app_path)
-        assert self._is_file_with_contents(app_path)
-
-        # todo subject.cn from cert?
-        if cleanup:
-            os.remove(app_path)
-
-    def test_nonapp(self, cleanup=True):
-        app_path = self._get_temp_file()
-        self.call_isign(input_path=TEST_NONAPP_TXT,
-                        output_path=app_path,
-                        is_success_expected=False)
-        assert not self._is_file_with_contents(app_path)
-
-        # todo subject.cn from cert?
-        if exists(app_path) and cleanup:
-            os.remove(app_path)
-
-    def test_nonapp_ipa(self, cleanup=True):
-        app_path = self._get_temp_file()
-        self.call_isign(input_path=TEST_NONAPP_IPA,
-                        output_path=app_path,
-                        is_success_expected=False)
-        assert not self._is_file_with_contents(app_path)
-
-        # todo subject.cn from cert?
-        if exists(app_path) and cleanup:
-            os.remove(app_path)
-
-
-if __name__ == '__main__':
-    x = TestIntegration()
-    pp = pprint.PrettyPrinter(indent=2)
-    pp.pprint(x.test_simple_app(False))
-    pp.pprint(x.test_simple_ipa(False))
-    pp.pprint(x.test_simple_appzip(False))
-    pp.pprint(x.test_simple_apptgz(False))
+        shutil.rmtree(app_path)
