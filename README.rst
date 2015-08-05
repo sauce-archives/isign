@@ -8,12 +8,12 @@ Synopsis
 
 ::
 
-    isign.py [-h] [-p <your.mobileprovision>] 
-                  [-a <path to applecerts.pem>] 
-                  [-k <path to your key in .pem form>] 
-                  [-c <path to your cert in .pem form>]
-                  [-o <output path>]
-                  <path to app to resign>
+    isign [-h] [-p <your.mobileprovision>] 
+               [-a <path to applecerts.pem>] 
+               [-k <path to your key in .pem form>] 
+               [-c <path to your cert in .pem form>]
+               [-o <output path>]
+               <path to app to resign>
 
     Resign an iOS application with a new identity and provisioning profile.
 
