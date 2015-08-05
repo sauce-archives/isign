@@ -3,9 +3,7 @@ import copy
 # import distutils
 import hashlib
 import logging
-from log_to_stderr import log_to_stderr
 from memoizer import memoize
-from optparse import OptionParser
 import os
 import plistlib
 from plistlib import PlistWriter
@@ -248,11 +246,3 @@ def make_seal(source_app_path, target_dir=None):
     resource_builder2 = ResourceBuilder(source_app_path, rules, True)
     plist['files2'] = resource_builder2.scan()
     return write_plist(target_dir, plist)
-
-
-if __name__ == '__main__':
-    log_to_stderr(log)
-    parser = OptionParser()
-    options, args = parser.parse_args()
-    source_app, target_dir = args
-    make_seal(source_app, target_dir)
