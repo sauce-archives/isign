@@ -3,7 +3,6 @@ import os
 from os.path import exists
 from isign import isign
 import logging
-import tempfile
 
 log = logging.getLogger(__name__)
 
@@ -22,7 +21,7 @@ class TestPublicInterface(IsignBaseTest):
         self.unlink(output_path)
 
     def test_app(self):
-        self._test_signable(self.TEST_APP, tempfile.mkdtemp(prefix='isign-test-'))
+        self._test_signable(self.TEST_APP, self.get_temp_dir())
 
     def test_app_ipa(self):
         self._test_signable(self.TEST_IPA, self.get_temp_file())

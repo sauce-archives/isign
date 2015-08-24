@@ -61,3 +61,7 @@ class IsignBaseTest(unittest.TestCase):
         os.close(fd)
         os.unlink(path)
         return path
+
+    def get_temp_dir(self, prefix='isign-test-'):
+        return tempfile.mkdtemp(prefix=prefix)
+
