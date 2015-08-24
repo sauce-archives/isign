@@ -45,21 +45,20 @@ class Signer(object):
 
     def sign(self, data):
         """ sign data, return filehandle """
-        proc = subprocess.Popen("%s cms"
-                                " -sign -binary -nosmimecap"
-                                " -certfile %s"
-                                " -signer %s"
-                                " -inkey %s"
-                                " -keyform pem "
-                                " -outform DER" %
-                                (OPENSSL,
-                                 self.apple_cert_file,
-                                 self.signer_cert_file,
-                                 self.signer_key_file),
+        cmd = [
+            OPENSSL, "cms",
+            "-sign", "-binary", "-nosmimecap",
+            "-certfile", self.apple_cert_file,
+            "-signer", self.signer_cert_file,
+            "-inkey", self.signer_key_file,
+            "-keyform", "pem",
+            "-outform", "DER"
+        ]
+        log.debug(cmd)
+        proc = subprocess.Popen(cmd,
                                 stdin=subprocess.PIPE,
                                 stderr=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                shell=True)
+                                stdout=subprocess.PIPE)
         proc.stdin.write(data)
         out, err = proc.communicate()
         log.debug(err)
@@ -75,10 +74,11 @@ class Signer(object):
         return dict(subject.get_components())['CN']
 
     def _log_parsed_asn1(self, data):
-        proc = subprocess.Popen('%s asn1parse -inform DER -i' % (OPENSSL),
+        cmd = [OPENSSL, 'asn1parse', '-inform', 'DER' '-i']
+        log.debug(cmd)
+        proc = subprocess.Popen(cmd,
                                 stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE,
-                                shell=True)
+                                stdout=subprocess.PIPE)
         proc.stdin.write(data)
         out, err = proc.communicate()
         log.debug(out)
@@ -93,6 +93,7 @@ class Signer(object):
             '-text',
             '-noout'
         ]
+        log.debug(cmd)
         proc = subprocess.Popen(cmd,
                                 stderr=subprocess.PIPE,
                                 stdout=subprocess.PIPE)
