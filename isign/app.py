@@ -49,7 +49,6 @@ class App():
     def precheck(self):
         """ Checks if a path looks like this kind of app,
             return stuff we'll need to know about its structure """
-        log.info("precheck")
         is_native = False
         plist_path = join(self.path, "Info.plist")
         if exists(plist_path):
@@ -65,7 +64,6 @@ class App():
         return containing_dir, App(containing_dir)
 
     def __init__(self, path):
-        log.info("init")
         self.path = path
         is_native = self.precheck()
         if not is_native:
@@ -180,8 +178,7 @@ class AppZip(object):
     def __init__(self, path):
         self.path = path
         if not self.is_helpers_present():
-            log.error("Missing helpers for {}".format(self.__class__.__name__))
-            return False
+            raise NotSignable("helpers not present")
         relative_app_dir, is_native = self.precheck()
         self.relative_app_dir = relative_app_dir
         if relative_app_dir is None:
@@ -243,14 +240,14 @@ def app_archive_factory(path):
         for cls in [AppZip, Ipa]:
             try:
                 obj = cls(path)
-                log.info("File %s matched as %s", path, cls.__name__)
+                log.debug("File %s matched as %s", path, cls.__name__)
                 break
             except NotMatched as e:
-                log.info("File %s not matched as %s: %s", path, cls, e)
+                log.debug("File %s not matched as %s: %s", path, cls, e)
         if obj is not None:
             return obj
 
-    raise NotSignable("No matching app format found for %s", path)
+    raise NotSignable("No matching app format found for %s" % path)
 
 
 def resign(input_path,
@@ -259,7 +256,6 @@ def resign(input_path,
            apple_cert,
            provisioning_profile,
            output_path):
-    log.info("resigning")
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
@@ -272,7 +268,7 @@ def resign(input_path,
         appArchive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
-        log.error(msg)
+        log.info(msg)
         raise
     finally:
         if temp_dir is not None and isdir(temp_dir):
