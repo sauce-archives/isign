@@ -13,11 +13,20 @@ from subprocess import call
 import tempfile
 import zipfile
 
-ZIP_BIN = distutils.spawn.find_executable('zip')
-UNZIP_BIN = distutils.spawn.find_executable('unzip')
-TAR_BIN = distutils.spawn.find_executable('tar')
 
+helper_paths = {}
 log = logging.getLogger(__name__)
+
+
+def get_helper(helper_name):
+    """ find paths to executables. Cached in helper_paths """
+    log.info("finding executable {}".format(helper_name))
+    if helper_name not in helper_paths or helper_paths[helper_name] is None:
+        # note, find_executable returns None is not found
+        # in other words, we keep retrying until found
+        helper_paths[helper_name] = distutils.spawn.find_executable(helper_name)
+    log.info("got executable {}".format(helper_paths[helper_name]))
+    return helper_paths[helper_name]
 
 
 class NotSignable(Exception):
@@ -141,11 +150,17 @@ class AppZip(object):
         should be re-zipped. """
     app_dir_pattern = r'^[^/]+\.app/$'
     extensions = ['.zip']
-    helpers = [ZIP_BIN, UNZIP_BIN]
+    helpers = ['zip', 'unzip']
 
     def is_helpers_present(self):
         """ returns False if any of our helper apps wasn't found in class init """
-        return reduce(lambda accum, h: accum and h is not None, self.helpers, True)
+        is_present = True
+        for helper_name in self.helpers:
+            if get_helper(helper_name) is None:
+                log.error("missing helper for class {}: {}".format(self.__class__.__name__, helper_name))
+                is_present = False
+                break
+        return is_present
 
     def is_archive_extension_match(self):
         """ does this path have the right extension """
@@ -188,7 +203,7 @@ class AppZip(object):
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
-        call([UNZIP_BIN, "-qu", self.path, "-d", containing_dir])
+        call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
         app_dir = abspath(os.path.join(containing_dir, self.relative_app_dir))
         return containing_dir, App(app_dir)
 
@@ -210,7 +225,7 @@ class AppZip(object):
             os.chdir(containing_dir)
             temp_zip_dir = tempfile.mkdtemp(prefix="isign-zip-")
             temp_zip_file = join(temp_zip_dir, 'temp.zip')
-            call([ZIP_BIN, "-qr", temp_zip_file, "."])
+            call([get_helper('zip'), "-qr", temp_zip_file, "."])
             shutil.move(temp_zip_file, output_path)
             log.info("archived %s to %s" % (cls.__name__, output_path))
         finally:
