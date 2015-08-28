@@ -1,0 +1,313 @@
+Container:
+    cmd = 'LC_CODE_SIGNATURE'
+    cmdsize = 16
+    data = Container:
+        dataoff = 132144
+        datasize = 11120
+        blob = Container:
+            magic = 'CSMAGIC_EMBEDDED_SIGNATURE'
+            length = 6459
+            data = Container:
+                sb_start = 132152
+                count = 4
+                BlobIndex = [
+                    Container:
+                        type = 0
+                        offset = 44
+                        blob = Container:
+                            magic = 'CSMAGIC_CODEDIRECTORY'
+                            length = 850
+                            data = Container:
+                                cd_start = 132196
+                                version = 131584
+                                flags = 0
+                                hashOffset = 190
+                                identOffset = 52
+                                nSpecialSlots = 5
+                                nCodeSlots = 33
+                                codeLimit = 132144
+                                hashSize = 20
+                                hashType = 1
+                                spare1 = 0
+                                pageSize = 12
+                                spare2 = 0
+                                ident = 'com.sauceio.SimpleSaucyApp'
+                                scatterOffset = 0
+                                teamIDOffset = 79
+                                teamID = 'JWKXD469L2'
+                                hashes = [
+                                    "\xa5\x13\x12s\x03\x7f4\xea\xb6Y\xb7'\xdfh\xe96\xde\xf4\xd7b"
+                                    '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+                                    '\x03\x80 \xca\xb04XB\xca>\xe7\x94)h\xe1h_-\x15\x9a'
+                                    't\xf3\xba\xf2"\xc8\xfb\xbaM&\x00"\xefe\x85\x14\xd2\xa8\xb9\x02'
+                                    '6w\xfa\x07\x1f\xb3\xf1\xaf\xd17\x9c\xe6oR\xba{\x1c\xc4N\x91'
+                                    '\x11q%\x86b\xe1\x15\x05\x85\x8d\xed\x8fm\xe5\r\xb9\xbc\xc7 \x83'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    "\x06bv\xc7>\xf9]\x07\xd3'^\xaa&\xfe\xbeS\xfe\xc9\xf6\x16"
+                                    'o\x97\xa72\x84\x07\x11\x16\x03\x1ag\x94\x14.\xafF\x8b\xe50\xaa'
+                                    '<\xea\x91\x06k\xcc$\xd2\xb5e\xb4^\x90\xb2\xca%\xc5\x1a\x00l'
+                                    '%g:Sn\x14\xe3Z\x81\x8d\xc7\xc8\ni\x06`\xf7f\xa4\x19'
+                                    '!\x93\xea;\xbaFW\x9c\xeb\x82\x86f\xb2\xb4\x12\x81G\xe1\xbct'
+                                    '\xf8\xabs\xb6/\xd3D\xb0\x14\x17`N\xf2\xed@\x1a0\xd7K\x93'
+                                    'AG\xa9R\xef\x96\xc7\xfc\xb1\xe0p1u\xde\x85\x00Ns\x00\x98'
+                                    '\xdc\xd0C\xe8\xb6Fq\x9b@\x1e[\xc3!T\xf5\xee\xc6\xdf\xe7\x04'
+                                    '1)c\xde\xad^\xc6~\xa3\x19\xc6a\x04{\xd5g\x8d\x0b\x92\x1b'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\xb8\x8fj\x04p\xb7.\xebn\xb70\x96\xc2\xb0=l\x92\xe6\xd8\xd8'
+                                    '0]\xd3\xe8>\xe5\x8eo\xa0*\x99\x00i\x87\xf6\xfe\x9d\xb5\x19\xe2'
+                                    '\xa4,\xa3!\x17\x11\x17\xa161\x8c\x7f\x1b]\xa7\xbc\x15\xdf\x830'
+                                    '\xcb\x93\xcf\x01\xd06v\xaa\xd42\xe0\x18\xa8*\xc7\xde\x84\xda|\xef'
+                                    '\xdcD/\x02\xb63\x9e\xaca&n\x82\xddU\xe5\x8f9.\xf30'
+                                    '(\x10\xc6\xe5\x90\x8d>\xc2\xdf\xdc\x9d5z\x9c\xc6F\x9b\xb4C\x18'
+                                    '\xbd\x03\xef\xac\xec\xa4\x1cB\xea\x8b\xbe\xc1/\xeb\xf0\xbd\xb3\xe1\xe2\x1f'
+                                    '\xf4\xe9VKM\x98\nhO\xdb\xa0\xdd\xf2:\x15\xb2\xa2QN\x0c'
+                                    's\xd7\xf1]\x15E\x00F\xae\xb0\xebf\xa5\x95/\x95\x16\x07\xb4\x98'
+                                    '\xa1\xdb\x00\x99d\xe4\xc5ri\xde~\xf1-\xa9w-\xb7]\xed\xf4'
+                                    '?\')\xc5l.\xd5|\x03\xd6\x92\xe6"\xeaO\xea\x9b\xees\x16'
+                                    '\xa6$-\xe3\x8b\x15`\xe4YaMG~\x0b\x85\xeaf\x1c:\xf6'
+                                    '\xae\x0c\xa9\xae\xa2\xfb*\xc8\xf0\xa0\x17)\x99\xa0)\x10-@\x0b\xf3'
+                                    '@\xa1\r\x8f\x9e\xec\xe8O\x98\x1d\x8b\x80\x9d\xe8\x7f\xb49()\xc5'
+                                    'G\xf0\xca7\xbeb\xb0\xf3\x1aA\xca\xe6\xd9\xbe\xa9]\x8eQ\xb9\x93'
+                                    'q\x04\xd3d\xe7\xe0Z"\x00hB&\x92\xc8\xe0\xa1d2,\xa4'
+                                    '\xaf\xe7\xaeSq\xcf\x18\x9a#\xe8\xb7\x15\xf0\xbe\xd3\x02^\xd5\xd9\xf6'
+                                ]
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 2
+                        offset = 894
+                        blob = Container:
+                            magic = 'CSMAGIC_REQUIREMENTS'
+                            length = 708
+                            data = Container:
+                                sb_start = 133046
+                                count = 2
+                                BlobIndex = [
+                                    Container:
+                                        type = 'kSecDesignatedRequirementType'
+                                        offset = 28
+                                        blob = Container:
+                                            magic = 'CSMAGIC_REQUIREMENT'
+                                            length = 176
+                                            data = Container:
+                                                kind = 1
+                                                expr = Container:
+                                                    op = 'opAnd'
+                                                    data = [
+                                                        Container:
+                                                            op = 'opIdent'
+                                                            data = Container:
+                                                                length = 26
+                                                                data = 'com.sauceio.SimpleSaucyApp'
+                                                        Container:
+                                                            op = 'opAnd'
+                                                            data = [
+                                                                Container:
+                                                                    op = 'opAppleGenericAnchor'
+                                                                    data = None
+                                                                Container:
+                                                                    op = 'opAnd'
+                                                                    data = [
+                                                                        Container:
+                                                                            op = 'opCertField'
+                                                                            data = [
+                                                                                'leafCert'
+                                                                                Container:
+                                                                                    length = 10
+                                                                                    data = 'subject.CN'
+                                                                                Container:
+                                                                                    matchOp = 'matchEqual'
+                                                                                    Data = Container:
+                                                                                        length = 49
+                                                                                        data = 'iPhone Developer: Neil Kandalgaonkar (7RXMVD4Z3U)'
+                                                                            ]
+                                                                        Container:
+                                                                            op = 'opCertGeneric'
+                                                                            data = [
+                                                                                1
+                                                                                Container:
+                                                                                    length = 10
+                                                                                    data = '*\x86H\x86\xf7cd\x06\x02\x01'
+                                                                                Container:
+                                                                                    matchOp = 'matchExists'
+                                                                                    Data = None
+                                                                            ]
+                                                                    ]
+                                                            ]
+                                                    ]
+                                            bytes = LazyContainer: <unread>
+                                    Container:
+                                        type = 'kSecLibraryRequirementType'
+                                        offset = 204
+                                        blob = Container:
+                                            magic = 'CSMAGIC_REQUIREMENT'
+                                            length = 504
+                                            data = Container:
+                                                kind = 1
+                                                expr = Container:
+                                                    op = 'opOr'
+                                                    data = [
+                                                        Container:
+                                                            op = 'opOr'
+                                                            data = [
+                                                                Container:
+                                                                    op = 'opOr'
+                                                                    data = [
+                                                                        Container:
+                                                                            op = 'opOr'
+                                                                            data = [
+                                                                                Container:
+                                                                                    op = 'opOr'
+                                                                                    data = [
+                                                                                        Container:
+                                                                                            op = 'opOr'
+                                                                                            data = [
+                                                                                                Container:
+                                                                                                    op = 'opOr'
+                                                                                                    data = [
+                                                                                                        Container:
+                                                                                                            op = 'opOr'
+                                                                                                            data = [
+                                                                                                                Container:
+                                                                                                                    op = 'opAnd'
+                                                                                                                    data = [
+                                                                                                                        Container:
+                                                                                                                            op = 'opIdent'
+                                                                                                                            data = Container:
+                                                                                                                                length = 30
+                                                                                                                                data = 'com.apple.dt.runtime.swiftCore'
+                                                                                                                        Container:
+                                                                                                                            op = 'opAppleAnchor'
+                                                                                                                            data = None
+                                                                                                                    ]
+                                                                                                                Container:
+                                                                                                                    op = 'opAnd'
+                                                                                                                    data = [
+                                                                                                                        Container:
+                                                                                                                            op = 'opIdent'
+                                                                                                                            data = Container:
+                                                                                                                                length = 38
+                                                                                                                                data = 'com.apple.dt.runtime.swiftCoreGraphics'
+                                                                                                                        Container:
+                                                                                                                            op = 'opAppleAnchor'
+                                                                                                                            data = None
+                                                                                                                    ]
+                                                                                                            ]
+                                                                                                        Container:
+                                                                                                            op = 'opAnd'
+                                                                                                            data = [
+                                                                                                                Container:
+                                                                                                                    op = 'opIdent'
+                                                                                                                    data = Container:
+                                                                                                                        length = 35
+                                                                                                                        data = 'com.apple.dt.runtime.swiftCoreImage'
+                                                                                                                Container:
+                                                                                                                    op = 'opAppleAnchor'
+                                                                                                                    data = None
+                                                                                                            ]
+                                                                                                    ]
+                                                                                                Container:
+                                                                                                    op = 'opAnd'
+                                                                                                    data = [
+                                                                                                        Container:
+                                                                                                            op = 'opIdent'
+                                                                                                            data = Container:
+                                                                                                                length = 32
+                                                                                                                data = 'com.apple.dt.runtime.swiftDarwin'
+                                                                                                        Container:
+                                                                                                            op = 'opAppleAnchor'
+                                                                                                            data = None
+                                                                                                    ]
+                                                                                            ]
+                                                                                        Container:
+                                                                                            op = 'opAnd'
+                                                                                            data = [
+                                                                                                Container:
+                                                                                                    op = 'opIdent'
+                                                                                                    data = Container:
+                                                                                                        length = 34
+                                                                                                        data = 'com.apple.dt.runtime.swiftDispatch'
+                                                                                                Container:
+                                                                                                    op = 'opAppleAnchor'
+                                                                                                    data = None
+                                                                                            ]
+                                                                                    ]
+                                                                                Container:
+                                                                                    op = 'opAnd'
+                                                                                    data = [
+                                                                                        Container:
+                                                                                            op = 'opIdent'
+                                                                                            data = Container:
+                                                                                                length = 36
+                                                                                                data = 'com.apple.dt.runtime.swiftFoundation'
+                                                                                        Container:
+                                                                                            op = 'opAppleAnchor'
+                                                                                            data = None
+                                                                                    ]
+                                                                            ]
+                                                                        Container:
+                                                                            op = 'opAnd'
+                                                                            data = [
+                                                                                Container:
+                                                                                    op = 'opIdent'
+                                                                                    data = Container:
+                                                                                        length = 36
+                                                                                        data = 'com.apple.dt.runtime.swiftObjectiveC'
+                                                                                Container:
+                                                                                    op = 'opAppleAnchor'
+                                                                                    data = None
+                                                                            ]
+                                                                    ]
+                                                                Container:
+                                                                    op = 'opAnd'
+                                                                    data = [
+                                                                        Container:
+                                                                            op = 'opIdent'
+                                                                            data = Container:
+                                                                                length = 34
+                                                                                data = 'com.apple.dt.runtime.swiftSecurity'
+                                                                        Container:
+                                                                            op = 'opAppleAnchor'
+                                                                            data = None
+                                                                    ]
+                                                            ]
+                                                        Container:
+                                                            op = 'opAnd'
+                                                            data = [
+                                                                Container:
+                                                                    op = 'opIdent'
+                                                                    data = Container:
+                                                                        length = 31
+                                                                        data = 'com.apple.dt.runtime.swiftUIKit'
+                                                                Container:
+                                                                    op = 'opAppleAnchor'
+                                                                    data = None
+                                                            ]
+                                                    ]
+                                            bytes = LazyContainer: <unread>
+                                ]
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 5
+                        offset = 1602
+                        blob = Container:
+                            magic = 'CSMAGIC_ENTITLEMENT'
+                            length = 511
+                            data = Container:
+                                data = {'application-identifier': 'JWKXD469L2.com.sauceio.SimpleSaucyApp', 'com.apple.developer.team-identifier': 'JWKXD469L2', 'keychain-access-groups': ['JWKXD469L2.com.sauceio.SimpleSaucyApp'], 'get-task-allow': True}
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 65536
+                        offset = 2113
+                        blob = Container:
+                            magic = 'CSMAGIC_BLOBWRAPPER'
+                            length = 4346
+                            data = Container:
+                                data = LazyContainer: <unread>
+                            bytes = LazyContainer: <unread>
+                ]
+            bytes = LazyContainer: <unread>
+    bytes = LazyContainer: <unread>
