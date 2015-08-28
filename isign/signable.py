@@ -22,9 +22,8 @@ class Signable(object):
 
     slot_classes = []
 
-    def __init__(self, app, path):
+    def __init__(self, path):
         log.debug("working on {0}".format(path))
-        self.app = app
         self.path = path
 
         self.f = open(self.path, "rb")
@@ -80,9 +79,9 @@ class Signable(object):
 
         return arch
 
-    def _sign_arch(self, arch, signer):
+    def _sign_arch(self, arch, app, signer):
 
-        arch['codesig'].resign(self.app, signer)
+        arch['codesig'].resign(app, signer)
 
         new_codesig_data = arch['codesig'].build_data()
         new_codesig_len = len(new_codesig_data)
@@ -103,7 +102,7 @@ class Signable(object):
     def should_fill_slot(self, slot):
         return slot.__class__ in self.slot_classes
 
-    def sign(self, signer):
+    def sign(self, app, signer):
         # copy self.f into temp, reset to beginning of file
         temp = tempfile.NamedTemporaryFile('wb', delete=False)
         self.f.seek(0)
@@ -114,7 +113,7 @@ class Signable(object):
         offset_fmt = ("offset: {2}, write offset: {0}, "
                       "new_codesig_data len: {1}")
         for arch in self.arches:
-            offset, new_codesig_data = self._sign_arch(arch, signer)
+            offset, new_codesig_data = self._sign_arch(arch, app, signer)
             write_offset = arch['macho'].macho_start + offset
             log.debug(offset_fmt.format(write_offset,
                                         len(new_codesig_data),
