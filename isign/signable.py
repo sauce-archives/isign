@@ -17,51 +17,6 @@ import tempfile
 log = logging.getLogger(__name__)
 
 
-class Architecture(object):
-    def __init__(self, filehandle, macho, macho_end):
-        self.macho = macho
-        self.macho_end = macho_end
-
-        cmds = {}
-        for cmd in self.macho.commands:
-            name = cmd.cmd
-            cmds[name] = cmd
-
-        if 'LC_CODE_SIGNATURE' in cmds:
-            lc_cmd = cmds['LC_CODE_SIGNATURE']
-            codesig_offset = self.macho.macho_start + lc_cmd.data.dataoff
-            filehandle.seek(codesig_offset)
-            codesig_data = filehandle.read(lc_cmd.data.datasize)
-        else:
-            raise Exception("not implemented")
-            # TODO: this doesn't actually work :(
-            # see the makesig.py library, this was begun but not finished
-
-        self.codesig = Codesig(self, codesig_data)
-
-
-    def sign(self, signer):
-        self.codesig.resign(self.app, signer)
-
-        # log.debug(new_codesig_cons)
-        new_codesig_data = codesig.build_data()
-        log.debug("old len: {0}".format(len(codesig_data)))
-        log.debug("new len: {0}".format(len(new_codesig_data)))
-
-        padding_length = len(codesig_data) - len(new_codesig_data)
-        new_codesig_data += "\x00" * padding_length
-        log.debug("padded len: {0}".format(len(new_codesig_data)))
-        log.debug("----")
-        # assert new_codesig_data != codesig_data
-
-        lc_cmd = cmds['LC_CODE_SIGNATURE']
-        lc_cmd.data.datasize = len(new_codesig_data)
-        lc_cmd.bytes = macho.CodeSigRef.build(lc_cmd.data)
-
-        offset = lc_cmd.data.dataoff
-        return offset, new_codesig_data
-
-
 class Signable(object):
     __metaclass__ = ABCMeta
 
@@ -93,15 +48,55 @@ class Signable(object):
                 else:
                     next_arch = arch_macho.FatArch[next_macho]
                     this_macho_end = next_arch.MachO.macho_start
-                arches.append(Architecture(self.f,
-                                           this_arch_macho,
-                                           this_macho_end))
+                arches.append(self._get_arch(this_arch_macho,
+                                             this_macho_end))
         else:
-            arches.append(Architecture(self.f,
-                                       arch_macho,
-                                       self.file_end}))
+            arches.append(self._get_arch(arch_macho,
+                                         self.file_end))
 
         return arches
+
+    def _get_arch(self, macho, macho_end):
+        arch = {'macho': macho, 'macho_end': macho_end}
+
+        arch['cmds'] = {}
+        for cmd in macho.commands:
+            name = cmd.cmd
+            arch['cmds'][name] = cmd
+
+        if 'LC_CODE_SIGNATURE' in arch['cmds']:
+            arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
+            codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
+            self.f.seek(codesig_offset)
+            arch['codesig_data'] = self.f.read(arch['lc_codesig'].data.datasize)
+        else:
+            raise Exception("signing without existing codesig is not implemented")
+            # TODO: this doesn't actually work :(
+            # see the makesig.py library, this was begun but not finished
+
+        arch['codesig'] = Codesig(self, arch['codesig_data'])
+
+        return arch
+
+    def _sign_arch(self, arch, signer):
+        log.debug("codesig len: {0}".format(len(arch['codesig_data'])))
+
+        arch['codesig'].resign(self.app, signer)
+
+        new_codesig_data = arch['codesig'].build_data()
+        log.debug("new codesig len: {0}".format(len(new_codesig_data)))
+
+        padding_length = len(arch['codesig_data']) - len(new_codesig_data)
+        new_codesig_data += "\x00" * padding_length
+        log.debug("padded len: {0}".format(len(new_codesig_data)))
+        log.debug("----")
+
+        cmd = arch['lc_codesig']
+        cmd.data.datasize = len(new_codesig_data)
+        cmd.bytes = macho.CodeSigRef.build(arch['lc_codesig'].data)
+
+        offset = cmd.data.dataoff
+        return offset, new_codesig_data
 
     def should_fill_slot(self, slot):
         return slot.__class__ in self.slot_classes
@@ -117,8 +112,8 @@ class Signable(object):
         offset_fmt = ("offset: {2}, write offset: {0}, "
                       "new_codesig_data len: {1}")
         for arch in self.arches:
-            offset, new_codesig_data = arch.sign(signer)
-            write_offset = arch.macho.macho_start + offset
+            offset, new_codesig_data = self._sign_arch(arch, signer)
+            write_offset = arch['macho'].macho_start + offset
             log.debug(offset_fmt.format(write_offset,
                                         len(new_codesig_data),
                                         offset))
