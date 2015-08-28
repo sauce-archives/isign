@@ -10,7 +10,7 @@ import shutil
 
 FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 log = logging.getLogger(__name__)
-pp = pprint.PrettyPrinter(indent=4)
+pp = pprint.PrettyPrinter(indent=4, width=1000)
 
 
 def log_to_stderr(level=logging.INFO):
@@ -34,6 +34,7 @@ def print_codesig(path):
     except isign.app.NotSignable as e:
         msg = "Not signable: <{0}> {1}\n".format(path, e)
         log.error(msg)
+        raise
     finally:
         if temp_dir is not None and isdir(temp_dir):
             shutil.rmtree(temp_dir)
