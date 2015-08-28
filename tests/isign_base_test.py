@@ -13,6 +13,8 @@ log = logging.getLogger(__name__)
 class IsignBaseTest(unittest.TestCase):
     TEST_DIR = dirname(__file__)
     TEST_APP = join(TEST_DIR, 'SimpleSaucyApp.app')
+    TEST_APP_CODESIG_STR = join(TEST_DIR,
+                                'SimpleSaucyApp.app.codesig.construct.txt')
     TEST_APPZIP = TEST_APP + '.zip'
     TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
     TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
