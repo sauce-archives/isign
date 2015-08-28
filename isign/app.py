@@ -120,15 +120,15 @@ class App():
         if exists(frameworks_path):
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
             for dylib_path in dylib_paths:
-                dylib = signable.Dylib(self, dylib_path)
-                dylib.sign(signer)
+                dylib = signable.Dylib(dylib_path)
+                dylib.sign(self, signer)
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
                                                   self.path)
         # then sign the app
-        executable = signable.Executable(self, self.get_executable_path())
-        executable.sign(signer)
+        executable = signable.Executable(self.get_executable_path())
+        executable.sign(self, signer)
 
     @classmethod
     def archive(cls, path, output_path):
