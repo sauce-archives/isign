@@ -7,6 +7,10 @@ log = logging.getLogger(__name__)
 
 
 class TestParsing(IsignBaseTest):
+    """ This tests whether code signatures are parsed, by comparing
+        stringified parses."""
+    # Tests the parse-before-resign functionality used in
+    # bin/pprint_codesig, which isn't exposed nicely as such
     def test_app(self):
         with open(self.TEST_APP_CODESIG_STR, 'r') as f:
             expected_codesig_str = f.read()
