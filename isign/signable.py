@@ -68,25 +68,27 @@ class Signable(object):
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
             codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
             self.f.seek(codesig_offset)
-            arch['codesig_data'] = self.f.read(arch['lc_codesig'].data.datasize)
+            codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
+            arch['codesig_len'] = len(codesig_data)
+            log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
             raise Exception("signing without existing codesig is not implemented")
             # TODO: this doesn't actually work :(
             # see the makesig.py library, this was begun but not finished
 
-        arch['codesig'] = Codesig(self, arch['codesig_data'])
+        arch['codesig'] = Codesig(self, codesig_data)
 
         return arch
 
     def _sign_arch(self, arch, signer):
-        log.debug("codesig len: {0}".format(len(arch['codesig_data'])))
 
         arch['codesig'].resign(self.app, signer)
 
         new_codesig_data = arch['codesig'].build_data()
-        log.debug("new codesig len: {0}".format(len(new_codesig_data)))
+        new_codesig_len = len(new_codesig_data)
+        log.debug("new codesig len: {0}".format(new_codesig_len))
 
-        padding_length = len(arch['codesig_data']) - len(new_codesig_data)
+        padding_length = arch['codesig_len'] - new_codesig_len
         new_codesig_data += "\x00" * padding_length
         log.debug("padded len: {0}".format(len(new_codesig_data)))
         log.debug("----")
