@@ -1,4 +1,4 @@
-from os.path import abspath, dirname, exists, join, isdir
+from os.path import dirname, exists, join, isdir
 from isign import isign
 import logging
 from monitor_temp_file import MonitorTempFile
@@ -18,7 +18,6 @@ class IsignBaseTest(unittest.TestCase):
     TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
     TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
     TEST_SIMULATOR_APP = join(TEST_DIR, 'IosSimulatorApp.app.zip')
-    REPO_ROOT = dirname(dirname(abspath(__file__)))
     KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
     CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
     PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
@@ -64,4 +63,3 @@ class IsignBaseTest(unittest.TestCase):
 
     def get_temp_dir(self, prefix='isign-test-'):
         return tempfile.mkdtemp(prefix=prefix)
-
