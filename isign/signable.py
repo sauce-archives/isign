@@ -17,42 +17,31 @@ import tempfile
 log = logging.getLogger(__name__)
 
 
-class Signable(object):
-    __metaclass__ = ABCMeta
+class Architecture(object):
+    def __init__(self, filehandle, macho, macho_end):
+        self.macho = macho
+        self.macho_end = macho_end
 
-    slot_classes = []
-
-    def __init__(self, app, path):
-        log.debug("working on {0}".format(path))
-        self.app = app
-        self.path = path
-        self.f = open(self.path, "rb")
-        self.m = macho.MachoFile.parse_stream(self.f)
-
-    def should_fill_slot(self, slot):
-        return slot.__class__ in self.slot_classes
-
-    def _sign_arch(self, arch_macho, arch_end, signer):
         cmds = {}
-        for cmd in arch_macho.commands:
+        for cmd in self.macho.commands:
             name = cmd.cmd
             cmds[name] = cmd
 
         if 'LC_CODE_SIGNATURE' in cmds:
             lc_cmd = cmds['LC_CODE_SIGNATURE']
-            # re-sign
-            log.debug("re-signing")
-            codesig_offset = arch_macho.macho_start + lc_cmd.data.dataoff
-            self.f.seek(codesig_offset)
-            codesig_data = self.f.read(lc_cmd.data.datasize)
-            # log.debug(len(codesig_data))
+            codesig_offset = self.macho.macho_start + lc_cmd.data.dataoff
+            filehandle.seek(codesig_offset)
+            codesig_data = filehandle.read(lc_cmd.data.datasize)
         else:
             raise Exception("not implemented")
             # TODO: this doesn't actually work :(
             # see the makesig.py library, this was begun but not finished
 
-        codesig = Codesig(self, codesig_data)
-        codesig.resign(self.app, signer)
+        self.codesig = Codesig(self, codesig_data)
+
+
+    def sign(self, signer):
+        self.codesig.resign(self.app, signer)
 
         # log.debug(new_codesig_cons)
         new_codesig_data = codesig.build_data()
@@ -72,24 +61,52 @@ class Signable(object):
         offset = lc_cmd.data.dataoff
         return offset, new_codesig_data
 
-    def sign(self, signer):
-        arch_macho = self.m.data
+
+class Signable(object):
+    __metaclass__ = ABCMeta
+
+    slot_classes = []
+
+    def __init__(self, app, path):
+        log.debug("working on {0}".format(path))
+        self.app = app
+        self.path = path
+
+        self.f = open(self.path, "rb")
         self.f.seek(0, os.SEEK_END)
-        file_end = self.f.tell()
+        self.file_end = self.f.tell()
+        self.f.seek(0)
+
+        self.m = macho.MachoFile.parse_stream(self.f)
+        self.arches = self._parse_arches()
+
+    def _parse_arches(self):
+        """ parse architectures and associated Codesig """
+        arch_macho = self.m.data
         arches = []
         if 'FatArch' in arch_macho:
             for i, arch in enumerate(arch_macho.FatArch):
-                a = {'macho': arch.MachO}
+                this_arch_macho = arch.MachO
                 next_macho = i + 1
                 if next_macho == len(arch_macho.FatArch):  # last
-                    a['macho_end'] = file_end
+                    this_macho_end = self.file_end
                 else:
                     next_arch = arch_macho.FatArch[next_macho]
-                    a['macho_end'] = next_arch.MachO.macho_start
-                arches.append(a)
+                    this_macho_end = next_arch.MachO.macho_start
+                arches.append(Architecture(self.f,
+                                           this_arch_macho,
+                                           this_macho_end))
         else:
-            arches.append({'macho': arch_macho, 'macho_end': file_end})
+            arches.append(Architecture(self.f,
+                                       arch_macho,
+                                       self.file_end}))
 
+        return arches
+
+    def should_fill_slot(self, slot):
+        return slot.__class__ in self.slot_classes
+
+    def sign(self, signer):
         # copy self.f into temp, reset to beginning of file
         temp = tempfile.NamedTemporaryFile('wb', delete=False)
         self.f.seek(0)
@@ -99,11 +116,9 @@ class Signable(object):
         # write new codesign blocks for each arch
         offset_fmt = ("offset: {2}, write offset: {0}, "
                       "new_codesig_data len: {1}")
-        for arch in arches:
-            offset, new_codesig_data = self._sign_arch(arch['macho'],
-                                                       arch['macho_end'],
-                                                       signer)
-            write_offset = arch['macho'].macho_start + offset
+        for arch in self.arches:
+            offset, new_codesig_data = arch.sign(signer)
+            write_offset = arch.macho.macho_start + offset
             log.debug(offset_fmt.format(write_offset,
                                         len(new_codesig_data),
                                         offset))
