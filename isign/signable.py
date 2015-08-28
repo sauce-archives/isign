@@ -67,7 +67,7 @@ class Signable(object):
 
         lc_cmd = cmds['LC_CODE_SIGNATURE']
         lc_cmd.data.datasize = len(new_codesig_data)
-        lc_cmd.bytes = macho.CodeSigRef.build(cmd.data)
+        lc_cmd.bytes = macho.CodeSigRef.build(lc_cmd.data)
 
         offset = lc_cmd.data.dataoff
         return offset, new_codesig_data
