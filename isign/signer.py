@@ -2,7 +2,9 @@
 # Small object that can be passed around easily, that represents
 # our signing credentials, and can sign data.
 #
-# TODO should we be using PyOpenSSL rather than piping to openssl?
+# Unfortunately the installed python OpenSSL library doesn't
+# offer what we need for cms, so we also need to shell out to the openssl
+# tool, and make sure it's the right version.
 
 import distutils
 import logging
@@ -13,8 +15,54 @@ import subprocess
 import re
 
 OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
+# modern OpenSSL versions look like '0.9.8zd'. Use a regex to parse
+OPENSSL_VERSION_RE = re.compile(r'(\d+).(\d+).(\d+)(\w*)')
+MINIMUM_OPENSSL_VERSION = '1.0.1'
 
 log = logging.getLogger(__name__)
+
+
+def openssl_command(args, data=None):
+    """ given array of args, and optionally data to write,
+        return results of openssl command """
+    cmd = [OPENSSL] + args
+    cmd_str = ' '.join(cmd)
+    log.debug('running command ' + cmd_str)
+    proc = subprocess.Popen(cmd,
+                            stdin=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            stdout=subprocess.PIPE)
+    if data is not None:
+        proc.stdin.write(data)
+    out, err = proc.communicate()
+    if err is not None and err != '':
+        log.error("Command `{0}` returned error:\n{1}".format(cmd_str, err))
+    if proc.returncode != 0:
+        msg = "openssl command `{0}` failed, see log for error".format(cmd_str)
+        raise Exception(msg)
+    return out
+
+
+def get_installed_openssl_version():
+    version_line = openssl_command(['version'])
+    # e.g. 'OpenSSL 0.9.8zd 8 Jan 2015'
+    return re.split(r'\s+', version_line)[1]
+
+
+def is_openssl_version_ok(version, minimum):
+    """ check that the openssl tool is at least a certain version """
+    version_tuple = openssl_version_to_tuple(version)
+    minimum_tuple = openssl_version_to_tuple(minimum)
+    return version_tuple >= minimum_tuple
+
+
+def openssl_version_to_tuple(s):
+    """ OpenSSL uses its own versioning scheme, so we convert to tuple,
+        for easier comparison """
+    search = re.search(OPENSSL_VERSION_RE, s)
+    if search is not None:
+        return search.groups()
+    return ()
 
 
 class Signer(object):
@@ -42,11 +90,18 @@ class Signer(object):
             raise Exception("Cert file does not contain Subject line"
                             "with Apple Organizational Unit (OU)")
         self.team_id = team_id
+        self.check_openssl_version()
+
+    def check_openssl_version(self):
+        openssl_version = get_installed_openssl_version()
+        if not is_openssl_version_ok(openssl_version, MINIMUM_OPENSSL_VERSION):
+            msg = "Signing may not work: OpenSSL version is {0}, need {1} !"
+            log.warn(msg.format(openssl_version, MINIMUM_OPENSSL_VERSION))
 
     def sign(self, data):
         """ sign data, return filehandle """
         cmd = [
-            OPENSSL, "cms",
+            "cms",
             "-sign", "-binary", "-nosmimecap",
             "-certfile", self.apple_cert_file,
             "-signer", self.signer_cert_file,
@@ -54,23 +109,15 @@ class Signer(object):
             "-keyform", "pem",
             "-outform", "DER"
         ]
-        log.debug(cmd)
-        proc = subprocess.Popen(cmd,
-                                stdin=subprocess.PIPE,
-                                stderr=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
-        proc.stdin.write(data)
-        out, err = proc.communicate()
-        log.debug(err)
-        if proc.returncode != 0:
-            raise Exception("signing failed: " + str(err))
+        signature = openssl_command(cmd, data)
         # in some cases we've seen this return a zero length file.
         # Misconfigured machines?
-        if len(out) < 128:
+        if len(signature) < 128:
             too_small_msg = "Command `{0}` returned success, but signature "
             "seems too small ({1} bytes)"
-            raise Exception(too_small_msg.format(' '.join(cmd), len(out)))
-        return out
+            raise Exception(too_small_msg.format(' '.join(cmd),
+                                                 len(signature)))
+        return signature
 
     def get_common_name(self):
         """ read in our cert, and get our Common Name """
@@ -80,34 +127,22 @@ class Signer(object):
         return dict(subject.get_components())['CN']
 
     def _log_parsed_asn1(self, data):
-        cmd = [OPENSSL, 'asn1parse', '-inform', 'DER' '-i']
-        log.debug(cmd)
-        proc = subprocess.Popen(cmd,
-                                stdin=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
-        proc.stdin.write(data)
-        out, err = proc.communicate()
-        log.debug(out)
+        cmd = ['asn1parse', '-inform', 'DER' '-i']
+        parsed_asn1 = openssl_command(cmd)
+        log.debug(parsed_asn1)
 
     def _get_team_id(self):
         """ Same as Apple Organizational Unit. Should be in the cert """
         team_id = None
         cmd = [
-            OPENSSL,
             'x509',
             '-in', self.signer_cert_file,
             '-text',
             '-noout'
         ]
-        log.debug(cmd)
-        proc = subprocess.Popen(cmd,
-                                stderr=subprocess.PIPE,
-                                stdout=subprocess.PIPE)
-        out, err = proc.communicate()
-        if proc.returncode != 0:
-            raise Exception("getting team id failed: " + str(err))
+        certificate_info = openssl_command(cmd)
         subject_with_ou_match = re.compile(r'\s+Subject:.*OU=(\w+)')
-        for line in out.splitlines():
+        for line in certificate_info.splitlines():
             match = subject_with_ou_match.match(line)
             if match is not None:
                 team_id = match.group(1)
