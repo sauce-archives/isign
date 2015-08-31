@@ -16,8 +16,6 @@ TEMPLATE_FILENAME = 'code_resources_template.xml'
 # DIGEST_ALGORITHM = "sha1"
 HASH_BLOCKSIZE = 65536
 
-# OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
-
 log = logging.getLogger(__name__)
 
 
@@ -179,24 +177,6 @@ def get_template():
     fh = open(template_path, 'r')
     return plistlib.readPlist(fh)
 
-
-# def get_hash(path):
-#     """
-#     Get the digest of a file.
-#
-#     Piping to the openssl binary seems to be the fastest
-#     """
-#     proc = subprocess.Popen([OPENSSL, DIGEST_ALGORITHM, path],
-#                             stdout=subprocess.PIPE,
-#                             stderr=subprocess.PIPE)
-#     out, err = proc.communicate()
-#     if proc.returncode != 0:
-#         log.debug("returncode from proc = {0}".format(proc.returncode))
-#     if err != "":
-#         log.debug("error hashing: <{0}>".format(err))
-#     # output line looks like
-#     # SHA1(yourfile)= 53aad19d86fe01a0e569951d6772105860bf425c
-#     return re.split(r'\s+', out)[1]
 
 @memoize
 def get_hash_hex(path):
