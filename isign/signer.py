@@ -64,6 +64,12 @@ class Signer(object):
         log.debug(err)
         if proc.returncode != 0:
             raise Exception("signing failed: " + str(err))
+        # in some cases we've seen this return a zero length file.
+        # Misconfigured machines?
+        if len(out) < 128:
+            too_small_msg = "Command `{0}` returned success, but signature "
+            "seems too small ({1} bytes)"
+            raise Exception(too_small_msg.format(' '.join(cmd), len(out)))
         return out
 
     def get_common_name(self):
