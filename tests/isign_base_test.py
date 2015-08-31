@@ -34,11 +34,11 @@ class IsignBaseTest(unittest.TestCase):
     def tearDown(self):
         """ remove monitor on tempfile creation """
         remaining_temp_files = MonitorTempFile.get_temp_files()
+        MonitorTempFile.stop()
         if len(remaining_temp_files) != 0:
             log.error("remaining temp files: %s",
                       ', '.join(remaining_temp_files))
         assert len(remaining_temp_files) == 0
-        MonitorTempFile.stop()
 
     def resign(self, filename, **args):
         """ resign with test credentials """
