@@ -1,0 +1,3 @@
+#!/bin/bash
+
+# returns nothing; simulates what happens with bad versions of openssl
