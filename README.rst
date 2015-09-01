@@ -50,7 +50,7 @@ You can also call it from Python:
 
 
 Note that the app to sign can be an ``.ipa`` file or a ``.app``
-directory, or an archive like ``.app.tar.gz``, ``.app.tgz`` or ``.app.zip``. 
+directory, or an zipped ``.app`` directory.  
 ``isign`` will produce a re-signed file of the same kind.
 
 See `Keys and certificates <docs/keys_and_certificates.rst>`__ for how to
