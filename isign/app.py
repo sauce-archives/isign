@@ -61,8 +61,10 @@ class App():
         is_native = False
         plist_path = join(self.path, "Info.plist")
         if exists(plist_path):
+            log.debug("got a plist path, {}".format(plist_path))
             plist = biplist.readPlist(plist_path)
             is_native = is_plist_native(plist)
+            log.debug("is native: {}".format(is_native))
         return is_native
 
     def unarchive_to_temp(self):
@@ -176,6 +178,7 @@ class AppZip(object):
         is_native = False
         if (self.is_archive_extension_match() and
                 zipfile.is_zipfile(self.path)):
+            log.debug("this is an archive, and a zipfile")
             z = zipfile.ZipFile(self.path)
             apps = []
             file_list = z.namelist()
@@ -183,11 +186,13 @@ class AppZip(object):
                 if re.match(self.app_dir_pattern, file_name):
                     apps.append(file_name)
             if len(apps) == 1:
+                log.debug("found one app")
                 relative_app_dir = apps[0]
                 plist_path = join(relative_app_dir, "Info.plist")
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = is_plist_native(plist)
+                log.debug("is_native: {}".format(is_native))
         return (relative_app_dir, is_native)
 
     def __init__(self, path):
