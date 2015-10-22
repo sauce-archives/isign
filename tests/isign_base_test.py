@@ -20,12 +20,12 @@ class IsignBaseTest(unittest.TestCase):
     TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
     TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
     TEST_SIMULATOR_APP = join(TEST_DIR, 'IosSimulatorApp.app.zip')
-    KEY = isign.KEY_PATH
-    CERTIFICATE = isign.CERTIFICATE_PATH
-    PROVISIONING_PROFILE = isign.PROVISIONING_PROFILE_PATH
+    KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
+    CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
+    PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
     ERROR_KEY = '_errors'
-    # Sauce Labs apple organizational unit
-    OU = 'JWKXD469L2'
+    # Fake Apple organizational unit
+    OU = 'ISIGNTESTS'
 
     def setUp(self):
         """ this helps us monitor if we're not cleaning up temp files """

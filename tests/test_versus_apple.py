@@ -124,11 +124,13 @@ class TestVersusApple(IsignBaseTest):
         assert 'Signature' in info
 
         assert 'Authority' in info
-        if isinstance(info['Authority'], list):
-            authorities = info['Authority']
-        else:
-            authorities = [info['Authority']]
-        assert 'Apple Root CA' in authorities
+        # The following only works with a cert signed by apple
+        #
+        # if isinstance(info['Authority'], list):
+        #    authorities = info['Authority']
+        # else:
+        #    authorities = [info['Authority']]
+        # assert 'Apple Root CA' in authorities
 
         assert 'Info.plist' in info
         assert 'entries' in info['Info.plist']
