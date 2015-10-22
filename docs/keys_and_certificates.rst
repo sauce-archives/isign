@@ -6,9 +6,9 @@ to be able to sign apps. By default, ``isign`` uses the following files:
 
 .. code:: bash
 
-      $HOME/isign-credentials/mobdev.key.pem
-      $HOME/isign-credentials/mobdev.cert.pem
-      $HOME/isign-credentials/mobdev1.mobileprovision
+      $HOME/.isign/key.pem
+      $HOME/.isign/certificate.pem
+      $HOME/.isign/isign.mobileprovision
 
 You can specify other locations for these files on the command line, or in
 the arguments to ``isign.isign.resign()``.
