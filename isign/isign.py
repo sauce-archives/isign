@@ -1,18 +1,28 @@
 import app
 # import makesig
 import os
-from os.path import dirname, join, realpath
+from os.path import dirname, exists, join, realpath
 
 # this comes with the repo
 PACKAGE_ROOT = dirname(realpath(__file__))
 APPLE_CERT_PATH = join(PACKAGE_ROOT, 'apple_credentials', 'applecerts.pem')
 
-# should be deployed with Ansible (as of July 2015, the playbook is isign.yml)
-DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'isign-credentials')
-CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.cert.pem')
-KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.key.pem')
-PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
-                                 'mobdev1.mobileprovision')
+# We will default to using credentials if they are located in a particular
+# directory. Sauce Labs in 2015 uses a scheme under '~/isign-credentials'
+# but probably everyone else should use '~/.isign', or specify credential
+# files in command line arguments.
+if exists(join(os.environ['HOME'], 'isign-credentials')):
+    DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], 'isign-credentials')
+    CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.cert.pem')
+    KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'mobdev.key.pem')
+    PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
+                                     'mobdev1.mobileprovision')
+else:
+    DEFAULT_CREDENTIALS_PATH = join(os.environ['HOME'], '.isign')
+    CERTIFICATE_PATH = join(DEFAULT_CREDENTIALS_PATH, 'certificate.pem')
+    KEY_PATH = join(DEFAULT_CREDENTIALS_PATH, 'key.pem')
+    PROVISIONING_PROFILE_PATH = join(DEFAULT_CREDENTIALS_PATH,
+                                     'isign.mobileprovision')
 
 
 class NotSignable(Exception):
