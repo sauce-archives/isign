@@ -85,6 +85,8 @@ class Codesig(object):
         return macho_cs.Blob_.build(blob)
 
     def set_entitlements(self, entitlements_path):
+        """ If we have an entitlements slot (i.e., it is an executable)
+            then read the Entitlements.plist into that """
         log.debug("entitlements:")
         entitlements_data = None
         try:

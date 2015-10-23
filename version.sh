@@ -1,6 +1,6 @@
 #!/bin/bash
 set -e
-MAJMIN_VERSION="1.2"
+MAJMIN_VERSION="1.3"
 
 pushd $(dirname $0) >/dev/null
 working_dir=$PWD

@@ -1,17 +1,17 @@
 #
 # Library to construct an LC_CODE_SIGNATURE construct
-# from scratch. Does not work yet.
-#
-# Abandoned development May 2015 when it became clear that most
-# apps that were uploaded to us would already be signed. But
-# we may need this someday, so preserving here.
+# from scratch.
 #
 
 import construct
 import hashlib
+import logging
 import math
 import macho
 import macho_cs
+
+
+log = logging.getLogger(__name__)
 
 
 def make_arg(data_type, arg):
@@ -97,8 +97,10 @@ def make_requirements(drs):
 
 
 def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
-    ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
-    teamID = 'fake' + '\x00'
+    # TODO get from app
+    ident = 'com.saucelabs.UnsignedTestApp' + '\x00'
+    # TODO get from certificate
+    teamID = 'JWKXD469L2' + '\x00'
     empty_hash = "\x00" * 20
     cd = construct.Container(cd_start=None,
                              version=0x20200,
@@ -178,9 +180,6 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
 
 
 def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
-    raise Exception("Making a signature is not fully implemented. This code was"
-                    "abandoned since we think our customers will only give us signed"
-                    "apps. But, it almost works, so it's preserved here.")
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -189,38 +188,39 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     if drs_lc:
         drs = drs_lc.data.blob
 
+    # offset is the end of the architecture
     codesig_offset = arch_end
 
     # generate code hashes
     hashes = []
-    #log.debug("codesig offset:", codesig_offset)
+    # log.debug("codesig offset:", codesig_offset)
     start_offset = arch_macho.macho_start
-    end_offset = macho_end
-    #log.debug("new start-end", start_offset, end_offset)
+    end_offset = arch_end
+    # log.debug("new start-end", start_offset, end_offset)
     codeLimit = end_offset - start_offset
-    #log.debug("new cL:", codeLimit)
+    # log.debug("new cL:", codeLimit)
     nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
-    #log.debug("new nCS:", nCodeSlots)
+    # log.debug("new nCS:", nCodeSlots)
     for i in xrange(nCodeSlots):
         f.seek(start_offset + 0x1000 * i)
         actual_data = f.read(min(0x1000, end_offset - f.tell()))
         actual = hashlib.sha1(actual_data).digest()
-        #log.debug(actual.encode('hex'))
+        # log.debug(actual.encode('hex'))
         hashes.append(actual)
 
     codesig_cons = make_basic_codesig(entitlements_file,
-            drs,
-            codeLimit,
-            hashes)
+                                      drs,
+                                      codeLimit,
+                                      hashes)
     codesig_data = macho_cs.Blob.build(codesig_cons)
     cmd_data = construct.Container(dataoff=codesig_offset,
-            datasize=len(codesig_data))
+                                   datasize=len(codesig_data))
     cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
-            cmdsize=16,
-            data=cmd_data,
-            bytes=macho.CodeSigRef.build(cmd_data))
+                              cmdsize=16,
+                              data=cmd_data,
+                              bytes=macho.CodeSigRef.build(cmd_data))
     arch_macho.commands.append(cmd)
     arch_macho.ncmds += 1
     arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
     cmds['LC_CODE_SIGNATURE'] = cmd
-
+    return codesig_data
