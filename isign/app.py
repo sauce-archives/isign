@@ -276,6 +276,10 @@ def resign(input_path,
            apple_cert,
            provisioning_profile,
            output_path):
+
+    if not exists(input_path):
+        raise IOError("{0} not found".format(input_path))
+
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
