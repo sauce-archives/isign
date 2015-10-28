@@ -69,7 +69,7 @@ class App():
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
-        log.info("unarchiving to temp... %s -> %s", self.path, containing_dir)
+        log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
         shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(self.path, containing_dir)
         return containing_dir, App(containing_dir)
@@ -144,7 +144,7 @@ class App():
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
         self.sign(signer)
-        log.info("Resigned app dir at <%s>", self.path)
+        log.debug("Resigned app dir at <%s>", self.path)
 
 
 class AppZip(object):
