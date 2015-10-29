@@ -3,9 +3,9 @@ isign
 A tool and library to re-sign iOS applications, without proprietary Apple software.
 
 For example, an iOS app in development would probably only run on the developer's iPhone. 
-`isign` can alter the app so that it can run on another iPhone.
+``isign`` can alter the app so that it can run on another iPhone.
 
-Apple tools already exist to do this. But with `isign`, now you can do this anywhere you
+Apple tools already exist to do this. But with ``isign``, now you can do this anywhere you
 can run Python. 
 
 More info in `Rationale <docs/rationale.rst>`__.
@@ -14,13 +14,14 @@ More info in `Rationale <docs/rationale.rst>`__.
 Where to get it
 ---------------
 
-The latest version can be installed via `PyPi <https://pypi.python.org/pypi/httproxy/>`__:
+The latest version can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
-.. code:: shell
+.. code:: bash
   $ pip install isign
 
 or:
-.. code:: shell
+
+.. code:: bash
   $ easy_install isign
 
 The `source code repository <https://github.com/saucelabs/isign>`__ 
@@ -31,18 +32,19 @@ are maintained on GitHub.
 How to get started
 ------------------
 
-Ensure `openssl` is at version 1.0.1j or better. Use `openssl version`
-to check.
+Ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1j or better. 
+
+You'll probably want `libimobiledevice <http://www.libimobiledevice.org/>`__,
+so you can try installing your re-signed apps.
 
 You'll need an Apple Developer Account. Obtaining everything you need is
 beyond the scope of this documentation, but if you're already making apps
 and running them on real iOS devices, you have everything you need.
-At the end of this process, you should have a key and certificate in 
-Keychain Access, and a provisioning profile associated 
-with that certificate, that you can use to sign iOS apps for one or more 
-of your own iOS devices.
+You should have a key and certificate in Keychain Access, and a provisioning 
+profile associated with that certificate, that you can use to sign iOS apps 
+for one or more of your own iOS devices.
 
-**Caution** We're going to be exporting important and private information 
+**Caution:** We're going to be exporting important and private information 
 out of Keychain Access. Keep these files secure, especially your private key.
 
 First, make the .isign directory:
@@ -53,10 +55,10 @@ First, make the .isign directory:
 Next, export your key and certificate from Keychain Access. In Keychain Access, 
 open the *Keys*. Find the key you use to sign apps. Your certificate will 
 appear as a "descendant" of this key. Right click on it and 
-export the key as a `.p12` file, let's say `Certificates.p12`. If Keychain 
+export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
 asks you for a password to protect this file, just leave it blank. 
 
-For security, you should immediately `chmod 400 Certificates.p12`, so only
+For security, you should immediately ``chmod 400 Certificates.p12``, so only
 you can read it.
 
 Next, let's use openssl to split that into a PEM cert and a PEM key.
@@ -66,7 +68,7 @@ Next, let's use openssl to split that into a PEM cert and a PEM key.
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
     $ chmod 400 ~/.isign/key.pem
 
-At this point you can, and should, delete `Certificates.p12`. 
+At this point you can, and should, delete ``Certificates.p12``. 
 
 .. code:: bash
     $ rm Certificates.p12
@@ -77,8 +79,8 @@ same certificate. Save it as ``~/.isign/isign.mobileprovision``.
 How to use isign
 ----------------
 
-If you've installed all the files in the proper locations above, then `isign` can be now invoked
-on any iOS `.app` directory, or `.ipa` archive, or `.app.zip` zipped directory. For example:
+If you've installed all the files in the proper locations above, then ``isign`` can be now invoked
+on any iOS ``.app`` directory, or ``.ipa`` archive, or ``.app.zip`` zipped directory. For example:
 
 .. code:: bash
   $ isign -o resigned.ipa my.ipa
@@ -143,7 +145,7 @@ to run, so they are skipped unless you run them on a Macintosh computer with dev
 Packaging
 ---------
 
-If you were wondering what the `version.sh` and `dev` was all about, this library is 
+If you were wondering what the ``version.sh`` and ``dev`` was all about, this library is 
 packaged according to the Sauce Labs standard for Python packages. Consult the maintainers if
 you have questions.
 
