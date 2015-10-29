@@ -16,12 +16,12 @@ Where to get it
 
 The latest version can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
-.. code:: bash
+.. code::
   $ pip install isign
 
 or:
 
-.. code:: bash
+.. code::
   $ easy_install isign
 
 The `source code repository <https://github.com/saucelabs/isign>`__ 
@@ -49,7 +49,7 @@ out of Keychain Access. Keep these files secure, especially your private key.
 
 First, make the .isign directory:
 
-.. code:: bash
+.. code::
   $ mkdir ~/.isign
 
 Next, export your key and certificate from Keychain Access. In Keychain Access, 
@@ -63,14 +63,14 @@ you can read it.
 
 Next, let's use openssl to split that into a PEM cert and a PEM key.
 
-.. code:: bash
+.. code::
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/certificate.pem -clcerts -nokeys
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
     $ chmod 400 ~/.isign/key.pem
 
 At this point you can, and should, delete ``Certificates.p12``. 
 
-.. code:: bash
+.. code::
     $ rm Certificates.p12
 
 Finally, download a provisioning profile from the Apple Developer Portal that uses the 
@@ -82,7 +82,7 @@ How to use isign
 If you've installed all the files in the proper locations above, then ``isign`` can be now invoked
 on any iOS ``.app`` directory, or ``.ipa`` archive, or ``.app.zip`` zipped directory. For example:
 
-.. code:: bash
+.. code::
   $ isign -o resigned.ipa my.ipa
   2015-10-28 16:14:30,548 - isign.app - INFO - archived Ipa to /home/alice/resigned.ipa
 
