@@ -17,11 +17,13 @@ Where to get it
 The latest version can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
 .. code::
+
   $ pip install isign
 
 or:
 
 .. code::
+
   $ easy_install isign
 
 The `source code repository <https://github.com/saucelabs/isign>`__ 
@@ -50,6 +52,7 @@ out of Keychain Access. Keep these files secure, especially your private key.
 First, make the .isign directory:
 
 .. code::
+
   $ mkdir ~/.isign
 
 Next, export your key and certificate from Keychain Access. In Keychain Access, 
@@ -64,6 +67,7 @@ you can read it.
 Next, let's use openssl to split that into a PEM cert and a PEM key.
 
 .. code::
+
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/certificate.pem -clcerts -nokeys
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
     $ chmod 400 ~/.isign/key.pem
@@ -71,6 +75,7 @@ Next, let's use openssl to split that into a PEM cert and a PEM key.
 At this point you can, and should, delete ``Certificates.p12``. 
 
 .. code::
+
     $ rm Certificates.p12
 
 Finally, download a provisioning profile from the Apple Developer Portal that uses the 
@@ -83,6 +88,7 @@ If you've installed all the files in the proper locations above, then ``isign`` 
 on any iOS ``.app`` directory, or ``.ipa`` archive, or ``.app.zip`` zipped directory. For example:
 
 .. code::
+
   $ isign -o resigned.ipa my.ipa
   2015-10-28 16:14:30,548 - isign.app - INFO - archived Ipa to /home/alice/resigned.ipa
 
@@ -104,6 +110,7 @@ isign command line arguments
 Synopsis:
 
 .. code::
+
     isign [-h] [-a <path to applecerts.pem>] 
                [-c <path to your cert in .pem form>]
                [-k <path to your key in .pem form>] 
@@ -111,25 +118,31 @@ Synopsis:
                [-o <output path>]
                <path to app to resign>
 
--a <path>, --apple-cert <path>
-  Path to Apple certificate in PEM format. This is already included in the library, so you will likely
-  never need it.
+**-a <path>, --apple-cert <path>**
 
--c <path>, --certificate <path>
-  Path to your certificate in PEM format. Defaults to ``$HOME/.isign/certificate.pem``.
+Path to Apple certificate in PEM format. This is already included in the library, so you will likely
+never need it.
 
--h, --help
-  Show a help message and exit.
+**-c <path>, --certificate <path>**
 
--k <path>, --key <path>
-  Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pwm``.
+Path to your certificate in PEM format. Defaults to ``$HOME/.isign/certificate.pem``.
 
--o <path>, --output <path>
-  Path to write the re-signed application. Defaults to ``out`` in your current working directory.
+**-h, --help**
 
--p <path>, --provisioning-profile <path>
-  Path to your provisioning profile. This should be associated with your certificate. Defaults to 
-  ``$HOME/.isign/isign.mobileprovision``.
+Show a help message and exit.
+
+**-k <path>, --key <path>**
+
+Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pwm``.
+
+**-o <path>, --output <path>**
+
+Path to write the re-signed application. Defaults to ``out`` in your current working directory.
+
+**-p <path>, --provisioning-profile <path>**
+
+Path to your provisioning profile. This should be associated with your certificate. Defaults to 
+``$HOME/.isign/isign.mobileprovision``.
 
 
 Testing
