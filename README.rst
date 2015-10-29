@@ -1,41 +1,88 @@
 isign
 =====
+A tool and library to re-sign iOS applications, without proprietary Apple software.
 
-iOS app signer / re-signer. Does not require OS X.
+For example, an iOS app in development would probably only run on the developer's iPhone. 
+`isign` can alter the app so that it can run on another iPhone.
 
-Synopsis
---------
+Apple tools already exist to do this. But with `isign`, now you can do this anywhere you
+can run Python. 
 
-::
+More info in `Rationale <docs/rationale.rst>`__.
 
-    isign [-h] [-p <your.mobileprovision>] 
-               [-a <path to applecerts.pem>] 
-               [-k <path to your key in .pem form>] 
-               [-c <path to your cert in .pem form>]
-               [-o <output path>]
-               <path to app to resign>
 
-    Resign an iOS application with a new identity and provisioning profile.
+Where to get it
+---------------
 
-    positional arguments:
-      <path>                Path to application to re-sign, typically a directory
-                            ending in .app or file ending in .ipa.
+The latest version can be installed via `PyPi <https://pypi.python.org/pypi/httproxy/>`__:
 
-    optional arguments:
-      -h, --help            show this help message and exit
-      -p <your.mobileprovision>, --provisioning-profile <your.mobileprovision>
-                            Path to provisioning profile
-      -a <path>, --apple-cert <path>
-                            Path to Apple certificate in .pem form
-      -k <path>, --key <path>
-                            Path to your organization's key in .pem format
-      -c <certificate>, --certificate <certificate>
-                            Path to your organization's certificate in .pem form
-      -o <path>, --output <path>
-                            Path to output file or directory
+.. code:: shell
+  $ pip install isign
 
-If you have credentials in a well-known location (see below) then you can omit most 
-of the arguments. If you omit the output path, it goes to a file called ``out``.
+or:
+.. code:: shell
+  $ easy_install isign
+
+The `source code repository <https://github.com/saucelabs/isign>`__ 
+and `issue tracker <https://github.com/saucelabs/isign/issues>`__ 
+are maintained on GitHub.
+
+
+How to get started
+------------------
+
+Ensure `openssl` is at version 1.0.1j or better. Use `openssl version`
+to check.
+
+You'll need an Apple Developer Account. Obtaining everything you need is
+beyond the scope of this documentation, but if you're already making apps
+and running them on real iOS devices, you have everything you need.
+At the end of this process, you should have a key and certificate in 
+Keychain Access, and a provisioning profile associated 
+with that certificate, that you can use to sign iOS apps for one or more 
+of your own iOS devices.
+
+**Caution** We're going to be exporting important and private information 
+out of Keychain Access. Keep these files secure, especially your private key.
+
+First, make the .isign directory:
+
+.. code:: bash
+  $ mkdir ~/.isign
+
+Next, export your key and certificate from Keychain Access. In Keychain Access, 
+open the *Keys*. Find the key you use to sign apps. Your certificate will 
+appear as a "descendant" of this key. Right click on it and 
+export the key as a `.p12` file, let's say `Certificates.p12`. If Keychain 
+asks you for a password to protect this file, just leave it blank. 
+
+For security, you should immediately `chmod 400 Certificates.p12`, so only
+you can read it.
+
+Next, let's use openssl to split that into a PEM cert and a PEM key.
+
+.. code:: bash
+    $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/certificate.pem -clcerts -nokeys
+    $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
+    $ chmod 400 ~/.isign/key.pem
+
+At this point you can, and should, delete `Certificates.p12`. 
+
+.. code:: bash
+    $ rm Certificates.p12
+
+Finally, download a provisioning profile from the Apple Developer Portal that uses the 
+same certificate. Save it as ``~/.isign/isign.mobileprovision``. 
+
+How to use isign
+----------------
+
+If you've installed all the files in the proper locations above, then `isign` can be now invoked
+on any iOS `.app` directory, or `.ipa` archive, or `.app.zip` zipped directory. For example:
+
+.. code:: bash
+  $ isign -o resigned.ipa my.ipa
+  2015-10-28 16:14:30,548 - isign.app - INFO - archived Ipa to /home/alice/resigned.ipa
 
 You can also call it from Python:
 
@@ -44,34 +91,44 @@ You can also call it from Python:
     from isign import isign
    
     try:
-        isign.resign(app, output_path=output_path)
+        isign.resign("my.ipa", output_path="resigned.ipa")
     except isign.NotSignable as e:
-        # this wasn't an iOS native app
+        print "Not an iOS native app: " + e
 
 
-Note that the app to sign can be an ``.ipa`` file or a ``.app``
-directory, or an zipped ``.app`` directory.  
-``isign`` will produce a re-signed file of the same kind.
+isign command line arguments
+----------------------------
 
-See `Keys and certificates <docs/keys_and_certificates.rst>`__ for how to
-obtain the credentials, and where to put them so that the library
-will use them by default.
+Synopsis:
 
-A note on OpenSSL
------------------
+.. code::
+    isign [-h] [-a <path to applecerts.pem>] 
+               [-c <path to your cert in .pem form>]
+               [-k <path to your key in .pem form>] 
+               [-p <your.mobileprovision>] 
+               [-o <output path>]
+               <path to app to resign>
 
-The OpenSSL that ships by default with Macs, as of May 2015 (0.9.8zd),
-is inadequate. Install OpenSSL >= 1.0.1j with brew. If for whatever
-reason you need to still have Apple's openssl around, set the
-environment variable OPENSSL to the correct binary and ``isign.py``
-will do the right thing.
+-a <path>, --apple-cert <path>
+  Path to Apple certificate in PEM format. This is already included in the library, so you will likely
+  never need it.
 
-Packaging
----------
+-c <path>, --certificate <path>
+  Path to your certificate in PEM format. Defaults to ``$HOME/.isign/certificate.pem``.
 
-This library is packaged according to the new Sauce standard for 
-Python Packages. See `https://saucedev.atlassian.net/wiki/display/AD/Python+packaging` for details
-about deploying or modifying this library.
+-h, --help
+  Show a help message and exit.
+
+-k <path>, --key <path>
+  Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pwm``.
+
+-o <path>, --output <path>
+  Path to write the re-signed application. Defaults to ``out`` in your current working directory.
+
+-p <path>, --provisioning-profile <path>
+  Path to your provisioning profile. This should be associated with your certificate. Defaults to 
+  ``$HOME/.isign/isign.mobileprovision``.
+
 
 Testing
 -------
@@ -83,34 +140,12 @@ Some tests require Apple's
 to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
 
 
-Rationale
+Packaging
 ---------
 
-The iOS kernel will refuse to run an app if it doesn't have an
-appropriate signature that it can trace, in various ways, all the way
-back to Apple.
-
-This signature is built right into the format of how executables are
-laid out on iOS, the LC\_CODE\_SIGNATURE structure in a Mach-O binary.
-
-Apps from the app store are already signed in a way that allows them to
-run on any computer. Developers need to get a special 'provisioning' file
-from Apple to test their apps on their devices.
-
-So, with Sauce Labs, we have the problem that our customers' apps are
-almost certainly provisioned only for their devices. But they need to
-run on our devices.
-
-It's relatively easy to re-sign an app using Apple tools -- see the
-``mac`` directory in this repo for sample scripts. Pretty much everyone
-else that has needed to do this just uses a Mac anyway. Even if their
-build system is Linux-based, they will add a Mac to that somehow, and
-ssh into it to do signing.
-
-However, we needed to do signing at scale, and we wanted to avoid the
-problems of adding Mac hardware (or Mac VMs) to our cloud
-infrastructure. It turns out that while it was really hard, it's
-possible to sign apps using entirely OSS tools.
+If you were wondering what the `version.sh` and `dev` was all about, this library is 
+packaged according to the Sauce Labs standard for Python packages. Consult the maintainers if
+you have questions.
 
 
 More documentation
@@ -119,3 +154,10 @@ More documentation
 See the `docs <docs>`__ directory of this repository.
 
 
+Authors
+-------
+`Neil Kandalgaonkar <https://github.com/neilk>`__ is the developer and maintainer. Contact him with your questions.
+
+Proof of concept by `Steven Hazel <https://github.com/sah>`__ and Neil Kandalgaonkar.
+
+Reference scripts using Apple tools by `Michael Han <https://github.com/mhan>`__.
