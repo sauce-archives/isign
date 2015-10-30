@@ -1,14 +1,13 @@
 isign
 =====
+
 A tool and library to re-sign iOS applications, without proprietary Apple software.
 
 For example, an iOS app in development would probably only run on the developer's iPhone. 
-``isign`` can alter the app so that it can run on another iPhone.
+``isign`` can alter the app so that it can run on another developer's iPhone.
 
-Apple tools already exist to do this. But with ``isign``, now you can do this anywhere you
-can run Python. 
-
-More info in `Rationale <docs/rationale.rst>`__.
+Apple tools already exist to do this. But with ``isign``, now you can do this on operating
+systems like Linux.
 
 
 Where to get it
@@ -42,6 +41,7 @@ so you can try installing your re-signed apps.
 You'll need an Apple Developer Account. Obtaining everything you need is
 beyond the scope of this documentation, but if you're already making apps
 and running them on real iOS devices, you have everything you need.
+
 You should have a key and certificate in Keychain Access, and a provisioning 
 profile associated with that certificate, that you can use to sign iOS apps 
 for one or more of your own iOS devices.
@@ -72,7 +72,7 @@ Next, let's use openssl to split that into a PEM cert and a PEM key.
     $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
     $ chmod 400 ~/.isign/key.pem
 
-At this point you can, and should, delete ``Certificates.p12``. 
+Then delete ``Certificates.p12``. 
 
 .. code::
 
@@ -121,7 +121,7 @@ Synopsis:
 **-a <path>, --apple-cert <path>**
 
 Path to Apple certificate in PEM format. This is already included in the library, so you will likely
-never need it.
+never need it. In the event that the certificates need to be changed, See the `Apple Certificate documentation <docs/applecerts.rst>`__.
 
 **-c <path>, --certificate <path>**
 
@@ -159,19 +159,43 @@ Packaging
 ---------
 
 If you were wondering what the ``version.sh`` and ``dev`` was all about, this library is 
-packaged according to the Sauce Labs standard for Python packages. Consult the maintainers if
-you have questions.
+packaged according to the Sauce Labs standard for Python packages. For the most part, you don't
+have to touch those.
+
+
+Community contributions
+------------------------
+
+Sauce Labs supports ongoing public ``isign`` development. ``isign`` is a part of our infrastructure
+for the `iOS Real Device Cloud <https://saucelabs.com/press-room/press-releases/sauce-labs-expands-mobile-test-automation-cloud-with-the-addition-of-real-devices-1>`__,
+which allows customers to test apps and websites on real iOS devices. ``isign`` has been successfully re-signing submitted customer apps in production
+since June 2015.
+
+Goals for this library include:
+
+* ongoing maintenance as new versions of iOS are released
+* speed improvements via parallelization and caching
+* better documentation of the data structures involved in code signing (``LC_CODE_SIGNATURE``)
+* the thrilling work of code cleanups
+
+Your contributions are valued and welcome. Get in touch with the maintainers, file an issue, or fork the code!
+
+Code of conduct
+~~~~~~~~~~~~~~~
+
+This project not have an official code of conduct, yet, but one is forthcoming. Please contribute
+to discussion `here <https://github.com/saucelabs/isign/issues/6>`__.
 
 
 More documentation
 ------------------
 
-See the `docs <docs>`__ directory of this repository.
+See the `docs <docs>`__ directory of this repository for random stuff that didn't fit here.
 
 
 Authors
 -------
-`Neil Kandalgaonkar <https://github.com/neilk>`__ is the developer and maintainer. Contact him with your questions.
+`Neil Kandalgaonkar <https://github.com/neilk>`__ is the main developer and maintainer.
 
 Proof of concept by `Steven Hazel <https://github.com/sah>`__ and Neil Kandalgaonkar.
 
