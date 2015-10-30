@@ -11,6 +11,43 @@ Apple's developer site.
 files must be in a different format.
 
 
+Obtain an Apple Developer account
+----------------------------------
+This is beyond the scope of this documentation for now. However, at the end
+of the process, you should have a key and certificate in Keychain, and a 
+provisioning profile that you can use to sign apps for one or more of your
+own iOS devices.
+
+Make the .isign directory
+-------------------------
+
+.. code:: bash
+  $ mkdir ~/.isign
+
+
+Export your key and certificate
+--------------------------------
+
+In Keychain Access, open the *Keys*. Find the certificate you use to sign apps 
+(it will appear as a "descendant" of your private key). Export
+it as a `.p12` file. If Keychain asks you for a password to protect
+this file, just leave it blank. This `.p12` file contains both your key and 
+your certificate.
+
+Next, let's use openssl to split that into a PEM cert and a PEM key.
+
+.. code:: bash
+    $ openssl pkcs12 -in <your>.p12 -out ~/.isign/certificate.pem -clcerts -nokeys
+    $ openssl pkcs12 -in <your>.p12 -out ~/.isign/key.pem -nocerts -nodes
+
+Download your provisioning profile
+----------------------------------
+
+If you're an Apple developer already, you've probably already created a
+provisioning profile that works on one of your iOS devices. Download it from
+the Apple Developer Portal, and save it as ``~/.isign/isign.mobileprovision``.
+
+
 
 If you don't have an Apple developer account already
 ====================================================
@@ -31,40 +68,6 @@ something doesn't work, try that browser.
 
 Setting up credentials
 ----------------------
-
-Apple certificates
-~~~~~~~~~~~~~~~~~~
-
-You probably don't need to change this, not for a long time (we did this
-in May 2015).
-
-The ``applecerts.pem`` file can be constructed by these steps. In theory
-you can export them from Keychain Access, but when I tried it the certs
-were outdated. I think there's a way to update them, but this procedure
-worked for me:
-
-.. code:: bash
-
-        $ curl 'https://www.apple.com/appleca/AppleIncRootCertificate.cer' > AppleIncRootCertificate.cer
-        $ curl 'http://developer.apple.com/certificationauthority/AppleWWDRCA.cer' > AppleWWDRCA.cer
-        $ openssl x509 -inform der -in AppleIncRootCertificate.cer -outform pem -out AppleIncRootCertificate.pem
-        $ openssl x509 -inform der -in AppleWWDRCA.cer -outform pem -out AppleWWDRCA.pem
-        $ cat AppleWWDRCA.pem AppleIncRootCertificate.pem > applecerts.pem
-
-Here's a conceptual explanation of what we're doing:
-
-Download the following certs from `Apple's Certificate Authority
-Page <https://www.apple.com/certificateauthority/>`__
-
--  Apple Inc. Root Certificate
--  Worldwide Developer Relations Certificate
-
-Then convert these to
-`PEM <http://en.wikipedia.org/wiki/Privacy-enhanced_Electronic_Mail>`__
-format.
-
-Then, concatenate them together. **This file can now serve as the 'apple
-certs' for code signing.**
 
 Your keys and certificates
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
