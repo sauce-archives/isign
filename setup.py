@@ -26,10 +26,10 @@ setup(
     author='Sauce Labs',
     author_email='dev@saucelabs.com',
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: Developers',
         'Topic :: Utilities',
-        'License :: Other/Proprietary License',
+        'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
     ],
     packages=find_packages(),
