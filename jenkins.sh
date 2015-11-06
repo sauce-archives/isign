@@ -7,7 +7,7 @@ package=$(echo $package_name | sed 's/-/_/g')
 popd >/dev/null
 
 version=$(./version.sh)
-
+export PYTHON_PACKAGE_VERSION=${version}
 
 make_venv() {
     # For some reason mkvirtualenv returns with exit code 1 on success.  So we
