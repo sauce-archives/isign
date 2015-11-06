@@ -21,8 +21,9 @@ package = package_name.replace('-', '_')
 setup(
     name=package_name,
     version=version,
-    description='Signing or re-signing iOS apps without Apple tools',
+    description='Re-signing iOS apps without Apple tools',
     url='https://github.com/saucelabs/{}'.format(package_name),
+    download_url='https://github.com/saucelabs/{}/tarball/v{}'.format(package_name, version),
     author='Sauce Labs',
     author_email='dev@saucelabs.com',
     classifiers=[
@@ -32,6 +33,7 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Programming Language :: Python :: 2.7',
     ],
+    keywords=['ios', 'app', 'signature', 'codesign', 'sign', 'resign'],
     packages=find_packages(),
     install_requires=[
         'biplist==0.9',
