@@ -1,4 +1,8 @@
 #!/bin/bash
+
+# Figures out what the current version is, echoes that back,
+# and also writes a `version.json` file into the package.
+
 set -e
 MAJMIN_VERSION="1.3"
 

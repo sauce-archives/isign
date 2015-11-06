@@ -2,12 +2,15 @@
 from setuptools import setup, find_packages
 from codecs import open  # to use a consistent encoding
 from subprocess import check_output
-from os import path
+from os import path, environ
 
 here = path.abspath(path.dirname(__file__))
 
 if path.exists(path.join(here, "version.sh")):  # development
-    version = check_output(path.join(here, "version.sh")).strip()
+    if 'PYTHON_PACKAGE_VERSION' in environ:
+        version = environ['PYTHON_PACKAGE_VERSION']
+    else:
+        version = check_output(path.join(here, "version.sh")).strip()
     package_name = path.basename(here)
 else:  # source package
     with open(path.join(here, "PKG-INFO")) as f:
