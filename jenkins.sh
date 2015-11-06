@@ -41,6 +41,10 @@ tag_release() {
     git push origin $tag
 }
 
+update_pypi() {
+    python setup.py sdist upload -r pypi
+}
+
 cleanup() {
     rm -rf $TMPDIR
 
@@ -58,4 +62,5 @@ make_venv
 build_artifacts
 test_artifacts
 tag_release
+update_pypi
 cleanup
