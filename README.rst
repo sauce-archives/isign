@@ -176,6 +176,7 @@ Goals for this library include:
 * ongoing maintenance as new versions of iOS are released
 * speed improvements via parallelization and caching
 * better documentation of the data structures involved in code signing (``LC_CODE_SIGNATURE``)
+* public continuous integration - currently Sauce Labs tests every change to this library, but it should be more public
 * the thrilling work of code cleanups
 
 Your contributions are valued and welcome. Get in touch with the maintainers, file an issue, or fork the code!
