@@ -6,7 +6,7 @@
 # offer what we need for cms, so we also need to shell out to the openssl
 # tool, and make sure it's the right version.
 
-import distutils
+from distutils import spawn
 import logging
 from OpenSSL import crypto
 import os
@@ -14,7 +14,7 @@ import os.path
 import subprocess
 import re
 
-OPENSSL = os.getenv('OPENSSL', distutils.spawn.find_executable('openssl'))
+OPENSSL = os.getenv('OPENSSL', spawn.find_executable('openssl'))
 # modern OpenSSL versions look like '0.9.8zd'. Use a regex to parse
 OPENSSL_VERSION_RE = re.compile(r'(\d+).(\d+).(\d+)(\w*)')
 MINIMUM_OPENSSL_VERSION = '1.0.1'

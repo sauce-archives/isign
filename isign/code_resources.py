@@ -1,6 +1,5 @@
 import binascii
 import copy
-# import distutils
 import hashlib
 import logging
 from memoizer import memoize
@@ -8,7 +7,6 @@ import os
 import plistlib
 from plistlib import PlistWriter
 import re
-# import subprocess
 
 OUTPUT_DIRECTORY = '_CodeSignature'
 OUTPUT_FILENAME = 'CodeResources'

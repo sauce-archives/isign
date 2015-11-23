@@ -1,4 +1,4 @@
-import distutils
+from distutils import spawn
 from isign_base_test import IsignBaseTest
 import logging
 from nose.plugins.skip import SkipTest
@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import tempfile
 
-CODESIGN_BIN = distutils.spawn.find_executable('codesign')
+CODESIGN_BIN = spawn.find_executable('codesign')
 
 log = logging.getLogger(__name__)
 

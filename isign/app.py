@@ -1,6 +1,6 @@
 import biplist
 import code_resources
-import distutils
+from distutils import spawn
 import glob
 import logging
 import os
@@ -23,7 +23,7 @@ def get_helper(helper_name):
     if helper_name not in helper_paths or helper_paths[helper_name] is None:
         # note, find_executable returns None is not found
         # in other words, we keep retrying until found
-        helper_paths[helper_name] = distutils.spawn.find_executable(helper_name)
+        helper_paths[helper_name] = spawn.find_executable(helper_name)
     log.debug("got executable {} for {}".format(helper_paths[helper_name],
                                                 helper_name))
     return helper_paths[helper_name]
