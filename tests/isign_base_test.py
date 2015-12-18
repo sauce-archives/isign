@@ -12,14 +12,14 @@ log = logging.getLogger(__name__)
 
 class IsignBaseTest(unittest.TestCase):
     TEST_DIR = dirname(__file__)
-    TEST_APP = join(TEST_DIR, 'SimpleSaucyApp.app')
+    TEST_APP = join(TEST_DIR, 'Test.app')
     TEST_APP_CODESIG_STR = join(TEST_DIR,
-                                'SimpleSaucyApp.app.codesig.construct.txt')
+                                'Test.app.codesig.construct.txt')
     TEST_APPZIP = TEST_APP + '.zip'
-    TEST_IPA = join(TEST_DIR, 'SimpleSaucyApp.ipa')
+    TEST_IPA = join(TEST_DIR, 'Test.ipa')
     TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
     TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
-    TEST_SIMULATOR_APP = join(TEST_DIR, 'IosSimulatorApp.app.zip')
+    TEST_SIMULATOR_APP = join(TEST_DIR, 'TestSimulator.app.zip')
     KEY = join(TEST_DIR, 'credentials', 'test.key.pem')
     CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
     PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
