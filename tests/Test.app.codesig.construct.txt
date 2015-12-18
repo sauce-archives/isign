@@ -1,0 +1,149 @@
+Container:
+    cmd = 'LC_CODE_SIGNATURE'
+    cmdsize = 16
+    data = Container:
+        dataoff = 71920
+        datasize = 10304
+        blob = Container:
+            magic = 'CSMAGIC_EMBEDDED_SIGNATURE'
+            length = 5671
+            data = Container:
+                sb_start = 88312
+                count = 4
+                BlobIndex = [
+                    Container:
+                        type = 0
+                        offset = 44
+                        blob = Container:
+                            magic = 'CSMAGIC_CODEDIRECTORY'
+                            length = 550
+                            data = Container:
+                                cd_start = 88356
+                                version = 131584
+                                flags = 0
+                                hashOffset = 190
+                                identOffset = 52
+                                nSpecialSlots = 5
+                                nCodeSlots = 18
+                                codeLimit = 71920
+                                hashSize = 20
+                                hashType = 1
+                                spare1 = 0
+                                pageSize = 12
+                                spare2 = 0
+                                ident = 'com.saucelabs.isignTestApp'
+                                scatterOffset = 0
+                                teamIDOffset = 79
+                                teamID = 'L37S4Z6BE9'
+                                hashes = [
+                                    ':\x02\xd0\x07\x8az\xfa<.\xf7\x1ed8\x7f\xa4\xf1\xc1s\xeda'
+                                    '\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
+                                    'TE\x05\xaa\x81<\xbc,\xb6\xd3\xf8\x05\xebM\xe1|\x1a\xb5O\x00'
+                                    "\xc1,\xf7\x8b34\xa8\xe5\xfa\x92\xd69\x9d\xe2\x89Z'\xafo\x9b"
+                                    '\xc8\x18>\x96\xbe<\x81\x81\x83\xbf\xb8\xab\x83?\x02\xa3\xddD\xd9\xcf'
+                                    '\x0c\x02\x83\xf9\xfd\xa6\xb1\x9fC\x0b\xa3\x00\x135\xd8{\xb06\xeb\x92'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '[\xd6\x8e\xe2\xfc\xed\x83\xbf5\x9b\x1fa{F`\x92\xba\x0b\xbfe'
+                                    'w\x99\xa6\x1cp\xc6,<N\xe2\tGO\x89\xec\x0f\xd9\x93\x05\xf2'
+                                    '\xa2\x14\xbe\x04\x0f\xd9#u\xa6;D\xa7\xc1WV|\x16\xa9\xa7C'
+                                    "\xd0z\x1c\x84w\xab\nV\xe2\x88zX'\x92\xb8\x8a\x90^\xddA"
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    '\x1c\xea\xf7=\xf4\x0eS\x1d\xf3\xbf\xb2kO\xb7\xcd\x95\xfb{\xff\x1d'
+                                    'Fs\xa0!\xb4\xfa\xca\xc2\xb9\x8awf#\xed\x10\x15\xc7\x9e\x19#'
+                                    "\xa8Rx\xbe\xd9cC\xc0\xb2\xcf^A'\xf3\x88\t\xde\x01;\xd0"
+                                    '\xbd\x83\x045(\xf1\x9c37\xc4\xa4\x9cn\xf0\xe3h\x16\xd9\x8d\x97'
+                                    'R!\xf6\x8f\x95\xf1i\xc8ZE\xff\x1e-O\x91-\x94h\n\x19'
+                                    '\x1b\x1d\xb6S\xa5\xaeP\xf3\xc94O\xcd\x12u\xd3\r\xd3\xb7\x11.'
+                                    '\xa0\xeb\x02\xa9\xa3O\x90\xa5?\xf4M\xe1\x16rE\xec\xc9\xe7\xc01'
+                                ]
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 2
+                        offset = 594
+                        blob = Container:
+                            magic = 'CSMAGIC_REQUIREMENTS'
+                            length = 196
+                            data = Container:
+                                sb_start = 88906
+                                count = 1
+                                BlobIndex = [
+                                    Container:
+                                        type = 'kSecDesignatedRequirementType'
+                                        offset = 20
+                                        blob = Container:
+                                            magic = 'CSMAGIC_REQUIREMENT'
+                                            length = 176
+                                            data = Container:
+                                                kind = 1
+                                                expr = Container:
+                                                    op = 'opAnd'
+                                                    data = [
+                                                        Container:
+                                                            op = 'opIdent'
+                                                            data = Container:
+                                                                length = 26
+                                                                data = 'com.saucelabs.isignTestApp'
+                                                        Container:
+                                                            op = 'opAnd'
+                                                            data = [
+                                                                Container:
+                                                                    op = 'opAppleGenericAnchor'
+                                                                    data = None
+                                                                Container:
+                                                                    op = 'opAnd'
+                                                                    data = [
+                                                                        Container:
+                                                                            op = 'opCertField'
+                                                                            data = [
+                                                                                'leafCert'
+                                                                                Container:
+                                                                                    length = 10
+                                                                                    data = 'subject.CN'
+                                                                                Container:
+                                                                                    matchOp = 'matchEqual'
+                                                                                    Data = Container:
+                                                                                        length = 49
+                                                                                        data = 'iPhone Developer: Neil Kandalgaonkar (PJ5C3PEW8Z)'
+                                                                            ]
+                                                                        Container:
+                                                                            op = 'opCertGeneric'
+                                                                            data = [
+                                                                                1
+                                                                                Container:
+                                                                                    length = 10
+                                                                                    data = '*\x86H\x86\xf7cd\x06\x02\x01'
+                                                                                Container:
+                                                                                    matchOp = 'matchExists'
+                                                                                    Data = None
+                                                                            ]
+                                                                    ]
+                                                            ]
+                                                    ]
+                                            bytes = LazyContainer: <unread>
+                                ]
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 5
+                        offset = 790
+                        blob = Container:
+                            magic = 'CSMAGIC_ENTITLEMENT'
+                            length = 511
+                            data = Container:
+                                data = {'application-identifier': 'L37S4Z6BE9.com.saucelabs.isignTestApp', 'com.apple.developer.team-identifier': 'L37S4Z6BE9', 'keychain-access-groups': ['L37S4Z6BE9.com.saucelabs.isignTestApp'], 'get-task-allow': True}
+                            bytes = LazyContainer: <unread>
+                    Container:
+                        type = 65536
+                        offset = 1301
+                        blob = Container:
+                            magic = 'CSMAGIC_BLOBWRAPPER'
+                            length = 4370
+                            data = Container:
+                                data = LazyContainer: <unread>
+                            bytes = LazyContainer: <unread>
+                ]
+            bytes = LazyContainer: <unread>
+    bytes = LazyContainer: <unread>
