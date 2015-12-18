@@ -10,10 +10,12 @@ class TestParsing(IsignBaseTest):
     """ This tests whether code signatures are parsed, by comparing
         stringified parses."""
     # Tests the parse-before-resign functionality used in
-    # bin/pprint_codesig, which isn't exposed nicely as such
+    # bin/pprint_codesig, which isn't exposed nicely as such.
+    # Also see generate_codesig_construct_txt.py, to generate
+    # the string this tests for
     def test_app(self):
         with open(self.TEST_APP_CODESIG_STR, 'r') as f:
-            expected_codesig_str = f.read()
+            expected_codesig_str = f.read().strip()
         app = isign.app.App(self.TEST_APP)
         executable = Executable(app.get_executable_path())
         arch = executable.arches[0]
