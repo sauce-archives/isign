@@ -1,0 +1,12 @@
+The test apps in this directory were created with 
+
+https://github.com/saucelabs/isignTestApp
+
+While these test apps are Swift 2, we have also tested isign
+with Swift 1.x. We just were unsure about distributing those 
+apps with isign, since the Swift framework was not licensed 
+under an OSI-approved license before version 2.x.
+
+isign also works with plain Objective-C apps, but the Swift
+app gives it a more thorough test since it involves signing
+dynamic libraries.
