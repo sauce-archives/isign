@@ -11,42 +11,12 @@ systems like Linux.
 
 
 How to get it
----------------
+-------------
 
-**Prerequisites**
+If you intend to re-sign apps on a Mac, get the `Mac OS X prerequisites <README_MAC.rst>`__ 
+first.
 
-First, ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
-this:
-
-.. code::
-  $ openssl version
-  OpenSSL 1.0.1 14 Mar 2012
-
-If you're on Linux, you probably have a good version of OpenSSL already, or can get one
-with your package manager.
-
-**Mac OS X**: Be aware that Apple stopped shipping some necessary libraries and 
-headers with OS X 10.11, "El Capitan". You can use `homebrew <http://brew.sh>`__ to install 
-them:
-
-.. code::
-
-  $ brew install openssl libffi
-
-And, then you have to add their library and header paths to your environment before
-installng ``isign``. The ``brew`` program probably already notified you of this when
-you installed. Be careful to use the paths that ``brew`` recommended, but the commands
-would look something like this:
-
-.. code::
-
-  $ export CPPFLAGS=-I/usr/local/opt/openssl/include
-  $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
-
-
-**Installing**
-
-The latest version can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
+The latest version of ``isign`` can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
 .. code::
 
@@ -66,57 +36,61 @@ are maintained on GitHub.
 How to get started
 ------------------
 
-The following instructions assume you have a Mac of some kind to develop iOS 
-applications. You will need to export some information out of 
-`Keychain <https://en.wikipedia.org/wiki/Keychain_(software)>`__. However, you
-can then move those files to a Linux computer. All the libraries and tools 
-that ``isign`` needs to run will work on both Linux and Mac OS X.
+**Exporting your developer credentials**
 
-You'll probably want `libimobiledevice <http://www.libimobiledevice.org/>`__,
-so you can try installing your re-signed apps.
+All the libraries and tools that ``isign`` needs to run will work on both Linux 
+and Mac OS X. However, you will need a Mac to export your Apple developer 
+credentials.
 
 You'll need an Apple Developer Account. Obtaining everything you need is
 beyond the scope of this documentation, but if you're already making apps
-and running them on real iOS devices, you have everything you need.
+in XCode and running them on real iOS devices, you have everything you need.
 
-You should have a key and certificate in Keychain Access, and a provisioning 
-profile associated with that certificate, that you can use to sign iOS apps 
-for one or more of your own iOS devices.
+You should have a key and certificate in 
+`Keychain Access <https://en.wikipedia.org/wiki/Keychain_(software)>`__,
+and a provisioning profile associated with that certificate, that you 
+can use to sign iOS apps for one or more of your own iOS devices.
 
-**Caution:** We're going to be exporting important and private information 
-out of Keychain Access. Keep these files secure, especially your private key.
+**Caution:** We're going to be exporting important and private information!
+Keep these files secure, especially your private key.
 
-First, make the .isign directory:
-
-.. code::
-
-  $ mkdir ~/.isign
-
-Next, export your key and certificate from Keychain Access. In Keychain Access, 
-open the *Keys*. Find the key you use to sign apps. Your certificate will 
+In Keychain Access, open the *Keys*. Find the key you use to sign apps. Your certificate will 
 appear as a "descendant" of this key. Right click on it and 
 export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
 asks you for a password to protect this file, just leave it blank. 
-
-For security, you should immediately ``chmod 400 Certificates.p12``, so only
-you can read it.
 
 Next, let's use openssl to split that into a PEM cert and a PEM key.
 
 .. code::
 
-    $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/certificate.pem -clcerts -nokeys
-    $ openssl pkcs12 -in Certificates.p12 -out ~/.isign/key.pem -nocerts -nodes
-    $ chmod 400 ~/.isign/key.pem
+  $ openssl pkcs12 -in Certificates.p12 -out certificate.pem -clcerts -nokeys
+  $ openssl pkcs12 -in Certificates.p12 -out key.pem -nocerts -nodes
+  $ chmod 400 key.pem
+  $ rm Certificates.p12
 
-Then delete ``Certificates.p12``. 
+Download a provisioning profile from the Apple Developer Portal that uses the 
+same certificate, and call it ``isign.mobileprovision``.
+
+Now, you have all the credentials to re-sign apps. Let's put them in the right place
+now.
+
+On the machine where you intend to re-sign apps, make the ``~/.isign`` directory, and
+put all three files there. Once again, ensure that the key file is not world-readable,
+probably by ``chmod 400 key.pem``. The end result might look like this:
 
 .. code::
 
-    $ rm Certificates.p12
+  $ ls -l ~/.isign
+  -r--r--r--    1 alice  staff  2377 Sep  4 14:17 certificate.pem
+  -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
+  -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
 
-Finally, download a provisioning profile from the Apple Developer Portal that uses the 
-same certificate. Save it as ``~/.isign/isign.mobileprovision``. 
+**Ensuring you can install apps**
+
+On the machine where you intend to re-sign apps, you'll probably want 
+`libimobiledevice <http://www.libimobiledevice.org/>`__, so you can try 
+installing your re-signed apps on a real iOS device.
+
 
 How to use isign
 ----------------
@@ -127,18 +101,15 @@ on any iOS ``.app`` directory, or ``.ipa`` archive, or ``.app.zip`` zipped direc
 .. code::
 
   $ isign -o resigned.ipa my.ipa
-  2015-10-28 16:14:30,548 - isign.app - INFO - archived Ipa to /home/alice/resigned.ipa
+  archived Ipa to /home/alice/resigned.ipa
 
 You can also call it from Python:
 
 .. code:: python
 
-    from isign import isign
-   
-    try:
-        isign.resign("my.ipa", output_path="resigned.ipa")
-    except isign.NotSignable as e:
-        print "Not an iOS native app: " + e
+  from isign import isign
+
+  isign.resign("my.ipa", output_path="resigned.ipa")
 
 
 isign command line arguments
@@ -185,7 +156,13 @@ Path to your provisioning profile. This should be associated with your certifica
 Testing
 -------
 
-``./run_tests.sh``
+If you want to run the tests, use `git` to clone the `isign repository <https://github.com/saucelabs/isign>`__. 
+Note -- it's pretty big, since it includes several test apps. Then:
+
+.. code::
+
+  pip install -r dev/requirements.txt
+  ./run_tests.sh
 
 Some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
