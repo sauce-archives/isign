@@ -17,6 +17,7 @@ First, ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1 or bette
 this:
 
 .. code::
+
   $ openssl version
   OpenSSL 1.0.1 14 Mar 2012
 
