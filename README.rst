@@ -10,8 +10,41 @@ Apple tools already exist to do this. But with ``isign``, now you can do this on
 systems like Linux.
 
 
-Where to get it
+How to get it
 ---------------
+
+**Prerequisites**
+
+First, ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
+this:
+
+.. code::
+  $ openssl version
+  OpenSSL 1.0.1 14 Mar 2012
+
+If you're on Linux, you probably have a good version of OpenSSL already, or can get one
+with your package manager.
+
+**Mac OS X**: Be aware that Apple stopped shipping some necessary libraries and 
+headers with OS X 10.11, "El Capitan". You can use `homebrew <http://brew.sh>`__ to install 
+them:
+
+.. code::
+
+  $ brew install openssl libffi
+
+And, then you have to add their library and header paths to your environment before
+installng ``isign``. The ``brew`` program probably already notified you of this when
+you installed. Be careful to use the paths that ``brew`` recommended, but the commands
+would look something like this:
+
+.. code::
+
+  $ export CPPFLAGS=-I/usr/local/opt/openssl/include
+  $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
+
+
+**Installing**
 
 The latest version can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
@@ -33,7 +66,11 @@ are maintained on GitHub.
 How to get started
 ------------------
 
-Ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1j or better. 
+The following instructions assume you have a Mac of some kind to develop iOS 
+applications. You will need to export some information out of 
+`Keychain <https://en.wikipedia.org/wiki/Keychain_(software)>`__. However, you
+can then move those files to a Linux computer. All the libraries and tools 
+that ``isign`` needs to run will work on both Linux and Mac OS X.
 
 You'll probably want `libimobiledevice <http://www.libimobiledevice.org/>`__,
 so you can try installing your re-signed apps.
