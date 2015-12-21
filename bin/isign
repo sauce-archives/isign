@@ -5,7 +5,7 @@ from isign import isign
 from os.path import abspath, expanduser
 import logging
 
-FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+FORMATTER = logging.Formatter('%(message)s')
 
 
 def log_to_stderr(level=logging.INFO):
