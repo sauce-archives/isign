@@ -10,11 +10,73 @@ Apple tools already exist to do this. But with ``isign``, now you can do this on
 systems like Linux.
 
 
-How to get it
+Prerequisites
 -------------
 
-If you intend to re-sign apps on a Mac, get the `Mac OS X prerequisites <README_MAC.rst>`__ 
-first.
+First, ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
+this:
+
+.. code::
+  $ openssl version
+  OpenSSL 1.0.1 14 Mar 2012
+
+If not, update it with your package manager.
+
+If you're going to be re-signing apps on Linux, you can probably skip to Installing_.
+
+**Mac OS X Prerequisites**
+
+With OS X 10.11, "El Capitan". Apple stopped shipping some programs, libraries, and 
+headers that we'll need. You can use `homebrew <http://brew.sh>`__ to install them:
+
+.. code::
+
+  $ brew install openssl libffi
+
+You will also have to put ``brew``'s openssl into your path somehow, probably like this:
+
+.. code::
+  
+  $ brew list openssl
+  ... 
+  /usr/local/Cellar/openssl/1.0.2e/bin/openssl    <-- you want this
+  ...
+
+  $ ln -s /usr/local/Cellar/openssl/1.0.2e/bin/openssl /usr/local/bin/openssl
+
+And, then you have to add their library and header paths to your environment before
+installng ``isign``. Use ``brew info openssl`` and ``brew info libffi`` to get those paths, 
+and put them in your environment. It will look something like this.
+
+.. code::
+  
+  $ brew info openssl
+  ...
+  build variables:
+
+    LDFLAGS:  -L/usr/local/opt/openssl/lib
+    CPPFLAGS: -I/usr/local/opt/openssl/include
+
+  $ brew info libffi
+  ...
+  build variables:
+
+    LDFLAGS:  -L/usr/local/opt/libffi/lib
+
+
+  $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
+  $ export CPPFLAGS="-I/usr/local/opt/openssl/include"
+
+Finally, be aware that the ``python`` that ships with Mac OS X doesn't have the package 
+manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a better 
+python by installing it with ``brew install python``, which will include ``pip``.
+
+Now you are (hopefully) ready to install ``isign``.
+
+.. _Installing:
+
+Installing
+----------
 
 The latest version of ``isign`` can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
@@ -195,8 +257,9 @@ Goals for this library include:
 
 Your contributions are valued and welcome. Get in touch with the maintainers, file an issue, or fork the code!
 
+
 Code of conduct
-~~~~~~~~~~~~~~~
+---------------
 
 This project not have an official code of conduct, yet, but one is forthcoming. Please contribute
 to discussion `here <https://github.com/saucelabs/isign/issues/6>`__.
