@@ -10,10 +10,32 @@ Apple tools already exist to do this. But with ``isign``, now you can do this on
 systems like Linux.
 
 
+Table of contents
+-----------------
+
+- Prerequisites_
+    - Linux_
+    - Mac_OS_X_
+- Installing_
+- How_to_get_started_
+    - Exporting_your_developer_credentials_
+    - Ensuring_you_can_install_apps_
+- How_to_use_isign_
+- isign_command_line_arguments_
+- Testing_
+- Packaging_
+- Community_contributions_
+- More_documentation_
+- Authors_
+
+
+.. _Prerequisites:
+
 Prerequisites
 -------------
 
-First, ensure `openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
+First, on the machine where you're going to re-sign apps, ensure 
+`openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
 this:
 
 .. code::
@@ -21,13 +43,22 @@ this:
   $ openssl version
   OpenSSL 1.0.1 14 Mar 2012
 
-If not, update it with your package manager.
+If that looks okay, you can go straight to Installing_. If not:
 
-If you're going to be re-signing apps on Linux, you can probably skip to Installing_.
+.. _Linux:
 
-**Mac OS X Prerequisites**
+Linux
+~~~~~
 
-With OS X 10.11, "El Capitan". Apple stopped shipping some programs, libraries, and 
+You can probably easily update this with your package manager, such as 
+``apt-get upgrade openssl``.
+
+.. _Mac_OS_X:
+
+Mac OS X
+~~~~~~~~
+
+With OS X 10.11 "El Capitan", Apple stopped shipping some programs, libraries, and 
 headers that we'll need. You can use `homebrew <http://brew.sh>`__ to install them:
 
 .. code::
@@ -69,10 +100,9 @@ and put them in your environment. It will look something like this.
   $ export CPPFLAGS="-I/usr/local/opt/openssl/include"
 
 Finally, be aware that the ``python`` that ships with Mac OS X doesn't have the package 
-manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a better 
-python by installing it with ``brew install python``, which will include ``pip``.
+manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a more
+up-to-date python with ``brew install python``.
 
-Now you are (hopefully) ready to install ``isign``.
 
 .. _Installing:
 
@@ -95,11 +125,15 @@ The `source code repository <https://github.com/saucelabs/isign>`__
 and `issue tracker <https://github.com/saucelabs/isign/issues>`__ 
 are maintained on GitHub.
 
+.. _How_to_get_started:
 
 How to get started
 ------------------
 
-**Exporting your developer credentials**
+.. _Exporting_your_developer_credentials:
+
+Exporting your developer credentials
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All the libraries and tools that ``isign`` needs to run will work on both Linux 
 and Mac OS X. However, you will need a Mac to export your Apple developer 
@@ -148,12 +182,17 @@ probably by ``chmod 400 key.pem``. The end result might look like this:
   -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
   -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
 
-**Ensuring you can install apps**
+.. _Ensuring_you_can_install_apps:
+
+Ensuring you can install apps
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 On the machine where you intend to re-sign apps, you'll probably want 
 `libimobiledevice <http://www.libimobiledevice.org/>`__, so you can try 
 installing your re-signed apps on a real iOS device.
 
+
+.. _How_to_use_isign:
 
 How to use isign
 ----------------
@@ -174,6 +213,7 @@ You can also call it from Python:
 
   isign.resign("my.ipa", output_path="resigned.ipa")
 
+.. _isign_command_line_arguments:
 
 isign command line arguments
 ----------------------------
@@ -215,6 +255,7 @@ Path to write the re-signed application. Defaults to ``out`` in your current wor
 Path to your provisioning profile. This should be associated with your certificate. Defaults to 
 ``$HOME/.isign/isign.mobileprovision``.
 
+.. _Testing:
 
 Testing
 -------
@@ -231,6 +272,7 @@ Some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
 to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
 
+.. _Packaging:
 
 Packaging
 ---------
@@ -239,6 +281,7 @@ If you were wondering what the ``version.sh`` and ``dev`` was all about, this li
 packaged according to the Sauce Labs standard for Python packages. For the most part, you don't
 have to touch those.
 
+.. _Community_contributions:
 
 Community contributions
 ------------------------
@@ -260,17 +303,19 @@ Your contributions are valued and welcome. Get in touch with the maintainers, fi
 
 
 Code of conduct
----------------
+~~~~~~~~~~~~~~~
 
 This project not have an official code of conduct, yet, but one is forthcoming. Please contribute
 to discussion `here <https://github.com/saucelabs/isign/issues/6>`__.
 
+.. _More_documentation:
 
 More documentation
 ------------------
 
 See the `docs <docs>`__ directory of this repository for random stuff that didn't fit here.
 
+.. _Authors:
 
 Authors
 -------
