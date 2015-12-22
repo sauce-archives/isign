@@ -22,9 +22,7 @@ Table of contents
     - `Ensuring you can install apps`_
 - `How to use isign`_
 - `isign command line arguments`_
-- `Testing`_
-- `Packaging`_
-- `Community contributions`_
+- `Contributing`_
 - `More documentation`_
 - `Authors`_
 
@@ -255,36 +253,27 @@ Path to write the re-signed application. Defaults to ``out`` in your current wor
 Path to your provisioning profile. This should be associated with your certificate. Defaults to 
 ``$HOME/.isign/isign.mobileprovision``.
 
-.. _Testing:
 
-Testing
--------
+.. _Contributing:
 
-If you want to run the tests, use `git` to clone the `isign repository <https://github.com/saucelabs/isign>`__. 
-Note -- it's pretty big, since it includes several test apps. Then:
+Contributing
+------------
+
+Development happens on `our Github repository <https://github.com/saucelabs/isign>`__. File an issue, or fork the code!
+
+Use ``git`` to clone your fork, then set yourself up for development:
 
 .. code::
 
-  pip install -r dev/requirements.txt
-  ./run_tests.sh
+  $ cd isign
+  $ dev/setup.sh
+  $ ./run_tests.sh
 
-Some tests require Apple's
+If the tests don't pass please file an issue. And please keep the tests up to date as you develop.
+
+Note: some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
 to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
-
-.. _Packaging:
-
-Packaging
----------
-
-If you were wondering what the ``version.sh`` and ``dev`` was all about, this library is 
-packaged according to the Sauce Labs standard for Python packages. For the most part, you don't
-have to touch those.
-
-.. _Community contributions:
-
-Community contributions
-------------------------
 
 Sauce Labs supports ongoing public ``isign`` development. ``isign`` is a part of our infrastructure
 for the `iOS Real Device Cloud <https://saucelabs.com/press-room/press-releases/sauce-labs-expands-mobile-test-automation-cloud-with-the-addition-of-real-devices-1>`__,
@@ -296,10 +285,10 @@ Goals for this library include:
 * ongoing maintenance as new versions of iOS are released
 * speed improvements via parallelization and caching
 * better documentation of the data structures involved in code signing (``LC_CODE_SIGNATURE``)
-* public continuous integration - currently Sauce Labs tests every change to this library, but it should be more public
+* public continuous integration. Currently Sauce Labs uses a private `Jenkins <https://jenkins-ci.org>`__ 
+  server to test every change to this library, and publish an `isign PyPI package <https://pypi.python.org/pypi/isign>`__, 
+  but that should be more public.
 * the thrilling work of code cleanups
-
-Your contributions are valued and welcome. Get in touch with the maintainers, file an issue, or fork the code!
 
 This project not have an official code of conduct, yet, but one is forthcoming. Please contribute
 to discussion `here <https://github.com/saucelabs/isign/issues/6>`__.
