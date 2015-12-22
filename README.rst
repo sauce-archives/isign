@@ -13,20 +13,20 @@ systems like Linux.
 Table of contents
 -----------------
 
-- Prerequisites_
-    - Linux_
-    - Mac_OS_X_
-- Installing_
-- How_to_get_started_
-    - Exporting_your_developer_credentials_
-    - Ensuring_you_can_install_apps_
-- How_to_use_isign_
-- isign_command_line_arguments_
-- Testing_
-- Packaging_
-- Community_contributions_
-- More_documentation_
-- Authors_
+- `Prerequisites`_
+    - `Linux`_
+    - `Mac OS X`_
+- `Installing`_
+- `How to get started`_
+    - `Exporting your developer credentials`_
+    - `Ensuring you can install apps`_
+- `How to use isign`_
+- `isign command line arguments`_
+- `Testing`_
+- `Packaging`_
+- `Community contributions`_
+- `More documentation`_
+- `Authors`_
 
 
 .. _Prerequisites:
@@ -53,7 +53,7 @@ Linux
 You can probably easily update this with your package manager, such as 
 ``apt-get upgrade openssl``.
 
-.. _Mac_OS_X:
+.. _Mac OS X:
 
 Mac OS X
 ~~~~~~~~
@@ -125,12 +125,12 @@ The `source code repository <https://github.com/saucelabs/isign>`__
 and `issue tracker <https://github.com/saucelabs/isign/issues>`__ 
 are maintained on GitHub.
 
-.. _How_to_get_started:
+.. _How to get started:
 
 How to get started
 ------------------
 
-.. _Exporting_your_developer_credentials:
+.. _Exporting your developer credentials:
 
 Exporting your developer credentials
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -182,7 +182,7 @@ probably by ``chmod 400 key.pem``. The end result might look like this:
   -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
   -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
 
-.. _Ensuring_you_can_install_apps:
+.. _Ensuring you can install apps:
 
 Ensuring you can install apps
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -192,7 +192,7 @@ On the machine where you intend to re-sign apps, you'll probably want
 installing your re-signed apps on a real iOS device.
 
 
-.. _How_to_use_isign:
+.. _How to use isign:
 
 How to use isign
 ----------------
@@ -213,7 +213,7 @@ You can also call it from Python:
 
   isign.resign("my.ipa", output_path="resigned.ipa")
 
-.. _isign_command_line_arguments:
+.. _isign command line arguments:
 
 isign command line arguments
 ----------------------------
@@ -281,7 +281,7 @@ If you were wondering what the ``version.sh`` and ``dev`` was all about, this li
 packaged according to the Sauce Labs standard for Python packages. For the most part, you don't
 have to touch those.
 
-.. _Community_contributions:
+.. _Community contributions:
 
 Community contributions
 ------------------------
@@ -301,14 +301,10 @@ Goals for this library include:
 
 Your contributions are valued and welcome. Get in touch with the maintainers, file an issue, or fork the code!
 
-
-Code of conduct
-~~~~~~~~~~~~~~~
-
 This project not have an official code of conduct, yet, but one is forthcoming. Please contribute
 to discussion `here <https://github.com/saucelabs/isign/issues/6>`__.
 
-.. _More_documentation:
+.. _More documentation:
 
 More documentation
 ------------------
@@ -319,6 +315,7 @@ See the `docs <docs>`__ directory of this repository for random stuff that didn'
 
 Authors
 -------
+
 `Neil Kandalgaonkar <https://github.com/neilk>`__ is the main developer and maintainer.
 
 Proof of concept by `Steven Hazel <https://github.com/sah>`__ and Neil Kandalgaonkar.
