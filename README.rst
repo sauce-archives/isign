@@ -13,9 +13,6 @@ systems like Linux.
 Table of contents
 -----------------
 
-- `Prerequisites`_
-    - `Linux`_
-    - `Mac OS X`_
 - `Installing`_
 - `How to get started`_
     - `Exporting your developer credentials`_
@@ -25,81 +22,6 @@ Table of contents
 - `Contributing`_
 - `More documentation`_
 - `Authors`_
-
-
-.. _Prerequisites:
-
-Prerequisites
--------------
-
-First, on the machine where you're going to re-sign apps, ensure 
-`openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
-this:
-
-.. code::
-
-  $ openssl version
-  OpenSSL 1.0.1 14 Mar 2012
-
-If that looks okay, you can go straight to Installing_. If not:
-
-.. _Linux:
-
-Linux
-~~~~~
-
-You can probably easily update this with your package manager, such as 
-``apt-get upgrade openssl``.
-
-.. _Mac OS X:
-
-Mac OS X
-~~~~~~~~
-
-With OS X 10.11 "El Capitan", Apple stopped shipping some programs, libraries, and 
-headers that we'll need. You can use `homebrew <http://brew.sh>`__ to install them:
-
-.. code::
-
-  $ brew install openssl libffi
-
-You will also have to put ``brew``'s openssl into your path somehow, probably like this:
-
-.. code::
-  
-  $ brew list openssl
-  ... 
-  /usr/local/Cellar/openssl/1.0.2e/bin/openssl    <-- you want this
-  ...
-
-  $ ln -s /usr/local/Cellar/openssl/1.0.2e/bin/openssl /usr/local/bin/openssl
-
-And, then you have to add their library and header paths to your environment before
-installng ``isign``. Use ``brew info openssl`` and ``brew info libffi`` to get those paths, 
-and put them in your environment. It will look something like this.
-
-.. code::
-  
-  $ brew info openssl
-  ...
-  build variables:
-
-    LDFLAGS:  -L/usr/local/opt/openssl/lib
-    CPPFLAGS: -I/usr/local/opt/openssl/include
-
-  $ brew info libffi
-  ...
-  build variables:
-
-    LDFLAGS:  -L/usr/local/opt/libffi/lib
-
-
-  $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
-  $ export CPPFLAGS="-I/usr/local/opt/openssl/include"
-
-Finally, be aware that the ``python`` that ships with Mac OS X doesn't have the package 
-manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a more
-up-to-date python with ``brew install python``.
 
 
 .. _Installing:
@@ -113,15 +35,17 @@ The latest version of ``isign`` can be installed via `PyPi <https://pypi.python.
 
   $ pip install isign
 
-or:
+If you're on Mac OS X, this probably won't work. In that
+case, clone the `source code repository <https://github.com/saucelabs/isign>`__ and run the install script:
 
 .. code::
 
-  $ easy_install isign
+  $ git clone https://github.com/saucelabs/isign.git
+  $ cd isign
+  $ sudo ./INSTALL.sh
 
-The `source code repository <https://github.com/saucelabs/isign>`__ 
-and `issue tracker <https://github.com/saucelabs/isign/issues>`__ 
-are maintained on GitHub.
+If that doesn't work, try `installing the prerequisites manually <https://github.com/saucelabs/isign/blob/master/PREREQUISITES.rst>`__ or
+`file an issue <https://github.com/saucelabs/isign/issues>`__.
 
 .. _How to get started:
 
