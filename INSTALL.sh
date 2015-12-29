@@ -156,11 +156,19 @@ mac_setup_python() {
     brew install python
 }
 
+mac_setup_libimobiledevice() {
+    if exists ideviceinstaller; then
+        return 0;
+    fi
+    brew install libimobiledevice
+}
+
 setup_mac() {
     setup_brew
     mac_setup_openssl
     mac_setup_libffi
     mac_setup_python
+    mac_setup_libimobiledevice
     install_package
 }
 

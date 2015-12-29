@@ -15,8 +15,6 @@ Table of contents
 
 - `Installing`_
 - `How to get started`_
-    - `Exporting your developer credentials`_
-    - `Ensuring you can install apps`_
 - `How to use isign`_
 - `isign command line arguments`_
 - `Contributing`_
@@ -51,11 +49,6 @@ If that doesn't work, try `installing the prerequisites manually <https://github
 
 How to get started
 ------------------
-
-.. _Exporting your developer credentials:
-
-Exporting your developer credentials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 All the libraries and tools that ``isign`` needs to run will work on both Linux 
 and Mac OS X. However, you will need a Mac to export your Apple developer 
@@ -103,15 +96,6 @@ probably by ``chmod 400 key.pem``. The end result might look like this:
   -r--r--r--    1 alice  staff  2377 Sep  4 14:17 certificate.pem
   -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
   -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
-
-.. _Ensuring you can install apps:
-
-Ensuring you can install apps
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-On the machine where you intend to re-sign apps, you'll probably want 
-`libimobiledevice <http://www.libimobiledevice.org/>`__, so you can try 
-installing your re-signed apps on a real iOS device.
 
 
 .. _How to use isign:
