@@ -13,93 +13,13 @@ systems like Linux.
 Table of contents
 -----------------
 
-- `Prerequisites`_
-    - `Linux`_
-    - `Mac OS X`_
 - `Installing`_
 - `How to get started`_
-    - `Exporting your developer credentials`_
-    - `Ensuring you can install apps`_
 - `How to use isign`_
 - `isign command line arguments`_
 - `Contributing`_
 - `More documentation`_
 - `Authors`_
-
-
-.. _Prerequisites:
-
-Prerequisites
--------------
-
-First, on the machine where you're going to re-sign apps, ensure 
-`openssl <https://www.openssl.org>`__ is at version 1.0.1 or better, like
-this:
-
-.. code::
-
-  $ openssl version
-  OpenSSL 1.0.1 14 Mar 2012
-
-If that looks okay, you can go straight to Installing_. If not:
-
-.. _Linux:
-
-Linux
-~~~~~
-
-You can probably easily update this with your package manager, such as 
-``apt-get upgrade openssl``.
-
-.. _Mac OS X:
-
-Mac OS X
-~~~~~~~~
-
-With OS X 10.11 "El Capitan", Apple stopped shipping some programs, libraries, and 
-headers that we'll need. You can use `homebrew <http://brew.sh>`__ to install them:
-
-.. code::
-
-  $ brew install openssl libffi
-
-You will also have to put ``brew``'s openssl into your path somehow, probably like this:
-
-.. code::
-  
-  $ brew list openssl
-  ... 
-  /usr/local/Cellar/openssl/1.0.2e/bin/openssl    <-- you want this
-  ...
-
-  $ ln -s /usr/local/Cellar/openssl/1.0.2e/bin/openssl /usr/local/bin/openssl
-
-And, then you have to add their library and header paths to your environment before
-installng ``isign``. Use ``brew info openssl`` and ``brew info libffi`` to get those paths, 
-and put them in your environment. It will look something like this.
-
-.. code::
-  
-  $ brew info openssl
-  ...
-  build variables:
-
-    LDFLAGS:  -L/usr/local/opt/openssl/lib
-    CPPFLAGS: -I/usr/local/opt/openssl/include
-
-  $ brew info libffi
-  ...
-  build variables:
-
-    LDFLAGS:  -L/usr/local/opt/libffi/lib
-
-
-  $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
-  $ export CPPFLAGS="-I/usr/local/opt/openssl/include"
-
-Finally, be aware that the ``python`` that ships with Mac OS X doesn't have the package 
-manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a more
-up-to-date python with ``brew install python``.
 
 
 .. _Installing:
@@ -113,65 +33,61 @@ The latest version of ``isign`` can be installed via `PyPi <https://pypi.python.
 
   $ pip install isign
 
-or:
+If you're on Mac OS X, this probably won't work. In that
+case, clone the `source code repository <https://github.com/saucelabs/isign>`__ and run the install script:
 
 .. code::
 
-  $ easy_install isign
+  $ git clone https://github.com/saucelabs/isign.git
+  $ cd isign
+  $ sudo ./INSTALL.sh
 
-The `source code repository <https://github.com/saucelabs/isign>`__ 
-and `issue tracker <https://github.com/saucelabs/isign/issues>`__ 
-are maintained on GitHub.
+If that doesn't work, try `installing the prerequisites manually <https://github.com/saucelabs/isign/blob/master/PREREQUISITES.rst>`__ or
+`file an issue <https://github.com/saucelabs/isign/issues>`__.
 
 .. _How to get started:
 
 How to get started
 ------------------
 
-.. _Exporting your developer credentials:
-
-Exporting your developer credentials
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 All the libraries and tools that ``isign`` needs to run will work on both Linux 
 and Mac OS X. However, you will need a Mac to export your Apple developer 
-credentials.
+credentials. 
 
-You'll need an Apple Developer Account. Obtaining everything you need is
-beyond the scope of this documentation, but if you're already making apps
-in XCode and running them on real iOS devices, you have everything you need.
+If you're like most iOS developers, credentials are confusing -- if so check out 
+the `documentation on credentials <https://github.com/saucelabs/isign/blob/master/docs/credentials.rst>`__ on Github.
 
 You should have a key and certificate in 
 `Keychain Access <https://en.wikipedia.org/wiki/Keychain_(software)>`__,
 and a provisioning profile associated with that certificate, that you 
 can use to sign iOS apps for one or more of your own iOS devices.
 
-**Caution:** We're going to be exporting important and private information!
-Keep these files secure, especially your private key.
-
-In Keychain Access, open the *Keys*. Find the key you use to sign apps. Your certificate will 
-appear as a "descendant" of this key. Right click on it and 
-export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
+In Keychain Access, open the *Certificates*. Find the certificate you use to sign apps. 
+Right click on it and export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
 asks you for a password to protect this file, just leave it blank. 
 
-Next, let's use openssl to split that into a PEM cert and a PEM key.
+Next, let's extract the key and certificate you need, into a standard PEM format:
 
 .. code::
 
-  $ openssl pkcs12 -in Certificates.p12 -out certificate.pem -clcerts -nokeys
-  $ openssl pkcs12 -in Certificates.p12 -out key.pem -nocerts -nodes
-  $ chmod 400 key.pem
-  $ rm Certificates.p12
+  $ ./export_creds.sh ~/Certificates.p12
 
-Download a provisioning profile from the Apple Developer Portal that uses the 
-same certificate, and call it ``isign.mobileprovision``.
+If you get prompted for a password, just press ``Return``.
 
-Now, you have all the credentials to re-sign apps. Let's put them in the right place
-now.
+By default, ``export_creds.sh`` will put these files into ``~/.isign``, which is
+the standard place to put ``isign`` configuration files.
 
-On the machine where you intend to re-sign apps, make the ``~/.isign`` directory, and
-put all three files there. Once again, ensure that the key file is not world-readable,
-probably by ``chmod 400 key.pem``. The end result might look like this:
+Finally, you need a provisioning profile from the Apple Developer Portal that uses
+the same certificate. If you've never dealt with this, the provisioning profile is 
+what tells the phone that you Apple has okayed you installing apps onto this particular phone.
+
+If you develop with XCode, you might have a provisioning profile already. 
+On the Mac where you develop with XCode, try running the ``guess_mobileprovision.sh`` script. 
+If you typically have only a few provisioning profiles and install on one phone, it might find it. 
+
+Anyway, once you have a ``.mobileprovision`` file, move it to ``~/.isign/isign.mobileprovision``.
+
+The end result should look like this:
 
 .. code::
 
@@ -180,15 +96,7 @@ probably by ``chmod 400 key.pem``. The end result might look like this:
   -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
   -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
 
-.. _Ensuring you can install apps:
-
-Ensuring you can install apps
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-On the machine where you intend to re-sign apps, you'll probably want 
-`libimobiledevice <http://www.libimobiledevice.org/>`__, so you can try 
-installing your re-signed apps on a real iOS device.
-
+And now you're ready to start re-signing apps!
 
 .. _How to use isign:
 
