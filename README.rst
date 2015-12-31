@@ -66,15 +66,15 @@ In Keychain Access, open the *Certificates*. Find the certificate you use to sig
 Right click on it and export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
 asks you for a password to protect this file, just leave it blank. 
 
-Next, let's extract the key and certificate you need, into a standard PEM format:
+Next, let's extract the key and certificate you need, into a standard PEM format.
 
 .. code::
 
-  $ ./export_creds.sh ~/Certificates.p12
+  $ isign_export_creds.sh ~/Certificates.p12
 
 If you get prompted for a password, just press ``Return``.
 
-By default, ``export_creds.sh`` will put these files into ``~/.isign``, which is
+By default, ``isign_export_creds.sh`` will put these files into ``~/.isign``, which is
 the standard place to put ``isign`` configuration files.
 
 Finally, you need a provisioning profile from the Apple Developer Portal that uses
@@ -82,7 +82,7 @@ the same certificate. If you've never dealt with this, the provisioning profile 
 what tells the phone that you Apple has okayed you installing apps onto this particular phone.
 
 If you develop with XCode, you might have a provisioning profile already. 
-On the Mac where you develop with XCode, try running the ``guess_mobileprovision.sh`` script. 
+On the Mac where you develop with XCode, try running the ``isign_guess_mobileprovision.sh`` script. 
 If you typically have only a few provisioning profiles and install on one phone, it might find it. 
 
 Anyway, once you have a ``.mobileprovision`` file, move it to ``~/.isign/isign.mobileprovision``.

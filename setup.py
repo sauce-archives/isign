@@ -49,5 +49,7 @@ setup(
                   'code_resources_template.xml',
                   'version.json'],
     },
-    scripts=["bin/isign"]
+    scripts=['bin/isign',
+             'bin/isign_export_creds.sh',
+             'bin/isign_guess_mobileprovision.sh']
 )
