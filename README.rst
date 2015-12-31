@@ -52,43 +52,42 @@ How to get started
 
 All the libraries and tools that ``isign`` needs to run will work on both Linux 
 and Mac OS X. However, you will need a Mac to export your Apple developer 
-credentials.
+credentials. 
 
-You'll need an Apple Developer Account. Obtaining everything you need is
-beyond the scope of this documentation, but if you're already making apps
-in XCode and running them on real iOS devices, you have everything you need.
+If you're like most iOS developers, credentials are confusing -- if so check out 
+the `documentation on credentials <https://github.com/saucelabs/isign/blob/master/docs/credentials.rst>`__ on Github.
 
 You should have a key and certificate in 
 `Keychain Access <https://en.wikipedia.org/wiki/Keychain_(software)>`__,
 and a provisioning profile associated with that certificate, that you 
 can use to sign iOS apps for one or more of your own iOS devices.
 
-**Caution:** We're going to be exporting important and private information!
-Keep these files secure, especially your private key.
-
-In Keychain Access, open the *Keys*. Find the key you use to sign apps. Your certificate will 
-appear as a "descendant" of this key. Right click on it and 
-export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
+In Keychain Access, open the *Certificates*. Find the certificate you use to sign apps. 
+Right click on it and export the key as a ``.p12`` file, let's say ``Certificates.p12``. If Keychain 
 asks you for a password to protect this file, just leave it blank. 
 
-Next, let's use openssl to split that into a PEM cert and a PEM key.
+Next, let's extract the key and certificate you need, into a standard PEM format:
 
 .. code::
 
-  $ openssl pkcs12 -in Certificates.p12 -out certificate.pem -clcerts -nokeys
-  $ openssl pkcs12 -in Certificates.p12 -out key.pem -nocerts -nodes
-  $ chmod 400 key.pem
-  $ rm Certificates.p12
+  $ ./export_creds.sh ~/Certificates.p12
 
-Download a provisioning profile from the Apple Developer Portal that uses the 
-same certificate, and call it ``isign.mobileprovision``.
+If you get prompted for a password, just press ``Return``.
 
-Now, you have all the credentials to re-sign apps. Let's put them in the right place
-now.
+By default, ``export_creds.sh`` will put these files into ``~/.isign``, which is
+the standard place to put ``isign`` configuration files.
 
-On the machine where you intend to re-sign apps, make the ``~/.isign`` directory, and
-put all three files there. Once again, ensure that the key file is not world-readable,
-probably by ``chmod 400 key.pem``. The end result might look like this:
+Finally, you need a provisioning profile from the Apple Developer Portal that uses
+the same certificate. If you've never dealt with this, the provisioning profile is 
+what tells the phone that you Apple has okayed you installing apps onto this particular phone.
+
+If you develop with XCode, you might have a provisioning profile already. 
+On the Mac where you develop with XCode, try running the ``guess_mobileprovision.sh`` script. 
+If you typically have only a few provisioning profiles and install on one phone, it might find it. 
+
+Anyway, once you have a ``.mobileprovision`` file, move it to ``~/.isign/isign.mobileprovision``.
+
+The end result should look like this:
 
 .. code::
 
@@ -97,6 +96,7 @@ probably by ``chmod 400 key.pem``. The end result might look like this:
   -r--r--r--    1 alice  staff  9770 Nov 23 13:30 isign.mobileprovision
   -r--------    1 alice  staff  1846 Sep  4 14:17 key.pem
 
+And now you're ready to start re-signing apps!
 
 .. _How to use isign:
 
