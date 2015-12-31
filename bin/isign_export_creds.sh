@@ -5,7 +5,18 @@
 #
 # The .p12 file is typically exported from Apple's Keychain Access.
 
+if [[ $# -eq 0 ]]; then
+    echo "Usage: $0 exported.p12 [target_directory]"
+    exit 1;
+fi
+
 p12_path=$1
+
+if [[ ! -e $p12_path ]]; then
+    echo "Can't find $p12_path!";
+    exit 1;
+fi
+
 target_dir=${2-$HOME/.isign}
 
 target_cert_path=$target_dir/certificate.pem
