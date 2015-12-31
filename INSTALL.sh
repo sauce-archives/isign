@@ -12,6 +12,8 @@ install_package() {
 
 setup_linux() {
     install_package
+    apt-get install ideviceinstaller
+    apt-get install libimobiledevice-utils
 }
 
 warn() {
