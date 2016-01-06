@@ -155,14 +155,14 @@ mac_setup_python() {
     if exists pip; then
         return 0;
     fi
-    brew install python
+    brew_install python
 }
 
 mac_setup_libimobiledevice() {
     if exists ideviceinstaller; then
         return 0;
     fi
-    brew install libimobiledevice
+    brew_install libimobiledevice
 }
 
 setup_mac() {
