@@ -3,7 +3,7 @@
 set -e
 
 REQUIRED_OPENSSL_VERSION="1.0.1"
-
+BREW_USER="unknown"
 
 install_package() {
     python setup.py install
@@ -97,12 +97,15 @@ openssl_version_ok() {
 setup_brew() {
     if exists brew; then
 	warn "you have brew"
-        return 0;
     else
         warn "installing brew..."
         # from brew.sh
         ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)";
     fi
+    # which user owns the Cellar? We'll need this to install things...
+    BREW_USER=$(stat -f '%Su' `brew --cellar`)
+    warn "BREW_USER is $BREW_USER"
+    return 0;
 }
 
 brew_command() {
@@ -112,7 +115,7 @@ brew_command() {
         # brew doesn't like to install stuff as root.
         # On Mac OS X, there will be an environment variable called $SUDO_USER for us to 
         # switch back to.
-        sudo -u $SUDO_USER brew $command $package
+        sudo -u $BREW_USER brew $command $package
     else
         brew $command $package
     fi
