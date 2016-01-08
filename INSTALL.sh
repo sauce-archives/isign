@@ -129,20 +129,40 @@ brew_get_flags() {
     brew info $package | grep $flags | awk '{print $2}'
 }
 
+# check if a program is managed by brew
+# it might be a symlink like /usr/local/bin/openssl, pointing to somewhere in the Cellar
+is_brew_program() {
+    readlink `which $1` | grep `brew --prefix` >/dev/null;
+}
+
 mac_setup_openssl() {
     warn "start mac_setup_openssl"
-   
        
     # early return if the currently installed openssl meets our requirements
     # (it probably won't)
     openssl_path=$(which openssl)
     if [[ -n $openssl_path ]]; then
-        if openssl_version_ok $openssl_path; then
-           # openssl is fine! do nothing.
-           return 0;
+        if ! openssl_version_ok $openssl_path; then
+           brew_setup_openssl
         fi
     fi
 
+    # At this point, the openssl version is okay. It may or may not
+    # be a brew installed program. If it is, set up some compilation 
+    # library paths. We append to $LDFLAGS and $CPPFLAGS because some other
+    # things put flags in there too.
+    if is_brew_program openssl; then
+        openssl_ldflags=$(brew_get_flags openssl LDFLAGS)
+        LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
+        openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
+        CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
+    fi
+
+    return 0;
+}
+
+
+brew_setup_openssl() {
     # So now we know there either wasn't an openssl, or it wasn't
     # a version good enough. Time for brew!   
  
@@ -186,12 +206,6 @@ mac_setup_openssl() {
         return 1
     fi
     warn "success, finally"
-
-    # set up some compilation library paths (we'll need it later...)
-    openssl_ldflags=$(brew_get_flags openssl LDFLAGS)
-    LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
-    openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
-    CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
 
     return 0;
 }
