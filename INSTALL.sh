@@ -84,7 +84,7 @@ openssl_version_ok() {
     warn "trying to check if $openssl_path openssl version is okay"
     if [[ -e $openssl_path ]]; then
         openssl_version=$($openssl_path version | cut -f 2 -d ' ');
-	warn "found $openssl_path version $openssl_version"
+    warn "found $openssl_path version $openssl_version"
         if check_version $REQUIRED_OPENSSL_VERSION $openssl_version; then
             warn "okay!"
             return 0;
@@ -96,7 +96,7 @@ openssl_version_ok() {
 
 setup_brew() {
     if exists brew; then
-	warn "you have brew"
+    warn "you have brew"
     else
         warn "installing brew..."
         # from brew.sh
@@ -138,8 +138,8 @@ is_brew_program() {
 mac_setup_openssl() {
     warn "start mac_setup_openssl"
        
-    # early return if the currently installed openssl meets our requirements
-    # (it probably won't)
+    # if the currently installed openssl doesn't meet our requirements,
+    # install or upgrade with brew
     openssl_path=$(which openssl)
     if [[ -n $openssl_path ]]; then
         if ! openssl_version_ok $openssl_path; then
@@ -170,7 +170,7 @@ brew_setup_openssl() {
     brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
     warn "brew openssl path = $brew_openssl_path"
     if [[ -z $brew_openssl_path ]]; then
-    	warn "installing openssl"
+        warn "installing openssl"
         brew_command install openssl
         brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
     fi 
@@ -178,7 +178,7 @@ brew_setup_openssl() {
 
     # is the brew openssl the right version? if not, upgrade
     if ! openssl_version_ok $brew_openssl_path; then
-    	warn "upgrading openssl"
+        warn "upgrading openssl"
         brew_command upgrade openssl
         brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
     fi
@@ -191,7 +191,7 @@ brew_setup_openssl() {
     brew_link_path=$(brew --prefix)/bin/openssl
     warn "brew link path is $brew_link_path"
     if [[ -e brew_link_path ]]; then
-    	warn "removing existing link"
+        warn "removing existing link"
         rm brew_link_path;
     fi
     warn "linking $brew_openssl_path $brew_link_path"
