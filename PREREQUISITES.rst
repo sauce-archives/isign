@@ -49,9 +49,18 @@ You will also have to put ``brew``'s openssl into your path somehow, probably li
 
   $ ln -s /usr/local/Cellar/openssl/1.0.2e/bin/openssl /usr/local/bin/openssl
 
-And, then you have to add their library and header paths to your environment before
-installng ``isign``. Use ``brew info openssl`` and ``brew info libffi`` to get those paths, 
-and put them in your environment. It will look something like this.
+If you really don't want to alter the default ``openssl``, you can put the path to brew's 
+``openssl`` in an environment variable, ``$OPENSSL``, e.g.
+
+.. code::
+
+  $ export OPENSSL=/usr/local/Cellar/openssl/1.0.2e/bin/openssl 
+
+If ``isign`` sees that, it will use that for its ``openssl`` instead.
+
+Anyway, no matter how you install the binary, to complete the installation of ``isign``
+you need to add some library paths to your environment. The procedure will 
+look something like this.
 
 .. code::
   
@@ -68,6 +77,10 @@ and put them in your environment. It will look something like this.
 
     LDFLAGS:  -L/usr/local/opt/libffi/lib
 
+Then, take the flags from above, and put them into appropriate environment
+variables:
+
+.. code::
 
   $ export LDFLAGS="-L/usr/local/opt/openssl/lib -L/usr/local/opt/libffi/lib"
   $ export CPPFLAGS="-I/usr/local/opt/openssl/include"
@@ -75,3 +88,5 @@ and put them in your environment. It will look something like this.
 Finally, be aware that the ``python`` that ships with Mac OS X doesn't have the package 
 manager ``pip``. You can probably use ``easy_install`` instead of ``pip``. Or, you can get a more
 up-to-date python with ``brew install python``.
+
+Now you're probably ready to install ``isign``. A simple ``pip install isign`` should succeed.

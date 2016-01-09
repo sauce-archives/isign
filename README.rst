@@ -27,23 +27,27 @@ Table of contents
 Installing
 ----------
 
+Linux
+~~~~~
+
 The latest version of ``isign`` can be installed via `PyPi <https://pypi.python.org/pypi/isign/>`__:
 
 .. code::
 
   $ pip install isign
 
-If you're on Mac OS X, this probably won't work. In that
-case, clone the `source code repository <https://github.com/saucelabs/isign>`__ and run the install script:
+Mac OS X
+~~~~~~~~
+
+On Mac OS X, there are a lot of prerequisites, so the ``pip`` method probably won't work.
+The easiest method is to use ``git`` to clone the `source code repository <https://github.com/saucelabs/isign>`__ and 
+run the install script:
 
 .. code::
 
   $ git clone https://github.com/saucelabs/isign.git
   $ cd isign
   $ sudo ./INSTALL.sh
-
-If that doesn't work, try `installing the prerequisites manually <https://github.com/saucelabs/isign/blob/master/PREREQUISITES.rst>`__ or
-`file an issue <https://github.com/saucelabs/isign/issues>`__.
 
 .. _How to get started:
 

@@ -3,8 +3,13 @@
 set -e
 
 REQUIRED_OPENSSL_VERSION="1.0.1"
-MAC_INSTALL_PATH="/usr/local/bin"
+BREW_USER="unknown"
 
+abort_install() {
+    warn "Aborting the install. If you want to install prerequisites"
+    warn "manually, see PREREQUISITES.rst."
+    exit 0;
+}
 
 install_package() {
     python setup.py install
@@ -25,47 +30,35 @@ trim() {
     echo "$@" | xargs
 }
 
-check_what_to_upgrade() {
-    has_brew=`which brew`
-    has_openssl=`which openssl`
-    has_libffi=`which libffi`
-}
-
-
-ok_to_upgrade() {
-    echo "We're about to install or upgrade the following software:"
-    if [[ $has_brew ]]; then
-        echo "  - brew";
-    fi
-    if [[ $has_openssl ]]; then
-        echo "  - openssl";
-    fi
-    if [[ $has_libffi ]]; then
-        echo "  - libffi"
-    fi
-    if [[ $has_pip ]]; then
-        echo "  - python and pip";
-    fi
+get_ok_to_upgrade() {
+    warn "This script may install or upgrade the following software:"
+    warn "  - brew";
+    warn "  - openssl";
+    warn "  - libffi"
+    warn "  - python and pip";
+    warn "  - libimobiledevice and related utilities";
     read -p "Okay to continue? [Y/n]" -n 1 -r 
-    echo
+    warn " " 
+    warn " " 
     if [[ $REPLY =~ ^[Nn]$ ]]; then
-        exit 0;
+        abort_install
     fi
 }
 
 # given arguments like 1.0.2e, 3, returns "2"
 get_version_part() {
-    version=$1
-    part=$2
+    local version=$1
+    local part=$2
     echo $version | cut -f $part -d '.' | sed 's/[^0-9]//g'
 }
 
 check_version() {
-    required=$1;
-    given=$2;
+    local required=$1;
+    local given=$2;
+    local i
     for i in 1 2 3; do
-        required_part=$(get_version_part $required $i);
-        given_part=$(get_version_part $given $i);
+        local required_part=$(get_version_part $required $i);
+        local given_part=$(get_version_part $given $i);
         if [[ $given_part -lt $required_part ]]; then
             return 1;
         fi
@@ -74,80 +67,159 @@ check_version() {
 }
 
 exists() {
-    which $1 > /dev/null;
+    # warn "checking for existence of $1"
+    which $1 > /dev/null
 }
 
 
 openssl_version_ok() {
-    if exists openssl; then
-        openssl_version=$(openssl version | cut -f 2 -d ' ');
+    local openssl_path=$1
+    warn "Trying to check if $openssl_path openssl version is okay..."
+    if [[ -e $openssl_path ]]; then
+        local openssl_version=$($openssl_path version | cut -f 2 -d ' ');
+        warn "Found $openssl_path version $openssl_version."
         if check_version $REQUIRED_OPENSSL_VERSION $openssl_version; then
+            warn "$openssl_path version looks okay."
             return 0;
         fi
     fi
+    warn "$openssl_path version was not okay!"
     return 1;
 }
 
 setup_brew() {
     if exists brew; then
-        return 0;
+        warn "You seem to have brew."
     else
-        echo "installing brew..."
-        # from brew.sh
-        ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)";
+        # This is what https://brew.sh recommends...
+        # Installing straight from a URL? What could go wrong?
+        local homebrew_install_url="https://raw.githubusercontent.com/Homebrew/install/master/install"
+        warn "We need to install brew..."
+        warn "Okay to install via ruby script at this URL?"
+        warn "  $homebrew_install_url";
+        warn " "
+        read -p "Okay to continue? [Y/n]" -n 1 -r 
+        warn " " 
+        warn " " 
+        if [[ $REPLY =~ ^[Nn]$ ]]; then
+            abort_install
+        fi
+        ruby -e "$(curl -fsSL $homebrew_install_url)";
     fi
+    # which user owns the Cellar? We'll need this to install things...
+    BREW_USER=$(stat -f '%Su' `brew --cellar`)
+    warn "brew's stuff seems to be owned by $BREW_USER..."
+    return 0;
 }
 
-brew_install() {
-    package=$1
+# Commands that write to brew's Cellar need to not be root
+brew_write() {
+    local command=$1 
+    local package=$2
     if [[ $EUID -eq 0 ]]; then
-        # brew doesn't like to install stuff as root.
-        # On Mac OS X, there will be an environment variable called $SUDO_USER for us to 
-        # switch back to.
-        sudo -u $SUDO_USER brew install $package
+        sudo -u $BREW_USER brew $command $package
     else
-        brew install $package
+        brew $command $package
     fi
 }
 
 # some brew packages have this in machine readable form
 # but not all :(
 brew_get_flags() {
-    package=$1
-    flags=$2
+    local package=$1
+    local flags=$2
     brew info $package | grep $flags | awk '{print $2}'
 }
 
+# check if a program is managed by brew
+# it might be a symlink like /usr/local/bin/openssl, pointing to somewhere in the Cellar
+is_brew_program() {
+    readlink `which $1` | grep `brew --prefix` >/dev/null;
+}
+
 mac_setup_openssl() {
-    if [[ ! openssl_version_ok ]]; then
-        brew_install openssl
-        # For some reason this package won't install openssl into our path, so we have 
-        # to do a symlink manually.
-        # If there is an old openssl, We could try to move it manually (we are root) but
-        # often it's locked. So let's just advise them to set up the path properly
-        if exists openssl; then
-            old_openssl_dir=$(which openssl | xargs dirname)
-            warn "========="
-            warn "IMPORTANT: you still have an old openssl in $old_openssl_dir. The new one is in $MAC_INSTALL_PATH."
-            warn "So, ensure that $MAC_INSTALL_PATH is ahead of $old_openssl_dir in your \$PATH."
-            warn "========="
+    # warn "start mac_setup_openssl"
+       
+    # if the currently installed openssl doesn't meet our requirements,
+    # install or upgrade with brew
+    local openssl_path=$(which openssl)
+    if [[ -n $openssl_path ]]; then
+        if ! openssl_version_ok $openssl_path; then
+           brew_setup_openssl
         fi
-        openssl_brew_path=$(brew list openssl | grep -e '/openssl$')
-        ln -s $openssl_brew_path "$MAC_INSTALL_PATH/openssl"
     fi
-    # set up some compilation library paths (we'll need it later...)
-    openssl_ldflags=$(brew_get_flags openssl LDFLAGS)
-    LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
-    openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
-    CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
+
+    # At this point, the openssl version is okay. It may or may not
+    # be a brew installed program. If it is, set up some compilation 
+    # library paths. We append to $LDFLAGS and $CPPFLAGS because some other
+    # things put flags in there too.
+    if is_brew_program openssl; then
+        openssl_ldflags=$(brew_get_flags openssl LDFLAGS)
+        LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
+        openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
+        CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
+    fi
+
+    return 0;
+}
+
+
+brew_setup_openssl() {
+    # So now we know there either wasn't an openssl, or it wasn't
+    # a version good enough. Time for brew!   
+ 
+    # is the brew openssl installed? if not, install
+    brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
+    # warn "brew openssl path = $brew_openssl_path"
+    if [[ -z $brew_openssl_path ]]; then
+        warn "Installing openssl..."
+        brew_write install openssl
+        brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
+    fi 
+    # warn "brew openssl path = $brew_openssl_path"
+
+    # is the brew openssl the right version? if not, upgrade
+    if ! openssl_version_ok $brew_openssl_path; then
+        warn "Upgrading openssl..."
+        brew_write upgrade openssl
+        brew_openssl_path=$(brew list openssl | grep -e '/openssl$')
+    fi
+    # warn "okay by now $brew_openssl_path should be an acceptable openssl"
+
+    # for various reasons, brew will refuse to simultaneously 
+    # be root and link the brew openssl binary somewhere useful. 
+    # So we do it manually. We assume that the brew --prefix will be 
+    # in the user's $PATH, and will take precedence over system openssl. 
+    brew_link_path=$(brew --prefix)/bin/openssl
+    # warn "brew link path is $brew_link_path"
+    if [[ -e brew_link_path ]]; then
+        # warn "removing existing link"
+        rm brew_link_path;
+    fi
+    warn "Linking $brew_openssl_path $brew_link_path."
+    ln -s $brew_openssl_path $brew_link_path
+
+    # let's see if we succeeded: the openssl in our path should now be ready!
+    new_openssl_path=$(which openssl)
+    # warn "new path is $new_openssl_path"
+    if ! openssl_version_ok $new_openssl_path; then
+        warn "We tried to install an openssl >$MINIMUM_OPENSSL_VERSION, but we failed."
+        warn "Check if $brew_link_path is in your \$PATH ($PATH)."
+        return 1
+    fi
+    # warn "success, finally"
+
+    return 0;
 }
 
 mac_setup_libffi() {
-    if ! brew list libffi > /dev/null; then
-        brew_install libffi
+    warn "Checking for libffi..."
+    if ! brew list libffi 2>/dev/null >/dev/null; then
+        warn "Nope, no libffi. Installing..."
+        brew_write install libffi
     fi
     # set up some compilation library paths (we'll need it later...)
-    libffi_ldflags=$(brew_get_flags libffi LDFLAGS)
+    local libffi_ldflags=$(brew_get_flags libffi LDFLAGS)
     LDFLAGS=$(trim "$LDFLAGS $libffi_ldflags")
 }
 
@@ -155,17 +227,18 @@ mac_setup_python() {
     if exists pip; then
         return 0;
     fi
-    brew_install python
+    brew_write install python
 }
 
 mac_setup_libimobiledevice() {
     if exists ideviceinstaller; then
         return 0;
     fi
-    brew_install libimobiledevice
+    brew_write install libimobiledevice
 }
 
 setup_mac() {
+    get_ok_to_upgrade
     setup_brew
     mac_setup_openssl
     mac_setup_libffi
@@ -183,5 +256,3 @@ else
     warn "Sorry, I don't know how to install on $unamestr.";
     exit 1;
 fi;
-
-
