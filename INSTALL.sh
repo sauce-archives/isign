@@ -31,23 +31,17 @@ check_what_to_upgrade() {
 }
 
 
-ok_to_upgrade() {
+get_ok_to_upgrade() {
     warn "We're about to install or upgrade the following software:"
-    if [[ $has_brew ]]; then
-        warn "  - brew";
-    fi
-    if [[ $has_openssl ]]; then
-        warn "  - openssl";
-    fi
-    if [[ $has_libffi ]]; then
-        warn "  - libffi"
-    fi
-    if [[ $has_pip ]]; then
-        warn "  - python and pip";
-    fi
+    warn "  - brew";
+    warn "  - openssl";
+    warn "  - libffi"
+    warn "  - python and pip";
     read -p "Okay to continue? [Y/n]" -n 1 -r 
     warn "" 
     if [[ $REPLY =~ ^[Nn]$ ]]; then
+        warn "Aborting the install. If you want to install prerequisites"
+        warn "manually, see PREREQUISITES.rst."
         exit 0;
     fi
 }
@@ -236,6 +230,7 @@ mac_setup_libimobiledevice() {
 }
 
 setup_mac() {
+    get_ok_to_upgrade
     warn "setup_brew"
     setup_brew
     warn "mac_setup_openssl"
