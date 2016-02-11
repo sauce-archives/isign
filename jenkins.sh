@@ -62,5 +62,5 @@ make_venv
 build_artifacts
 test_artifacts
 tag_release
-# update_pypi
+update_pypi
 cleanup
