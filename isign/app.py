@@ -110,7 +110,7 @@ class Bundle(object):
                     framework = Framework(framework_path)
                 except NotMatched:
                     log.info("not a framework: %s" % framework_path)
-                    pass
+                    continue
                 log.info("resigning: %s" % framework_path)
                 framework.resign(signer)
             # sign all the dylibs
