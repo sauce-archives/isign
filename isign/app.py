@@ -126,13 +126,6 @@ class Bundle(object):
         executable = self.executable_class(self.get_executable_path())
         executable.sign(self, signer)
 
-    @classmethod
-    def archive(cls, path, output_path):
-        if exists(output_path):
-            shutil.rmtree(output_path)
-        shutil.move(path, output_path)
-        log.info("archived %s to %s" % (cls.__name__, output_path))
-
     def resign(self, signer):
         """ signs app, modifies appdir in place """
         self.sign(signer)
@@ -159,13 +152,6 @@ class App(Bundle):
     # the executable in this bundle will be an Executable (i.e. an App)
     executable_class = signable.Executable
 
-    def unarchive_to_temp(self):
-        containing_dir = make_temp_dir()
-        log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
-        shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
-        shutil.copytree(self.path, containing_dir)
-        return containing_dir, App(containing_dir)
-
     def __init__(self, path):
         super(App, self).__init__(path)
         self.entitlements_path = join(self.path,
@@ -191,6 +177,27 @@ class App(Bundle):
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
         super(App, self).resign(signer)
+
+
+class AppArchive(object):
+    """ The simplest form of archive -- a naked App Bundle, with no extra directory structure,
+        compression, etc """
+    def __init__(self, path):
+        self.path = path
+
+    def unarchive_to_temp(self):
+        containing_dir = make_temp_dir()
+        log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
+        shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
+        shutil.copytree(self.path, containing_dir)
+        return containing_dir, App(containing_dir)
+
+    @classmethod
+    def archive(cls, path, output_path):
+        if exists(output_path):
+            shutil.rmtree(output_path)
+        shutil.move(path, output_path)
+        log.info("archived %s to %s" % (cls.__name__, output_path))
 
 
 class AppZip(object):
@@ -293,11 +300,11 @@ class Ipa(AppZip):
     app_dir_pattern = r'^Payload/[^/]+\.app/$'
 
 
-def app_archive_factory(path):
+def archive_factory(path):
     """ factory to unpack various app types. """
     if isdir(path):
         try:
-            return App(path)
+            return AppArchive(path)
         except NotSignable as e:
             log.error("Error initializing app dir: %s", e)
             raise NotSignable(e)
@@ -332,10 +339,10 @@ def resign(input_path,
 
     temp_dir = None
     try:
-        appArchive = app_archive_factory(input_path)
-        (temp_dir, app) = appArchive.unarchive_to_temp()
+        archive = archive_factory(input_path)
+        (temp_dir, app) = archive.unarchive_to_temp()
         app.resign(signer, provisioning_profile)
-        appArchive.__class__.archive(temp_dir, output_path)
+        archive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
         log.info(msg)
