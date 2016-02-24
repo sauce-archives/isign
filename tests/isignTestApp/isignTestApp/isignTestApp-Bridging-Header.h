@@ -1,7 +1,8 @@
 //
-//  FirstViewController.swift
+//  isignTestApp-Bridging-Header.h
 //  isignTestApp
 //
+//  Bridge to an Objective-C library, needed to test sub-bundles.
 //  Copyright © 2015 Sauce Labs.
 //
 //  Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,26 +16,11 @@
 //  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
-//
-
-import UIKit
-
-class FirstViewController: UIViewController {
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        // Do any additional setup after loading the view, typically from a nib.
-    }
-
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
-    }
-    
-    func testFunc() {
-        //let manager = AF
-    }
 
 
-}
+#ifndef Bridge_h
+#define Bridge_h
 
+#import "AFNetworking/AFNetworking.h"
+
+#endif /* Bridge_h */

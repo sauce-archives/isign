@@ -1,0 +1,17 @@
+platform :ios, '9.2'
+use_frameworks!
+
+source 'https://github.com/CocoaPods/Specs.git'
+
+target 'isignTestApp' do
+    pod 'AFNetworking', '~> 3.0'
+end
+
+target 'isignTestAppTests' do
+
+end
+
+target 'isignTestAppUITests' do
+
+end
+
