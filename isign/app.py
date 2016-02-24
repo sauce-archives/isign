@@ -56,6 +56,7 @@ class Bundle(object):
     """ A bundle is a standard directory structure, a signable, installable set of files.
         Apps are Bundles, but so are some kinds of Frameworks (libraries) """
     helpers = []
+    executable_class = None
 
     def __init__(self, path):
         self.path = path
@@ -144,14 +145,19 @@ class Framework(Bundle):
         doesn't have Entitlements, or an Application hash, and it doesn't have its
         own provisioning profile. """
 
+    # the executable in this bundle will be a Framework
+    executable_class = signable.Framework
+
     def __init__(self, path):
-        self.executable_class = signable.Framework
-        super(Framework, self).__init(path)
+        super(Framework, self).__init__(path)
 
 
 class App(Bundle):
     """ The kind of bundle that is visible as an app to the user.
         Contains the provisioning profile, entitlements, etc.  """
+
+    # the executable in this bundle will be an Executable (i.e. an App)
+    executable_class = signable.Executable
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
@@ -162,7 +168,6 @@ class App(Bundle):
 
     def __init__(self, path):
         super(App, self).__init__(path)
-        self.executable_class = signable.Executable
         self.entitlements_path = join(self.path,
                                       'Entitlements.plist')
         self.provision_path = join(self.path,
