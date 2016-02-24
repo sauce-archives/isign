@@ -11,6 +11,7 @@ from codesig import (Codesig,
                      InfoSlot)
 import logging
 import macho
+from makesig import make_signature
 import os
 import tempfile
 
@@ -68,14 +69,15 @@ class Signable(object):
             codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
             self.f.seek(codesig_offset)
             codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
-            arch['codesig_len'] = len(codesig_data)
             log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
-            raise Exception("signing without existing codesig is not implemented")
-            # TODO: this doesn't actually work :(
-            # see the makesig.py library, this was begun but not finished
+            log.info("signing from scratch!")
+            entitlements_file = '/Users/neilk/projects/ios-apps/unsigned_entitlements.plist'
+            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
+            arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
 
         arch['codesig'] = Codesig(self, codesig_data)
+        arch['codesig_len'] = len(codesig_data)
 
         return arch
 
@@ -139,5 +141,11 @@ class Executable(Signable):
 
 class Dylib(Signable):
     slot_classes = [EntitlementsSlot,
+                    RequirementsSlot,
+                    InfoSlot]
+
+
+class Framework(Signable):
+    slot_classes = [ResourceDirSlot,
                     RequirementsSlot,
                     InfoSlot]

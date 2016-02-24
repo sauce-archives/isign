@@ -220,10 +220,10 @@ class Codesig(object):
         self.construct.length = len(superblob) + 8
         self.construct.bytes = superblob
 
-    def resign(self, app, signer):
-        self.set_entitlements(app.entitlements_path)
+    def resign(self, bundle, signer):
+        self.set_entitlements(bundle.entitlements_path)
         self.set_requirements(signer)
-        self.set_codedirectory(app.seal_path, signer)
+        self.set_codedirectory(bundle.seal_path, signer)
         self.set_signature(signer)
         self.update_offsets()
 

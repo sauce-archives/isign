@@ -52,8 +52,22 @@ def is_plist_native(plist):
     )
 
 
-class App():
+class Bundle(object):
+    """ A bundle is a standard directory structure, a signable, installable set of files.
+        Apps are Bundles, but so are some kinds of Frameworks (libraries) """
     helpers = []
+
+    def __init__(self, path):
+        self.path = path
+        is_native = self.precheck()
+        if not is_native:
+            raise NotMatched("not a native iOS bundle")
+
+        # will be added later
+        self.seal_path = None
+
+        info_path = join(self.path, 'Info.plist')
+        self.info = biplist.readPlist(info_path)
 
     def precheck(self):
         """ Checks if a path looks like this kind of app,
@@ -67,31 +81,9 @@ class App():
             log.debug("is native: {}".format(is_native))
         return is_native
 
-    def unarchive_to_temp(self):
-        containing_dir = make_temp_dir()
-        log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
-        shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
-        shutil.copytree(self.path, containing_dir)
-        return containing_dir, App(containing_dir)
-
-    def __init__(self, path):
-        self.path = path
-        is_native = self.precheck()
-        if not is_native:
-            raise NotMatched("not a native iOS app")
-
-        self.entitlements_path = join(self.path,
-                                      'Entitlements.plist')
-        self.provision_path = join(self.path,
-                                   'embedded.mobileprovision')
-
-        # will be added later
-        self.seal_path = None
-
-        info_path = join(self.path, 'Info.plist')
-        self.info = biplist.readPlist(info_path)
-
     def get_executable_path(self):
+        """ Path to the main executable. For an app, this is app itself. For
+            a Framework, this is the main framework """
         executable_name = None
         if 'CFBundleExecutable' in self.info:
             executable_name = self.info['CFBundleExecutable']
@@ -102,6 +94,79 @@ class App():
             raise Exception(
                 'could not find executable for {0}'.format(self.path))
         return executable
+
+    def sign(self, signer):
+        """ Sign everything in this bundle, recursively with sub-bundles """
+        log.info("SIGNING: %s" % self.path)
+        frameworks_path = join(self.path, 'Frameworks')
+        if exists(frameworks_path):
+            log.info("SIGNING FRAMEWORKS: %s" % frameworks_path)
+            # sign all the sub-bundles
+            for framework_name in os.listdir(frameworks_path):
+                framework_path = join(frameworks_path, framework_name)
+                log.info("checking for framework: %s" % framework_path)
+                try:
+                    framework = Framework(framework_path)
+                except NotMatched:
+                    log.info("not a framework: %s" % framework_path)
+                    pass
+                log.info("resigning: %s" % framework_path)
+                framework.resign(signer)
+            # sign all the dylibs
+            dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
+            for dylib_path in dylib_paths:
+                dylib = signable.Dylib(dylib_path)
+                dylib.sign(self, signer)
+        # then create the seal
+        # TODO maybe the app should know what its seal path should be...
+        self.seal_path = code_resources.make_seal(self.get_executable_path(),
+                                                  self.path)
+        # then sign the app
+        executable = self.executable_class(self.get_executable_path())
+        executable.sign(self, signer)
+
+    @classmethod
+    def archive(cls, path, output_path):
+        if exists(output_path):
+            shutil.rmtree(output_path)
+        shutil.move(path, output_path)
+        log.info("archived %s to %s" % (cls.__name__, output_path))
+
+    def resign(self, signer):
+        """ signs app, modifies appdir in place """
+        self.sign(signer)
+        log.debug("Resigned app dir at <%s>", self.path)
+
+
+class Framework(Bundle):
+    """ A bundle that comprises reusable code. Similar to an app in that it has
+        its own resources and metadata. Not like an app because the main executable
+        doesn't have Entitlements, or an Application hash, and it doesn't have its
+        own provisioning profile. """
+
+    def __init__(self, path):
+        self.executable_class = signable.Framework
+        super(Framework, self).__init(path)
+
+
+class App(Bundle):
+    """ The kind of bundle that is visible as an app to the user.
+        Contains the provisioning profile, entitlements, etc.  """
+
+    def unarchive_to_temp(self):
+        containing_dir = make_temp_dir()
+        log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
+        shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
+        shutil.copytree(self.path, containing_dir)
+        return containing_dir, App(containing_dir)
+
+    def __init__(self, path):
+        super(App, self).__init__(path)
+        self.executable_class = signable.Executable
+        self.entitlements_path = join(self.path,
+                                      'Entitlements.plist')
+        self.provision_path = join(self.path,
+                                   'embedded.mobileprovision')
 
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
@@ -116,35 +181,11 @@ class App():
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
 
-    def sign(self, signer):
-        # first sign all the dylibs
-        frameworks_path = join(self.path, 'Frameworks')
-        if exists(frameworks_path):
-            dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
-            for dylib_path in dylib_paths:
-                dylib = signable.Dylib(dylib_path)
-                dylib.sign(self, signer)
-        # then create the seal
-        # TODO maybe the app should know what its seal path should be...
-        self.seal_path = code_resources.make_seal(self.get_executable_path(),
-                                                  self.path)
-        # then sign the app
-        executable = signable.Executable(self.get_executable_path())
-        executable.sign(self, signer)
-
-    @classmethod
-    def archive(cls, path, output_path):
-        if exists(output_path):
-            shutil.rmtree(output_path)
-        shutil.move(path, output_path)
-        log.info("archived %s to %s" % (cls.__name__, output_path))
-
     def resign(self, signer, provisioning_profile):
         """ signs app, modifies appdir in place """
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
-        self.sign(signer)
-        log.debug("Resigned app dir at <%s>", self.path)
+        super(App, self).resign(signer)
 
 
 class AppZip(object):
