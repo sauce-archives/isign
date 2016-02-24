@@ -100,3 +100,6 @@ out.ipa
 !tests/credentials/test.key.pem
 !tests/credentials/test.cert.pem
 !tests/credentials/test.mobileprovision
+
+# Pod stuff
+tests/isignTestApp/Pods
