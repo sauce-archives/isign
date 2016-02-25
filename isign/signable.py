@@ -1,6 +1,8 @@
 #
-# Represents a file that can be signed.
-# Executable, or dylib
+# Represents a file that can be signed. A file that
+# conforms to the Mach-O ABI.
+#
+# Executable, dylib, or framework.
 #
 
 from abc import ABCMeta
@@ -133,6 +135,7 @@ class Signable(object):
 
 
 class Executable(Signable):
+    """ The main executable of an app. """
     slot_classes = [EntitlementsSlot,
                     ResourceDirSlot,
                     RequirementsSlot,
@@ -140,12 +143,16 @@ class Executable(Signable):
 
 
 class Dylib(Signable):
+    """ A dynamic library that isn't part of its own bundle, e.g.
+        the Swift libraries. """
     slot_classes = [EntitlementsSlot,
                     RequirementsSlot,
                     InfoSlot]
 
 
 class Framework(Signable):
+    """ The main executable of a Framework, which is a library of sorts
+        but is bundled with both files and code """
     slot_classes = [ResourceDirSlot,
                     RequirementsSlot,
                     InfoSlot]
