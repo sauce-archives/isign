@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
 import argparse
-import isign.app
+import isign.archive
+from isign.exceptions import NotSignable
 from isign.signable import Executable
 import logging
 from os.path import abspath, expanduser, isdir
@@ -26,10 +27,10 @@ def absolute_path_argument(path):
 def print_codesig(path):
     temp_dir = None
     try:
-        appArchive = isign.app.app_archive_factory(path)
-        (temp_dir, app) = appArchive.unarchive_to_temp()
-        _print_codesig(app)
-    except isign.app.NotSignable as e:
+        archive = isign.archive.archive_factory(path)
+        (temp_dir, bundle) = appArchive.unarchive_to_temp()
+        _print_codesig(bundle)
+    except NotSignable as e:
         msg = "Not signable: <{0}> {1}\n".format(path, e)
         log.error(msg)
         raise
@@ -38,8 +39,8 @@ def print_codesig(path):
             shutil.rmtree(temp_dir)
 
 
-def _print_codesig(app):
-    executable = Executable(app.get_executable_path())
+def _print_codesig(bundle):
+    executable = Executable(bundle.get_executable_path())
     for arch in executable.arches:
         print arch['cmds']['LC_CODE_SIGNATURE']
 

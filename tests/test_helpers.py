@@ -1,6 +1,6 @@
-import isign.app
-from isign.app import AppZip
-from isign.app import NotSignable
+import isign.archive
+from isign.archive import AppZip
+from isign.exceptions import NotSignable
 from isign_base_test import IsignBaseTest
 from distutils import spawn
 import logging
@@ -33,4 +33,4 @@ class TestHelpers(IsignBaseTest):
         MissingHelpersApp(self.TEST_APPZIP)
         if hasattr(spawn, '_original_find_executable'):
             spawn.find_executable = spawn._original_find_executable
-        isign.app.helper_paths = {}
+        isign.archive.helper_paths = {}

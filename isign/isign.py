@@ -1,5 +1,6 @@
-import app
+import archive
 # import makesig
+import exceptions
 import os
 from os.path import dirname, exists, join, realpath
 
@@ -26,7 +27,7 @@ else:
 
 
 class NotSignable(Exception):
-    """ This is just so we don't expose isign.app.NotSignable """
+    """ This is just so we don't expose other sorts of exceptions """
     pass
 
 
@@ -38,13 +39,13 @@ def resign(input_path,
            output_path=join(os.getcwd(), "out")):
     """ simply for convenience, and to omit default args """
     try:
-        return app.resign(input_path,
-                          certificate,
-                          key,
-                          apple_cert,
-                          provisioning_profile,
-                          output_path)
-    except app.NotSignable as e:
+        return archive.resign(input_path,
+                              certificate,
+                              key,
+                              apple_cert,
+                              provisioning_profile,
+                              output_path)
+    except exceptions.NotSignable as e:
         # re-raise the exception without exposing internal
         # details of how it happened
         raise NotSignable(e)
