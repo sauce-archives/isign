@@ -90,7 +90,7 @@ class Bundle(object):
                 except NotMatched:
                     log.debug("not a framework: %s" % framework_path)
                     continue
-                log.info("resigning: %s" % framework_path)
+                log.debug("resigning: %s" % framework_path)
                 framework.resign(signer)
             # sign all the dylibs
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
