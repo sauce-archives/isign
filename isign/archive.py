@@ -4,7 +4,7 @@
     and create an archive of the same type """
 
 import biplist
-from bundle import App, is_plist_native
+from bundle import App, is_info_plist_native
 from exceptions import NotSignable, NotMatched
 from distutils import spawn
 import logging
@@ -114,7 +114,7 @@ class AppZip(object):
                 plist_path = join(relative_app_dir, "Info.plist")
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
-                is_native = is_plist_native(plist)
+                is_native = is_info_plist_native(plist)
                 log.debug("is_native: {}".format(is_native))
         return (relative_app_dir, is_native)
 

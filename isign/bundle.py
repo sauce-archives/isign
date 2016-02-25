@@ -23,7 +23,8 @@ import shutil
 log = logging.getLogger(__name__)
 
 
-def is_plist_native(plist):
+def is_info_plist_native(plist):
+    """ If an bundle is for native iOS, it has these properties in the Info.plist """
     return (
         'CFBundleSupportedPlatforms' in plist and
         'iPhoneOS' in plist['CFBundleSupportedPlatforms']
@@ -56,7 +57,7 @@ class Bundle(object):
         if exists(plist_path):
             log.debug("got a plist path, {}".format(plist_path))
             plist = biplist.readPlist(plist_path)
-            is_native = is_plist_native(plist)
+            is_native = is_info_plist_native(plist)
             log.debug("is native: {}".format(is_native))
         return is_native
 
