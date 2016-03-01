@@ -1,0 +1,16 @@
+source 'https://github.com/CocoaPods/Specs.git'
+platform :ios, '8.0'
+use_frameworks!
+
+target 'isignTestApp' do
+  pod 'FontAwesome.swift', '~> 0.7'
+end
+
+target 'isignTestAppTests' do
+
+end
+
+target 'isignTestAppUITests' do
+
+end
+
