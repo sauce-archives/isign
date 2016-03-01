@@ -9,7 +9,7 @@ To obtain the frameworks, install Cocoapods, then run `pod install` in this dire
 
 # Building
 
-Run `./build.sh` to create the necessary test app, app.zip, .ipa, and simulator app in the
+Run `./build.sh` to create the necessary test .ipa in the
 isign test directory (which is the containing directory).
 
 ## Caveats
