@@ -2,6 +2,14 @@
 
 Project to create a very simple test app for isign's test suite.
 
+This is exactly like the isignTestApp, except that if it's working, it should 
+also display a lightning bolt on the main screen. 
+
+This app includes Github user @thii's 
+[FontAwesome_swift Framework](https://github.com/thii/FontAwesome_swift), 
+which crucially for our test, includes both a small resource (a font file) and 
+a small amount of code. 
+
 # Prerequisites
 
 This project uses frameworks from the [CocoaPods](http://cocoapods.org) system.
