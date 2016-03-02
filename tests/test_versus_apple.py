@@ -2,12 +2,14 @@ from distutils import spawn
 from isign_base_test import IsignBaseTest
 import logging
 from nose.plugins.skip import SkipTest
+import os
 from os.path import join
 import platform
 import re
 import shutil
 import subprocess
 import tempfile
+import zipfile
 
 CODESIGN_BIN = spawn.find_executable('codesign')
 
@@ -18,7 +20,8 @@ class TestVersusApple(IsignBaseTest):
     def codesign_display(self, path):
         """ inspect a path with codesign """
         cmd = [CODESIGN_BIN, '-d', '-r-', '--verbose=20', path]
-        # n.b. codesign usually prints everything to stderr
+        # n.b. codesign may print things to STDERR, or STDOUT, depending
+        # on exactly what you're extracting. I KNOW RIGHT?
         proc = subprocess.Popen(cmd,
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
@@ -62,7 +65,6 @@ class TestVersusApple(IsignBaseTest):
             props_match = props_line.match(line)
             sp_match = single_prop_line.match(line)
             array_match = array_line.match(line)
-            print line
             if text_match:
                 key = text_match.group(1)
                 val = text_match.group(2)
@@ -154,17 +156,8 @@ class TestVersusApple(IsignBaseTest):
             assert str(i) in hashes
         return hashes
 
-    def test_app(self):
-        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
-            raise SkipTest
-        app_path = tempfile.mkdtemp()
-        self.resign(self.TEST_APP, output_path=app_path)
-
-        # When we ask for codesign to analyze the app directory, it
-        # will default to showing info for the main executable
-        app_info = self.codesign_display(app_path)
-        self.assert_common_signed_properties(app_info)
-        assert 'Sealed Resources' in app_info
+    def assert_hashes_for_signable(self, info, hashes_to_check):
+        """ check that various hashes look right. """
         # Most of the hashes in the Hash section are hashes of blocks of the
         # object code in question. These all have positive subscripts.
         # But the "special" slots use negative numbers, and
@@ -177,24 +170,58 @@ class TestVersusApple(IsignBaseTest):
         # For more info, see codedirectory.h in Apple open source, e.g.
         # http://opensource.apple.com/source/libsecurity_codesigning/
         #   libsecurity_codesigning-55032/lib/codedirectory.h
-        app_hashes = self.assert_common_signed_hashes(app_info, -5, -1)
-        assert int(app_hashes['-5'], 16) != 0
-        # skip slot -4, in all the examples we've seen it's always zero
-        assert int(app_hashes['-3'], 16) != 0
-        assert int(app_hashes['-2'], 16) != 0
-        assert int(app_hashes['-1'], 16) != 0
+        assert 'Hash' in info
+        assert '_' in info['Hash']
+        hashes = info['Hash']['_']
+        for i in hashes_to_check:
+            key = str(i)
+            assert key in hashes
+            assert int(hashes[key], 16) != 0
+
+    def check_bundle(self, path):
+        """ look at info for bundles (apps and frameworks) """
+        info = self.codesign_display(path)
+        self.assert_common_signed_properties(info)
+        assert 'Sealed Resources' in info
+        self.assert_hashes_for_signable(info, [-5, -3, -2, -1])
+        # TODO subject.CN from cert?
+
+    def check_dylib(self, path):
+        info = self.codesign_display(path)
+        self.assert_common_signed_properties(info)
+        self.assert_hashes_for_signable(info, [-2, -1])
+
+    def test_app(self):
+        """ Extract a resigned app with frameworks, analyze if some expected
+            things about them are true """
+        # skip if this isn't a Mac with codesign installed
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
+
+        # resign the test app that has frameworks, extract it to a temp directory
+        working_dir = tempfile.mkdtemp()
+        resigned_ipa_path = join(working_dir, 'resigned.ipa')
+        self.resign(self.TEST_WITH_FRAMEWORKS_IPA,
+                    output_path=resigned_ipa_path)
+        old_cwd = os.getcwd()
+        os.chdir(working_dir)
+        with zipfile.ZipFile(resigned_ipa_path) as zf:
+            zf.extractall()
+
+        # expected path to app
+        # When we ask for codesign to analyze the app directory, it
+        # will default to showing info for the main executable
+        app_path = join(working_dir, 'Payload/isignTestApp.app')
+        self.check_bundle(app_path)
 
         # Now we do similar tests for a dynamic library, linked to the
         # main executable.
-        lib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
-        lib_info = self.codesign_display(lib_path)
-        self.assert_common_signed_properties(lib_info)
-        # dylibs only have -2 and -1
-        lib_hashes = self.assert_common_signed_hashes(lib_info, -2, -1)
-        assert int(lib_hashes['-2'], 16) != 0
-        assert int(lib_hashes['-1'], 16) != 0
-        assert '-3' not in lib_hashes
+        dylib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
+        self.check_dylib(dylib_path)
 
-        # TODO subject.CN from cert?
+        # Now we do similar tests for a framework
+        framework_path = join(app_path, 'Frameworks', 'FontAwesome_swift.framework')
+        self.check_bundle(framework_path)
 
-        shutil.rmtree(app_path)
+        shutil.rmtree(working_dir)
+        os.chdir(old_cwd)
