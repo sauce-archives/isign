@@ -77,20 +77,20 @@ class Bundle(object):
 
     def sign(self, signer):
         """ Sign everything in this bundle, recursively with sub-bundles """
-        log.debug("SIGNING: %s" % self.path)
+        # log.debug("SIGNING: %s" % self.path)
         frameworks_path = join(self.path, 'Frameworks')
         if exists(frameworks_path):
-            log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
+            # log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
             # sign all the frameworks
             for framework_name in os.listdir(frameworks_path):
                 framework_path = join(frameworks_path, framework_name)
-                log.debug("checking for framework: %s" % framework_path)
+                # log.debug("checking for framework: %s" % framework_path)
                 try:
                     framework = Framework(framework_path)
                 except NotMatched:
-                    log.debug("not a framework: %s" % framework_path)
+                    # log.debug("not a framework: %s" % framework_path)
                     continue
-                log.debug("resigning: %s" % framework_path)
+                # log.debug("resigning: %s" % framework_path)
                 framework.resign(signer)
             # sign all the dylibs
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
@@ -108,7 +108,7 @@ class Bundle(object):
     def resign(self, signer):
         """ signs bundle, modifies in place """
         self.sign(signer)
-        log.debug("Resigned app dir at <%s>", self.path)
+        log.debug("Resigned bundle at <%s>", self.path)
 
 
 class Framework(Bundle):
@@ -150,7 +150,7 @@ class App(Bundle):
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
-        log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
+        # log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
 
     def resign(self, signer, provisioning_profile):
         """ signs app in place """

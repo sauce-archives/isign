@@ -123,13 +123,13 @@ class ResourceBuilder(object):
         path relative to source_dir -> digest and other data
         """
         file_entries = {}
-        rule_debug_fmt = "rule: {0}, path: {1}, relative_path: {2}"
+        # rule_debug_fmt = "rule: {0}, path: {1}, relative_path: {2}"
         for root, dirs, filenames in os.walk(self.app_dir):
-            log.debug("root: {0}".format(root))
+            # log.debug("root: {0}".format(root))
             for filename in filenames:
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
-                log.debug(rule_debug_fmt.format(rule, path, relative_path))
+                # log.debug(rule_debug_fmt.format(rule, path, relative_path))
 
                 if rule.is_exclusion():
                     continue

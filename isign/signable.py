@@ -71,7 +71,7 @@ class Signable(object):
             codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
             self.f.seek(codesig_offset)
             codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
-            log.debug("codesig len: {0}".format(len(codesig_data)))
+            # log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
             log.info("signing from scratch!")
             entitlements_file = '/Users/neilk/projects/ios-apps/unsigned_entitlements.plist'
@@ -89,12 +89,12 @@ class Signable(object):
 
         new_codesig_data = arch['codesig'].build_data()
         new_codesig_len = len(new_codesig_data)
-        log.debug("new codesig len: {0}".format(new_codesig_len))
+        # log.debug("new codesig len: {0}".format(new_codesig_len))
 
         padding_length = arch['codesig_len'] - new_codesig_len
         new_codesig_data += "\x00" * padding_length
-        log.debug("padded len: {0}".format(len(new_codesig_data)))
-        log.debug("----")
+        # log.debug("padded len: {0}".format(len(new_codesig_data)))
+        # log.debug("----")
 
         cmd = arch['lc_codesig']
         cmd.data.datasize = len(new_codesig_data)
@@ -114,14 +114,14 @@ class Signable(object):
         temp.seek(0)
 
         # write new codesign blocks for each arch
-        offset_fmt = ("offset: {2}, write offset: {0}, "
-                      "new_codesig_data len: {1}")
+        # offset_fmt = ("offset: {2}, write offset: {0}, "
+        #               "new_codesig_data len: {1}")
         for arch in self.arches:
             offset, new_codesig_data = self._sign_arch(arch, app, signer)
             write_offset = arch['macho'].macho_start + offset
-            log.debug(offset_fmt.format(write_offset,
-                                        len(new_codesig_data),
-                                        offset))
+            # log.debug(offset_fmt.format(write_offset,
+            #                             len(new_codesig_data),
+            #                             offset))
             temp.seek(write_offset)
             temp.write(new_codesig_data)
 
@@ -130,7 +130,7 @@ class Signable(object):
         macho.MachoFile.build_stream(self.m, temp)
         temp.close()
 
-        log.debug("moving temporary file to {0}".format(self.path))
+        # log.debug("moving temporary file to {0}".format(self.path))
         os.rename(temp.name, self.path)
 
 
