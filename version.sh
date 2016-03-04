@@ -4,7 +4,7 @@
 # and also writes a `version.json` file into the package.
 
 set -e
-MAJMIN_VERSION="1.4"
+MAJMIN_VERSION="1.5"
 
 pushd $(dirname $0) >/dev/null
 working_dir=$PWD
