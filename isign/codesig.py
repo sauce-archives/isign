@@ -220,15 +220,15 @@ class Codesig(object):
         self.construct.bytes = superblob
 
     def resign(self, bundle, signer):
-        # this is tricky. We set entitlements only if the the bundle is an App, anyway
-        # but, for dylibs, it's optional; depends if they had an entitlements slot.
-        # in any case it doesnt matter, only some kinds of bundles do this...
+        """ Do the actual signing. Create the structre and then update all the
+            byte offsets """
+        # TODO - the hasattr is a code smell. Make entitlements dependent on
+        # isinstance(App, bundle) or signable type being Executable? May need to do
+        # visitor pattern?
         if hasattr(bundle, 'entitlements_path'):
             self.set_entitlements(bundle.entitlements_path)
         self.set_requirements(signer)
-        # this is another "semi-optional" one -- dylibs don't need this but sometimes
-        # they have it anyway. Need to work this out as a function of what kind of bundle,
-        # maybe.
+        # See docs/codedirectory.rst for some notes on optional hashes
         self.set_codedirectory(bundle.seal_path, signer)
         self.set_signature(signer)
         self.update_offsets()
