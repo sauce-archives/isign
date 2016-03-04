@@ -1,6 +1,8 @@
 #
-# Represents a file that can be signed.
-# Executable, or dylib
+# Represents a file that can be signed. A file that
+# conforms to the Mach-O ABI.
+#
+# Executable, dylib, or framework.
 #
 
 from abc import ABCMeta
@@ -11,6 +13,7 @@ from codesig import (Codesig,
                      InfoSlot)
 import logging
 import macho
+from makesig import make_signature
 import os
 import tempfile
 
@@ -68,14 +71,15 @@ class Signable(object):
             codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
             self.f.seek(codesig_offset)
             codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
-            arch['codesig_len'] = len(codesig_data)
-            log.debug("codesig len: {0}".format(len(codesig_data)))
+            # log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
-            raise Exception("signing without existing codesig is not implemented")
-            # TODO: this doesn't actually work :(
-            # see the makesig.py library, this was begun but not finished
+            log.info("signing from scratch!")
+            entitlements_file = '/Users/neilk/projects/ios-apps/unsigned_entitlements.plist'
+            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
+            arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
 
         arch['codesig'] = Codesig(self, codesig_data)
+        arch['codesig_len'] = len(codesig_data)
 
         return arch
 
@@ -85,12 +89,12 @@ class Signable(object):
 
         new_codesig_data = arch['codesig'].build_data()
         new_codesig_len = len(new_codesig_data)
-        log.debug("new codesig len: {0}".format(new_codesig_len))
+        # log.debug("new codesig len: {0}".format(new_codesig_len))
 
         padding_length = arch['codesig_len'] - new_codesig_len
         new_codesig_data += "\x00" * padding_length
-        log.debug("padded len: {0}".format(len(new_codesig_data)))
-        log.debug("----")
+        # log.debug("padded len: {0}".format(len(new_codesig_data)))
+        # log.debug("----")
 
         cmd = arch['lc_codesig']
         cmd.data.datasize = len(new_codesig_data)
@@ -110,14 +114,14 @@ class Signable(object):
         temp.seek(0)
 
         # write new codesign blocks for each arch
-        offset_fmt = ("offset: {2}, write offset: {0}, "
-                      "new_codesig_data len: {1}")
+        # offset_fmt = ("offset: {2}, write offset: {0}, "
+        #               "new_codesig_data len: {1}")
         for arch in self.arches:
             offset, new_codesig_data = self._sign_arch(arch, app, signer)
             write_offset = arch['macho'].macho_start + offset
-            log.debug(offset_fmt.format(write_offset,
-                                        len(new_codesig_data),
-                                        offset))
+            # log.debug(offset_fmt.format(write_offset,
+            #                             len(new_codesig_data),
+            #                             offset))
             temp.seek(write_offset)
             temp.write(new_codesig_data)
 
@@ -126,11 +130,12 @@ class Signable(object):
         macho.MachoFile.build_stream(self.m, temp)
         temp.close()
 
-        log.debug("moving temporary file to {0}".format(self.path))
+        # log.debug("moving temporary file to {0}".format(self.path))
         os.rename(temp.name, self.path)
 
 
 class Executable(Signable):
+    """ The main executable of an app. """
     slot_classes = [EntitlementsSlot,
                     ResourceDirSlot,
                     RequirementsSlot,
@@ -138,6 +143,16 @@ class Executable(Signable):
 
 
 class Dylib(Signable):
+    """ A dynamic library that isn't part of its own bundle, e.g.
+        the Swift libraries. """
     slot_classes = [EntitlementsSlot,
+                    RequirementsSlot,
+                    InfoSlot]
+
+
+class Framework(Signable):
+    """ The main executable of a Framework, which is a library of sorts
+        but is bundled with both files and code """
+    slot_classes = [ResourceDirSlot,
                     RequirementsSlot,
                     InfoSlot]

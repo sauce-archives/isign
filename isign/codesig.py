@@ -85,8 +85,7 @@ class Codesig(object):
         return macho_cs.Blob_.build(blob)
 
     def set_entitlements(self, entitlements_path):
-        log.debug("entitlements:")
-        entitlements_data = None
+        # log.debug("entitlements:")
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
         except KeyError:
@@ -95,19 +94,19 @@ class Codesig(object):
             # make entitlements data if slot was found
             # libraries do not have entitlements data
             # so this is actually a difference between libs and apps
-            entitlements_data = macho_cs.Blob_.build(entitlements)
-            log.debug(hashlib.sha1(entitlements_data).hexdigest())
+            # entitlements_data = macho_cs.Blob_.build(entitlements)
+            # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
             entitlements.bytes = open(entitlements_path, "rb").read()
             entitlements.length = len(entitlements.bytes) + 8
-            entitlements_data = macho_cs.Blob_.build(entitlements)
-            log.debug(hashlib.sha1(entitlements_data).hexdigest())
+            # entitlements_data = macho_cs.Blob_.build(entitlements)
+            # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
     def set_requirements(self, signer):
-        log.debug("requirements:")
+        # log.debug("requirements:")
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
-        requirements_data = macho_cs.Blob_.build(requirements)
-        log.debug(hashlib.sha1(requirements_data).hexdigest())
+        # requirements_data = macho_cs.Blob_.build(requirements)
+        # log.debug(hashlib.sha1(requirements_data).hexdigest())
 
         signer_cn = signer.get_common_name()
 
@@ -144,8 +143,8 @@ class Codesig(object):
             requirements.length = len(requirements.bytes) + 8
 
         # then rebuild the whole data, but just to show the digest...?
-        requirements_data = macho_cs.Blob_.build(requirements)
-        log.debug(hashlib.sha1(requirements_data).hexdigest())
+        # requirements_data = macho_cs.Blob_.build(requirements)
+        # log.debug(hashlib.sha1(requirements_data).hexdigest())
 
     def get_codedirectory(self):
         return self.get_blob('CSMAGIC_CODEDIRECTORY')
@@ -183,24 +182,24 @@ class Codesig(object):
         cd.data.teamID = signer.team_id
 
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
-        cd_data = macho_cs.Blob_.build(cd)
-        log.debug(len(cd_data))
+        # cd_data = macho_cs.Blob_.build(cd)
+        # log.debug(len(cd_data))
         # open("cdrip", "wb").write(cd_data)
-        log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
+        # log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
 
     def set_signature(self, signer):
         # TODO how do we even know this blobwrapper contains the signature?
         # seems like this is a coincidence of the structure, where
         # it's the only blobwrapper at that level...
-        log.debug("sig:")
+        # log.debug("sig:")
         sigwrapper = self.get_blob('CSMAGIC_BLOBWRAPPER')
-        oldsig = sigwrapper.bytes.value
+        # oldsig = sigwrapper.bytes.value
         # signer._log_parsed_asn1(sigwrapper.data.data.value)
         # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
         cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
         sig = signer.sign(cd_data)
-        log.debug("sig len: {0}".format(len(sig)))
-        log.debug("old sig len: {0}".format(len(oldsig)))
+        # log.debug("sig len: {0}".format(len(sig)))
+        # log.debug("old sig len: {0}".format(len(oldsig)))
         # open("my_sigrip.der", "wb").write(sig)
         sigwrapper.data = construct.Container(data=sig)
         # signer._log_parsed_asn1(sig)
@@ -220,10 +219,17 @@ class Codesig(object):
         self.construct.length = len(superblob) + 8
         self.construct.bytes = superblob
 
-    def resign(self, app, signer):
-        self.set_entitlements(app.entitlements_path)
+    def resign(self, bundle, signer):
+        """ Do the actual signing. Create the structre and then update all the
+            byte offsets """
+        # TODO - the hasattr is a code smell. Make entitlements dependent on
+        # isinstance(App, bundle) or signable type being Executable? May need to do
+        # visitor pattern?
+        if hasattr(bundle, 'entitlements_path'):
+            self.set_entitlements(bundle.entitlements_path)
         self.set_requirements(signer)
-        self.set_codedirectory(app.seal_path, signer)
+        # See docs/codedirectory.rst for some notes on optional hashes
+        self.set_codedirectory(bundle.seal_path, signer)
         self.set_signature(signer)
         self.update_offsets()
 

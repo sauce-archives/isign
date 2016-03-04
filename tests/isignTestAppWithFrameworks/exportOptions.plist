@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+        <key>teamID</key>
+        <string>L37S4Z6BE9</string>
+        <key>method</key>
+        <string>development</string>
+        <key>compileBitcode</key>
+        <false/>
+        <key>uploadSymbols</key>
+        <true/>
+</dict>
+</plist>

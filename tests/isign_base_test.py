@@ -17,6 +17,7 @@ class IsignBaseTest(unittest.TestCase):
                                 'Test.app.codesig.construct.txt')
     TEST_APPZIP = TEST_APP + '.zip'
     TEST_IPA = join(TEST_DIR, 'Test.ipa')
+    TEST_WITH_FRAMEWORKS_IPA = join(TEST_DIR, 'TestWithFrameworks.ipa')
     TEST_NONAPP_TXT = join(TEST_DIR, 'NotAnApp.txt')
     TEST_NONAPP_IPA = join(TEST_DIR, 'NotAnApp.ipa')
     TEST_SIMULATOR_APP = join(TEST_DIR, 'TestSimulator.app.zip')
