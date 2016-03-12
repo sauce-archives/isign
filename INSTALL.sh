@@ -156,7 +156,7 @@ mac_setup_openssl() {
         openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
         export CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
         # Some stackoverflow answers use this too? 
-        export CFLAGS=$(trim "$CFLAGS $openssl_cppflags")
+        export CFLAGS=$CPPFLAGS
     fi
 
     return 0;
