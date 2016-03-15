@@ -3,22 +3,19 @@
 set -e
 
 REQUIRED_OPENSSL_VERSION="1.0.1"
+REQUIRED_PIP_VERSION="7.0.0"
 BREW_USER="unknown"
+DEVELOP=false
+
+if [[ "$1" == 'develop' ]]; then
+    DEVELOP=true
+fi
+
 
 abort_install() {
     warn "Aborting the install. If you want to install prerequisites"
     warn "manually, see PREREQUISITES.rst."
     exit 0;
-}
-
-install_package() {
-    python setup.py install
-}
-
-setup_linux() {
-    install_package
-    apt-get install ideviceinstaller
-    apt-get install libimobiledevice-utils
 }
 
 warn() {
@@ -155,9 +152,11 @@ mac_setup_openssl() {
     # things put flags in there too.
     if is_brew_program openssl; then
         openssl_ldflags=$(brew_get_flags openssl LDFLAGS)
-        LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
+        export LDFLAGS=$(trim "$LDFLAGS $openssl_ldflags")
         openssl_cppflags=$(brew_get_flags openssl CPPFLAGS)
-        CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
+        export CPPFLAGS=$(trim "$CPPFLAGS $openssl_cppflags")
+        # Some stackoverflow answers use this too? 
+        export CFLAGS=$CPPFLAGS
     fi
 
     return 0;
@@ -220,12 +219,16 @@ mac_setup_libffi() {
     fi
     # set up some compilation library paths (we'll need it later...)
     local libffi_ldflags=$(brew_get_flags libffi LDFLAGS)
-    LDFLAGS=$(trim "$LDFLAGS $libffi_ldflags")
+    export LDFLAGS=$(trim "$LDFLAGS $libffi_ldflags")
 }
 
 mac_setup_python() {
     if exists pip; then
-        return 0;
+        pip_version=$(pip --version | awk '{ print $2 }')
+        if check_version $REQUIRED_PIP_VERSION $pip_version; then
+            warn "pip version $pip_version looks okay."
+            return 0;
+        fi
     fi
     brew_write install python
 }
@@ -237,22 +240,39 @@ mac_setup_libimobiledevice() {
     brew_write install libimobiledevice
 }
 
-setup_mac() {
+mac_setup() {
     get_ok_to_upgrade
     setup_brew
     mac_setup_openssl
     mac_setup_libffi
     mac_setup_python
     mac_setup_libimobiledevice
-    install_package
 }
+
+linux_setup() {
+    apt-get install ideviceinstaller
+    apt-get install libimobiledevice-utils
+}
+
 
 unamestr=`uname`
 if [[ "$unamestr" == 'Darwin' ]]; then
-    setup_mac
+    mac_setup
 elif [[ "$unamestr" == 'Linux' ]]; then
-    setup_linux
+    linux_setup
 else
     warn "Sorry, I don't know how to install on $unamestr.";
     exit 1;
 fi;
+
+echo "--- Flags ---"
+echo "LDFLAGS=$LDFLAGS"
+echo "CPPFLAGS=$CPPFLAGS"
+echo "CFLAGS=$CFLAGS"
+echo
+
+if [[ "$DEVELOP" == true ]]; then
+    python setup.py develop
+else
+    python setup.py install
+fi

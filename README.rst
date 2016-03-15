@@ -173,12 +173,17 @@ Contributing
 
 Development happens on `our Github repository <https://github.com/saucelabs/isign>`__. File an issue, or fork the code!
 
-Use ``git`` to clone your fork, then set yourself up for development:
+You'll probably want to create some kind of python virtualenv, so you don't have to touch your system python or its 
+libraries. `virtualenvwrapper <https://virtualenvwrapper.readthedocs.org/en/latest/>`__ is a good tool for this.
+
+Then, just do the following:
 
 .. code::
 
+  $ git clone https://github.com/saucelabs/isign.git
   $ cd isign
-  $ dev/setup.sh   # This may require sudo, depending on how you installed Python
+  $ dev/setup.sh 
+  $ ./INSTALL.sh develop 
   $ ./run_tests.sh
 
 If the tests don't pass please `file an issue <https://github.com/saucelabs/isign/issues>`__. Please keep the tests up to date as you develop.
@@ -186,6 +191,9 @@ If the tests don't pass please `file an issue <https://github.com/saucelabs/isig
 Note: some tests require Apple's
 `codesign <https://developer.apple.com/library/mac/documentation/Darwin/Reference/ManPages/man1/codesign.1.html>`__
 to run, so they are skipped unless you run them on a Macintosh computer with developer tools.
+
+Okay, if all the tests passed, you now have an 'editable' install of isign. Any edits to this repo will affect (for instance)
+how the `isign` command line tool works.
 
 Sauce Labs supports ongoing public ``isign`` development. ``isign`` is a part of our infrastructure
 for the `iOS Real Device Cloud <https://saucelabs.com/press-room/press-releases/sauce-labs-expands-mobile-test-automation-cloud-with-the-addition-of-real-devices-1>`__,
