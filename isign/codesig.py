@@ -84,6 +84,14 @@ class Codesig(object):
         blob = self.get_blob(magic)
         return macho_cs.Blob_.build(blob)
 
+    def get_entitlements(self):
+        try:
+            entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
+        except KeyError:
+            log.debug("no entitlements found")
+            # TODO: something more clever with this error
+        return self.get_blob_data(entitlements)
+
     def set_entitlements(self, entitlements_path):
         # log.debug("entitlements:")
         try:
