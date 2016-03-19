@@ -183,7 +183,6 @@ Then, just do the following:
   $ git clone https://github.com/saucelabs/isign.git
   $ cd isign
   $ dev/setup.sh 
-  $ ./INSTALL.sh develop 
   $ ./run_tests.sh
 
 If the tests don't pass please `file an issue <https://github.com/saucelabs/isign/issues>`__. Please keep the tests up to date as you develop.
