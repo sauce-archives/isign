@@ -23,7 +23,12 @@ log = logging.getLogger(__name__)
 class Signable(object):
     __metaclass__ = ABCMeta
 
+    # must be overridden by concrete classes
     slot_classes = []
+
+    # only Executables need to have entitlements.
+    # other signable types won't need them
+    needs_entitlements = False
 
     def __init__(self, path):
         log.debug("working on {0}".format(path))
@@ -36,6 +41,7 @@ class Signable(object):
 
         self.m = macho.MachoFile.parse_stream(self.f)
         self.arches = self._parse_arches()
+
 
     def _parse_arches(self):
         """ parse architectures and associated Codesig """
@@ -136,6 +142,7 @@ class Signable(object):
 
 class Executable(Signable):
     """ The main executable of an app. """
+    needs_entitlements = True
     slot_classes = [EntitlementsSlot,
                     ResourceDirSlot,
                     RequirementsSlot,

@@ -1,5 +1,8 @@
 from abc import ABCMeta
+import biplist
 import construct
+import copy
+from exceptions import NotSignable
 import hashlib
 import logging
 import macho_cs
@@ -85,30 +88,88 @@ class Codesig(object):
         return macho_cs.Blob_.build(blob)
 
     def get_entitlements(self):
+        """ returns a python object representing entitlements """
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
+            # strip off two layers of wrapping. The Entitlement object has an adapter which
+            # will ensure this is just a python object, no container
+            return entitlements.data.data
         except KeyError:
-            log.debug("no entitlements found")
-            # TODO: something more clever with this error
-        return self.get_blob_data(entitlements)
+            # NOTE: this library is focused on re-signing, but in the future, if we're
+            # signing from scratch, return {} instead.
+            raise NotSignable("expected {0} to have entitlements, found none")
 
-    def set_entitlements(self, entitlements_path):
+    def write_entitlements(self, obj):
+        """ takes python obj, creates equivalent entitlements and adds to codesig """
         # log.debug("entitlements:")
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
         except KeyError:
-            log.debug("no entitlements found")
+            raise NotSignable("expected {0} to have entitlements, found none")
         else:
             # make entitlements data if slot was found
             # libraries do not have entitlements data
             # so this is actually a difference between libs and apps
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
-
-            entitlements.bytes = open(entitlements_path, "rb").read()
+            entitlements.bytes = biplist.writePlistToString(obj, binary=False)
             entitlements.length = len(entitlements.bytes) + 8
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
+
+    def update_entitlements(self, original_entitlements, team_id):
+        """ Given python object representing entitlements, returns similar
+            object with a new team id.
+            Various elements within this must all agree on the new team id. """
+
+        # make a copy so we don't mess with the original
+        entitlements = copy.deepcopy(original_entitlements)
+
+        # Utility functions to update various data structures in the entitlements.
+        def replace_team_id_str(s):
+            """ replace team id in a namespaced string, or simple string.
+                e.g:
+                    XXXXXXXX.tld.whatever.something --> TEAMID.tld.whatever.something
+                    XXXXXXXX.* --> TEAMID.*
+                    XXXXXXXX --> TEAMID
+            """
+            # Note we aren't looking for the old team id and replacing it.
+            # We're forcing these keys to all be the same. (Sometimes customers
+            # screw up and put different strings here.)
+            components = s.split('.')
+            components[0] = team_id
+            return '.'.join(components)
+
+        def replace_team_id(key):
+            """ for corresponding key in `entitlements`, replace team id in
+                the value, whether it is a list or string """
+            if key not in entitlements:
+                log.info('key {0} was not in entitlements'.format(key))
+                return
+            val = entitlements[key]
+            if isinstance(val, basestring):
+                entitlements[key] = replace_team_id_str(val)
+            elif isinstance(val, list):
+                entitlements[key] = [replace_team_id_str(s) for s in val]
+            else:
+                log.error("did not recognize data structure: {0}".format(val))
+
+        for key in ["com.apple.developer.team-identifier",
+                    "keychain-access-groups",
+                    "application-identifier"]:
+            replace_team_id(key)
+
+        # This is necessary or it won't do anything at all. Oddly some customers
+        # give us a False value here.
+        entitlements["get-task-allow"] = True
+
+        return entitlements
+
+    def set_entitlements(self, signer):
+        """ update entitlements with the signer's team id """
+        entitlements = self.get_entitlements()
+        entitlements = self.update_entitlements(entitlements, signer.team_id)
+        self.write_entitlements(entitlements)
 
     def set_requirements(self, signer):
         # log.debug("requirements:")
@@ -147,6 +208,7 @@ class Codesig(object):
                 bi.offset += offset_delta
 
             # rebuild requirements, and set length for whole thing
+            # TODO Entitlements??! Is this just because they are both plists?!
             requirements.bytes = macho_cs.Entitlements.build(requirements.data)
             requirements.length = len(requirements.bytes) + 8
 
@@ -230,11 +292,8 @@ class Codesig(object):
     def resign(self, bundle, signer):
         """ Do the actual signing. Create the structre and then update all the
             byte offsets """
-        # TODO - the hasattr is a code smell. Make entitlements dependent on
-        # isinstance(App, bundle) or signable type being Executable? May need to do
-        # visitor pattern?
-        if hasattr(bundle, 'entitlements_path'):
-            self.set_entitlements(bundle.entitlements_path)
+        if self.signable.needs_entitlements:
+            self.set_entitlements(signer)
         self.set_requirements(signer)
         # See docs/codedirectory.rst for some notes on optional hashes
         self.set_codedirectory(bundle.seal_path, signer)
