@@ -9,4 +9,4 @@ SRC_DIR=$PWD
 popd >/dev/null
 
 pip install -U -r ${DEV_DIR}/requirements.txt
-pip install -U -e ${SRC_DIR}
+../INSTALL.sh develop
