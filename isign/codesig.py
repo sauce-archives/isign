@@ -141,11 +141,8 @@ class Codesig(object):
             return '.'.join(components)
 
         def replace_team_id(key):
-            """ for corresponding key in `entitlements`, replace team id in
-                the value, whether it is a list or string """
-            if key not in entitlements:
-                log.info('key {0} was not in entitlements'.format(key))
-                return
+            """ If corresponding key in `entitlements` exists, replace the team id.
+                Otherwise use a default value. """
             val = entitlements[key]
             if isinstance(val, basestring):
                 entitlements[key] = replace_team_id_str(val)
@@ -154,13 +151,21 @@ class Codesig(object):
             else:
                 log.error("did not recognize data structure: {0}".format(val))
 
-        for key in ["com.apple.developer.team-identifier",
-                    "keychain-access-groups",
-                    "application-identifier"]:
-            replace_team_id(key)
+        # iterate through all entitlements we care about. Stringwise replace the team
+        # id if it already has a value. Otherwise, use a default value
+        for key, default in [("com.apple.developer.team-identifier", team_id),
+                             ("keychain-access-groups", [team_id + '.*']),
+                             ("application-identifier", team_id + '.*')]:
+            if key in entitlements:
+                replace_team_id(key)
+            else:
+                entitlements[key] = default
 
-        # This is necessary or it won't do anything at all. Oddly some customers
-        # give us a False value here.
+        # The entitlement `get-task-allow` must be true for 'development' mode.
+        # It allows debuggers to attach to the process. (It is unclear to me
+        # whether that is necessary for Appium to work.)
+        # TODO: Sauce Labs requires development mode, but it's possible that
+        # others might want something different. So, make this configurable.
         entitlements["get-task-allow"] = True
 
         return entitlements
