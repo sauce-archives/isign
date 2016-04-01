@@ -1,7 +1,7 @@
 from abc import ABCMeta
 import biplist
 import construct
-import copy
+# import copy
 from exceptions import NotSignable
 import hashlib
 import logging
@@ -118,12 +118,46 @@ class Codesig(object):
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
     def update_entitlements(self, original_entitlements, team_id):
-        """ Given python object representing entitlements, returns similar
-            object with a new team id.
-            Various elements within this must all agree on the new team id. """
+        """ Update entitlements to match entitlements in provisioning profile. """
+        # TODO: Aborted design here to mutate entitlements from entitlements already
+        # in the signable. The problem is that to resign properly, the entitlements
+        # have to match what's in the provisioning profile exactly.
+        #
+        # The right design would be to figure out what entitlements the app needs,
+        # and then use whatever remote API XCode uses to make a new PP with new
+        # entitlements. OR: to have a very "maximal" set of entitlements in the
+        # provisioning profile, and hope that they work with all incoming apps.
+        #
+        # For now, we are simply using a basic list of entitlements and *assuming*
+        # they match the PP. They are, roughly:
+        #   <?xml version="1.0" encoding="UTF-8"?>
+        #   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+        #             "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        #   <plist version="1.0">
+        #   <dict>
+        #       <key>application-identifier</key>
+        #       <string>YOUR_TEAM_ID.*</string>
+        #       <key>com.apple.developer.team-identifier</key>
+        #       <string>YOUR_TEAM_ID</string>
+        #       <key>get-task-allow</key>
+        #       <true/>
+        #       <key>keychain-access-groups</key>
+        #       <array>
+        #           <string>YOUR_TEAM_ID.*</string>
+        #       </array>
+        #   </dict>
+        #   </plist>
+        #
+        # I am keeping this design as it did eliminate the need for an external
+        # entitlements file; now we can just have a python object representing
+        # entitlements.
 
-        # make a copy so we don't mess with the original
-        entitlements = copy.deepcopy(original_entitlements)
+        # XXX throwing away original entitlements, see above
+        # # make a copy so we don't mess with the original
+        # entitlements = copy.deepcopy(original_entitlements)
+
+        # XXX starting with an empty set of entitlements ensures we get the base set
+        entitlements = {}
 
         # Utility functions to update various data structures in the entitlements.
         def replace_team_id_str(s):
@@ -160,6 +194,16 @@ class Codesig(object):
                 replace_team_id(key)
             else:
                 entitlements[key] = default
+
+        # If `com.apple.security.application-groups` in entitlements, ensure that
+        # the value includes our Team ID. (Note: some customers have given apps to
+        # us that have totally wrong values, don't even have their Team ID.)
+        APP_GROUPS = "com.apple.security.application-groups"
+        if APP_GROUPS in entitlements:
+            # according to Apple's Entitlement Key References, the value must be
+            # an array, with items that start with the Team ID plus a period plus
+            # an arbitrary name.
+            entitlements[APP_GROUPS] = [team_id + '.defaultappgroup']
 
         # The entitlement `get-task-allow` must be true for 'development' mode.
         # It allows debuggers to attach to the process. (It is unclear to me
