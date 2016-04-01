@@ -18,6 +18,7 @@ import shutil
 import zipfile
 
 
+REMOVE_WATCHKIT = True
 helper_paths = {}
 log = logging.getLogger(__name__)
 
@@ -185,6 +186,37 @@ def archive_factory(path):
     raise NotSignable("No matching app format found for %s" % path)
 
 
+def process_watchkit(path, remove=False):
+    """ Unfortunately, we currently can't sign WatchKit. If you don't
+        care about watchkit functionality, It is
+        generally harmless to remove it, so that's an option """
+    # collect watchkit paths
+    watchkit_paths = []
+    warning = "Watchkit files detected at {}"
+    standard_watchkit_path = join(path, 'Watch')
+    if exists(standard_watchkit_path):
+        watchkit_paths.append(standard_watchkit_path)
+        log.warning(warning.format(standard_watchkit_path))
+    # sometimes the watchkit stuff is also in Plugins (older style?)
+    plugins_dir = join(path, 'Plugins')
+    if exists(plugins_dir):
+        for plugin_name in os.listdir(plugins_dir):
+            plugin_dir = join(plugins_dir, plugin_name)
+            if 'Watch' in plugin_dir:
+                log.warning(warning.format(plugin_dir))
+                watchkit_paths.append(plugin_dir)
+    log.info("Watchkit files: {}".format(watchkit_paths))
+    if len(watchkit_paths) > 0:
+        if remove:
+            log.warning("Cannot sign WatchKit files; removing by request...")
+            for path in watchkit_paths:
+                log.warning("Removing {}".format(path))
+                shutil.rmtree(path)
+        else:
+            raise NotSignable("Cannot yet sign WatchKit files")
+
+
+
 def resign(input_path,
            certificate,
            key,
@@ -206,6 +238,7 @@ def resign(input_path,
     try:
         archive = archive_factory(input_path)
         (temp_dir, bundle) = archive.unarchive_to_temp()
+        process_watchkit(bundle.path, remove=REMOVE_WATCHKIT)
         bundle.resign(signer, provisioning_profile)
         archive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:
