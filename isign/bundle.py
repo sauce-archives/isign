@@ -39,27 +39,14 @@ class Bundle(object):
 
     def __init__(self, path):
         self.path = path
-        is_native = self.precheck()
-        if not is_native:
+        info_path = join(self.path, 'Info.plist')
+        if not exists(info_path):
+            raise NotMatched("no Info.plist found; probably not a bundle")
+        self.info = biplist.readPlist(info_path)
+        if not is_info_plist_native(self.info):
             raise NotMatched("not a native iOS bundle")
-
         # will be added later
         self.seal_path = None
-
-        info_path = join(self.path, 'Info.plist')
-        self.info = biplist.readPlist(info_path)
-
-    def precheck(self):
-        """ Checks if a path looks like this kind of app,
-            return stuff we'll need to know about its structure """
-        is_native = False
-        plist_path = join(self.path, "Info.plist")
-        if exists(plist_path):
-            log.debug("got a plist path, {}".format(plist_path))
-            plist = biplist.readPlist(plist_path)
-            is_native = is_info_plist_native(plist)
-            log.debug("is native: {}".format(is_native))
-        return is_native
 
     def get_executable_path(self):
         """ Path to the main executable. For an app, this is app itself. For
