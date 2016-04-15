@@ -27,7 +27,9 @@ def is_info_plist_native(plist):
     """ If an bundle is for native iOS, it has these properties in the Info.plist """
     return (
         'CFBundleSupportedPlatforms' in plist and
-        'iPhoneOS' in plist['CFBundleSupportedPlatforms']
+        ('iPhoneOS' in plist['CFBundleSupportedPlatforms']
+            or
+         'WatchOS' in plist['CFBundleSupportedPlatforms'])
     )
 
 
@@ -134,26 +136,13 @@ class App(Bundle):
 
     def __init__(self, path):
         super(App, self).__init__(path)
-        self.entitlements_path = join(self.path,
-                                      'Entitlements.plist')
         self.provision_path = join(self.path,
                                    'embedded.mobileprovision')
 
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
 
-    def create_entitlements(self, team_id):
-        entitlements = {
-            "keychain-access-groups": [team_id + '.*'],
-            "com.apple.developer.team-identifier": team_id,
-            "application-identifier": team_id + '.*',
-            "get-task-allow": True
-        }
-        biplist.writePlist(entitlements, self.entitlements_path, binary=False)
-        # log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
-
     def resign(self, signer, provisioning_profile):
         """ signs app in place """
         self.provision(provisioning_profile)
-        self.create_entitlements(signer.team_id)
         super(App, self).resign(signer)

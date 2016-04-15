@@ -1,5 +1,8 @@
 from abc import ABCMeta
+import biplist
 import construct
+# import copy
+from exceptions import NotSignable
 import hashlib
 import logging
 import macho_cs
@@ -84,23 +87,138 @@ class Codesig(object):
         blob = self.get_blob(magic)
         return macho_cs.Blob_.build(blob)
 
-    def set_entitlements(self, entitlements_path):
+    def get_entitlements(self):
+        """ returns a python object representing entitlements """
+        try:
+            entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
+            # strip off two layers of wrapping. The Entitlement object has an adapter which
+            # will ensure this is just a python object, no container
+            return entitlements.data.data
+        except KeyError:
+            # NOTE: this library is focused on re-signing, but in the future, if we're
+            # signing from scratch, return {} instead.
+            raise NotSignable("expected {0} to have entitlements, found none")
+
+    def write_entitlements(self, obj):
+        """ takes python obj, creates equivalent entitlements and adds to codesig """
         # log.debug("entitlements:")
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
         except KeyError:
-            log.debug("no entitlements found")
+            raise NotSignable("expected {0} to have entitlements, found none")
         else:
             # make entitlements data if slot was found
             # libraries do not have entitlements data
             # so this is actually a difference between libs and apps
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
-
-            entitlements.bytes = open(entitlements_path, "rb").read()
+            entitlements.bytes = biplist.writePlistToString(obj, binary=False)
             entitlements.length = len(entitlements.bytes) + 8
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
+
+    def update_entitlements(self, original_entitlements, team_id):
+        """ Update entitlements to match entitlements in provisioning profile. """
+        # TODO: Aborted design here to mutate entitlements from entitlements already
+        # in the signable. The problem is that to resign properly, the entitlements
+        # have to match what's in the provisioning profile exactly.
+        #
+        # The right design would be to figure out what entitlements the app needs,
+        # and then use whatever remote API XCode uses to make a new PP with new
+        # entitlements. OR: to have a very "maximal" set of entitlements in the
+        # provisioning profile, and hope that they work with all incoming apps.
+        #
+        # For now, we are simply using a basic list of entitlements and *assuming*
+        # they match the PP. They are, roughly:
+        #   <?xml version="1.0" encoding="UTF-8"?>
+        #   <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+        #             "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        #   <plist version="1.0">
+        #   <dict>
+        #       <key>application-identifier</key>
+        #       <string>YOUR_TEAM_ID.*</string>
+        #       <key>com.apple.developer.team-identifier</key>
+        #       <string>YOUR_TEAM_ID</string>
+        #       <key>get-task-allow</key>
+        #       <true/>
+        #       <key>keychain-access-groups</key>
+        #       <array>
+        #           <string>YOUR_TEAM_ID.*</string>
+        #       </array>
+        #   </dict>
+        #   </plist>
+        #
+        # I am keeping this design as it did eliminate the need for an external
+        # entitlements file; now we can just have a python object representing
+        # entitlements.
+
+        # XXX throwing away original entitlements, see above
+        # # make a copy so we don't mess with the original
+        # entitlements = copy.deepcopy(original_entitlements)
+
+        # XXX starting with an empty set of entitlements ensures we get the base set
+        entitlements = {}
+
+        # Utility functions to update various data structures in the entitlements.
+        def replace_team_id_str(s):
+            """ replace team id in a namespaced string, or simple string.
+                e.g:
+                    XXXXXXXX.tld.whatever.something --> TEAMID.tld.whatever.something
+                    XXXXXXXX.* --> TEAMID.*
+                    XXXXXXXX --> TEAMID
+            """
+            # Note we aren't looking for the old team id and replacing it.
+            # We're forcing these keys to all be the same. (Sometimes customers
+            # screw up and put different strings here.)
+            components = s.split('.')
+            components[0] = team_id
+            return '.'.join(components)
+
+        def replace_team_id(key):
+            """ If corresponding key in `entitlements` exists, replace the team id.
+                Otherwise use a default value. """
+            val = entitlements[key]
+            if isinstance(val, basestring):
+                entitlements[key] = replace_team_id_str(val)
+            elif isinstance(val, list):
+                entitlements[key] = [replace_team_id_str(s) for s in val]
+            else:
+                log.error("did not recognize data structure: {0}".format(val))
+
+        # iterate through all entitlements we care about. Stringwise replace the team
+        # id if it already has a value. Otherwise, use a default value
+        for key, default in [("com.apple.developer.team-identifier", team_id),
+                             ("keychain-access-groups", [team_id + '.*']),
+                             ("application-identifier", team_id + '.*')]:
+            if key in entitlements:
+                replace_team_id(key)
+            else:
+                entitlements[key] = default
+
+        # If `com.apple.security.application-groups` in entitlements, ensure that
+        # the value includes our Team ID. (Note: some customers have given apps to
+        # us that have totally wrong values, don't even have their Team ID.)
+        APP_GROUPS = "com.apple.security.application-groups"
+        if APP_GROUPS in entitlements:
+            # according to Apple's Entitlement Key References, the value must be
+            # an array, with items that start with the Team ID plus a period plus
+            # an arbitrary name.
+            entitlements[APP_GROUPS] = [team_id + '.defaultappgroup']
+
+        # The entitlement `get-task-allow` must be true for 'development' mode.
+        # It allows debuggers to attach to the process. (It is unclear to me
+        # whether that is necessary for Appium to work.)
+        # TODO: Sauce Labs requires development mode, but it's possible that
+        # others might want something different. So, make this configurable.
+        entitlements["get-task-allow"] = True
+
+        return entitlements
+
+    def set_entitlements(self, signer):
+        """ update entitlements with the signer's team id """
+        entitlements = self.get_entitlements()
+        entitlements = self.update_entitlements(entitlements, signer.team_id)
+        self.write_entitlements(entitlements)
 
     def set_requirements(self, signer):
         # log.debug("requirements:")
@@ -139,6 +257,7 @@ class Codesig(object):
                 bi.offset += offset_delta
 
             # rebuild requirements, and set length for whole thing
+            # TODO Entitlements??! Is this just because they are both plists?!
             requirements.bytes = macho_cs.Entitlements.build(requirements.data)
             requirements.length = len(requirements.bytes) + 8
 
@@ -222,11 +341,8 @@ class Codesig(object):
     def resign(self, bundle, signer):
         """ Do the actual signing. Create the structre and then update all the
             byte offsets """
-        # TODO - the hasattr is a code smell. Make entitlements dependent on
-        # isinstance(App, bundle) or signable type being Executable? May need to do
-        # visitor pattern?
-        if hasattr(bundle, 'entitlements_path'):
-            self.set_entitlements(bundle.entitlements_path)
+        if self.signable.needs_entitlements:
+            self.set_entitlements(signer)
         self.set_requirements(signer)
         # See docs/codedirectory.rst for some notes on optional hashes
         self.set_codedirectory(bundle.seal_path, signer)
