@@ -93,15 +93,22 @@ class TestVersusApple(IsignBaseTest):
                     ret[self.ERROR_KEY] = []
                 ret[self.ERROR_KEY].append(line)
             if key is not None:
-                if key in ret:
-                    if not isinstance(ret[key], list):
-                        ret[key] = [ret[key]]
-                    ret[key].append(val)
-                else:
-                    ret[key] = val
-                last = ret[key]
+                if key not in ret:
+                    ret[key] = []
+                ret[key].append(val)
+                last = val
 
         return ret
+
+    def get_dict_with_key(self, x, key):
+        """ check a list for a dict that has a key """
+        # e.g. if x = [ { 'a': 1 }, { 'b': 2 }]
+        #      and key = 'a'
+        #      return 1
+        for item in x:
+            if key in item:
+                return item[key]
+        return None
 
     def assert_common_signed_properties(self, info):
         # has an executable
@@ -112,12 +119,13 @@ class TestVersusApple(IsignBaseTest):
 
         # has a codedirectory, embedded
         assert 'CodeDirectory' in info
-        assert 'location' in info['CodeDirectory']
-        assert info['CodeDirectory']['location'] == 'embedded'
+        codedirectory_info = info['CodeDirectory'][0]
+        assert codedirectory_info['location'] == 'embedded'
 
         # has a set of hashes
         assert 'Hash' in info
-        assert '_' in info['Hash']
+        hashes = self.get_dict_with_key(info['Hash'], '_')
+        assert hashes is not None
 
         # seal hash
         assert 'CDHash' in info
@@ -135,23 +143,22 @@ class TestVersusApple(IsignBaseTest):
         # assert 'Apple Root CA' in authorities
 
         assert 'Info.plist' in info
-        assert 'entries' in info['Info.plist']
+        assert self.get_dict_with_key(info['Info.plist'], 'entries') is not None
 
         assert 'TeamIdentifier' in info
         # TODO get this from an arg
-        assert info['TeamIdentifier'] == self.OU
+        assert info['TeamIdentifier'][0] == self.OU
 
         assert 'designated' in info
-        assert 'anchor apple generic' in info['designated']
+        assert 'anchor apple generic' in info['designated'][0]
 
         # should have no errors
         assert self.ERROR_KEY not in info
 
     def assert_common_signed_hashes(self, info, start_index, end_index):
-        # has a set of hashes
         assert 'Hash' in info
-        assert '_' in info['Hash']
-        hashes = info['Hash']['_']
+        hashes = self.get_dict_with_key(info['Hash'], '_')
+        assert hashes is not None
         for i in range(start_index, end_index + 1):
             assert str(i) in hashes
         return hashes
@@ -171,8 +178,8 @@ class TestVersusApple(IsignBaseTest):
         # http://opensource.apple.com/source/libsecurity_codesigning/
         #   libsecurity_codesigning-55032/lib/codedirectory.h
         assert 'Hash' in info
-        assert '_' in info['Hash']
-        hashes = info['Hash']['_']
+        hashes = self.get_dict_with_key(info['Hash'], '_')
+        assert hashes is not None
         for i in hashes_to_check:
             key = str(i)
             assert key in hashes
