@@ -4,12 +4,12 @@
     and create an archive of the same type """
 
 import biplist
-from bundle import App, is_info_plist_native
+from bundle import App, Bundle, is_info_plist_native
 from exceptions import NotSignable, NotMatched
 from distutils import spawn
 import logging
 import os
-from os.path import abspath, exists, isdir, join
+from os.path import abspath, dirname, exists, isdir, join
 import tempfile
 import re
 from subprocess import call
@@ -18,6 +18,7 @@ import shutil
 import zipfile
 
 
+REMOVE_WATCHKIT = True
 helper_paths = {}
 log = logging.getLogger(__name__)
 
@@ -185,6 +186,48 @@ def archive_factory(path):
     raise NotSignable("No matching app format found for %s" % path)
 
 
+def get_watchkit_paths(root_bundle_path):
+    """ collect sub-bundles of this bundle that have watchkit """
+    # typical structure:
+    #
+    # app_bundle
+    #   ...
+    #   some_directory
+    #     watchkit_extension   <-- this is the watchkit bundle
+    #       Info.plist
+    #       watchkit_bundle    <-- this is the part that runs on the Watch
+    #         Info.plist       <-- WKWatchKitApp=True
+    #
+    watchkit_paths = []
+    for path, _, _ in os.walk(root_bundle_path):
+        if path == root_bundle_path:
+            continue
+        try:
+            bundle = Bundle(path)
+        except NotMatched:
+            # this directory is not a bundle
+            continue
+        if bundle.info.get('WKWatchKitApp') is True:
+            # get the *containing* bundle
+            watchkit_paths.append(dirname(path))
+    return watchkit_paths
+
+
+def process_watchkit(root_bundle_path, should_remove=False):
+    """ Unfortunately, we currently can't sign WatchKit. If you don't
+        care about watchkit functionality, it is
+        generally harmless to remove it, so that's the default.
+        Remove when https://github.com/saucelabs/isign/issues/20 is fixed """
+    watchkit_paths = get_watchkit_paths(root_bundle_path)
+    if len(watchkit_paths) > 0:
+        if should_remove:
+            for path in watchkit_paths:
+                log.warning("Removing WatchKit bundle {}".format(path))
+                shutil.rmtree(path)
+        else:
+            raise NotSignable("Cannot yet sign WatchKit bundles")
+
+
 def resign(input_path,
            certificate,
            key,
@@ -206,6 +249,7 @@ def resign(input_path,
     try:
         archive = archive_factory(input_path)
         (temp_dir, bundle) = archive.unarchive_to_temp()
+        process_watchkit(bundle.path, REMOVE_WATCHKIT)
         bundle.resign(signer, provisioning_profile)
         archive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:
