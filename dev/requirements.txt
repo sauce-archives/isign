@@ -1,2 +1,3 @@
 nose
 pytest
+twine

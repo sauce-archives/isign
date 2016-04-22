@@ -7,6 +7,9 @@ package=$(echo $package_name | sed 's/-/_/g')
 popd >/dev/null
 
 version=$(./version.sh)
+
+# this communicates to setup.py to use the version 
+# number we just made, rather than generating another
 export PYTHON_PACKAGE_VERSION=${version}
 
 make_venv() {
@@ -17,20 +20,24 @@ make_venv() {
     pip install -r dev/requirements.txt
 }
 
-build_artifacts() {
+build_release() {
     python setup.py sdist
+    release=${package_name}-${version}.tar.gz
 }
 
-test_artifacts() {
-    rm -rf dist-release && mkdir -p dist-release  # nothing tested for release
+test_release() {
+    rm -rf dist-release && mkdir -p dist-release  
 
-    pip install dist/${package_name}-${version}.tar.gz
+    echo "pip install dist/$release"
+    pip install dist/$release
     echo -e "\nInstalled packages:"
     pip freeze -l
     echo
     mv $package ${package}.testing
     ./run_tests.sh
-    mv dist/${package_name}-${version}.tar.gz dist-release/
+    local success=$?
+    mv dist/$release dist-release/
+    return $success
 }
 
 # to push tags: add the repo to the "bots" team
@@ -42,7 +49,7 @@ tag_release() {
 }
 
 update_pypi() {
-    python setup.py sdist upload -r pypi
+    twine upload dist/$release
 }
 
 cleanup() {
@@ -59,8 +66,9 @@ TMPDIR=$(mktemp -d /tmp/${package_name}.XXXXXXXX)
 trap cleanup 0
 
 make_venv
-build_artifacts
-test_artifacts
-tag_release
-update_pypi
+build_release
+if [[ test_release ]]; then 
+    tag_release
+    update_pypi
+fi
 cleanup
