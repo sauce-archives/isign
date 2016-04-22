@@ -84,6 +84,20 @@ class Bundle(object):
             for dylib_path in dylib_paths:
                 dylib = signable.Dylib(dylib_path)
                 dylib.sign(self, signer)
+
+        plugins_path = join(self.path, 'Plugins')
+        if exists(plugins_path):
+            # sign the appex executables
+            appex_paths = glob.glob(join(plugins_path, '*.appex'))
+            for appex_path in appex_paths:
+                plist_path = join(appex_path, 'Info.plist')
+                if not exists(plist_path):
+                    continue
+                plist = biplist.readPlist(plist_path)
+                appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
+                appex = signable.Appex(appex_exec_path)
+                appex.sign(self, signer)
+
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
