@@ -62,7 +62,7 @@ class AppArchive(object):
 class AppZip(object):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
-    app_dir_pattern = r'^[^/]+\.app/$'
+    app_dir_pattern = r'^([^/]+\.app/).*$'
     extensions = ['.zip']
     helpers = ['zip', 'unzip']
 
@@ -104,19 +104,23 @@ class AppZip(object):
                 zipfile.is_zipfile(self.path)):
             log.debug("this is an archive, and a zipfile")
             z = zipfile.ZipFile(self.path)
-            apps = []
+            apps = set()
             file_list = z.namelist()
             for file_name in file_list:
-                if re.match(self.app_dir_pattern, file_name):
-                    apps.append(file_name)
+                matched = re.match(self.app_dir_pattern, file_name)
+                if matched:
+                    apps.add(matched.group(1))
             if len(apps) == 1:
                 log.debug("found one app")
-                relative_app_dir = apps[0]
+                relative_app_dir = apps.pop()
                 plist_path = join(relative_app_dir, "Info.plist")
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = is_info_plist_native(plist)
                 log.debug("is_native: {}".format(is_native))
+            if len(apps) > 1:
+                log.warning('more than one app found in archive')
+
         return (relative_app_dir, is_native)
 
     def unarchive_to_temp(self):
@@ -159,7 +163,7 @@ class Ipa(AppZip):
     """ IPA is Apple's standard for distributing apps. Much like an AppZip,
         but slightly different paths """
     extensions = ['.ipa']
-    app_dir_pattern = r'^Payload/[^/]+\.app/$'
+    app_dir_pattern = r'^(Payload/[^/]+\.app/).*$'
 
 
 def archive_factory(path):
