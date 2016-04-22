@@ -49,7 +49,9 @@ tag_release() {
 }
 
 update_pypi() {
-    twine upload dist/$release
+    # always succeed with upload - transient errors with pypi 
+    # should not cause red build
+    twine upload dist/$release || true
 }
 
 cleanup() {
