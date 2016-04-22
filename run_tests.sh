@@ -10,11 +10,6 @@ for app in unzip zip; do
     fi
 done
 
-# ensure version.json exists in dev
-if [[ -z $BUILD_TAG ]]; then
-    ./version.sh json | python -mjson.tool >/dev/null
-fi
-
 # run test suite
 find . -name '*.pyc' -delete
 pushd tests >/dev/null
