@@ -35,9 +35,7 @@ test_release() {
     echo
     mv $package ${package}.testing
     ./run_tests.sh
-    local success=$?
     mv dist/$release dist-release/
-    return $success
 }
 
 # to push tags: add the repo to the "bots" team
@@ -51,7 +49,7 @@ tag_release() {
 update_pypi() {
     # always succeed with upload - transient errors with pypi 
     # should not cause red build
-    twine upload dist/$release || true
+    twine upload dist-release/$release || true
 }
 
 cleanup() {
@@ -69,8 +67,7 @@ trap cleanup 0
 
 make_venv
 build_release
-if [[ test_release ]]; then 
-    tag_release
-    update_pypi
-fi
+test_release
+tag_release
+update_pypi
 cleanup
