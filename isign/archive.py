@@ -62,7 +62,7 @@ class AppArchive(object):
 class AppZip(object):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
-    app_dir_pattern = r'^([^/]+\.app/?).*$'
+    app_dir_pattern = r'^([^/]+\.app/).*$'
     extensions = ['.zip']
     helpers = ['zip', 'unzip']
 
@@ -163,7 +163,7 @@ class Ipa(AppZip):
     """ IPA is Apple's standard for distributing apps. Much like an AppZip,
         but slightly different paths """
     extensions = ['.ipa']
-    app_dir_pattern = r'^(Payload/[^/]+\.app/?).*$'
+    app_dir_pattern = r'^(Payload/[^/]+\.app/).*$'
 
 
 def archive_factory(path):
