@@ -85,7 +85,7 @@ class Bundle(object):
                 dylib = signable.Dylib(dylib_path)
                 dylib.sign(self, signer)
 
-        plugins_path = join(self.path, 'Plugins')
+        plugins_path = join(self.path, 'PlugIns')
         if exists(plugins_path):
             # sign the appex executables
             appex_paths = glob.glob(join(plugins_path, '*.appex'))
