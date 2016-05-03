@@ -1,4 +1,3 @@
-import binascii
 import copy
 import hashlib
 import logging
@@ -91,11 +90,30 @@ class PathRule(object):
 class ResourceBuilder(object):
     NULL_PATH_RULE = PathRule()
 
-    def __init__(self, app_path, rules_data, respect_omissions=False):
+    def __init__(self,
+                 app_path,
+                 rules_data,
+                 respect_omissions=False,
+                 sha256=False):
+        # TODO unify this with our concept of bundles now
         self.app_path = app_path
         self.app_dir = os.path.dirname(app_path)
-        self.rules = []
+
         self.respect_omissions = respect_omissions
+
+        # Decide which hash digests to include for each file, and what they
+        # will be called in the data structure.
+        #
+        # This is a mapping of the name the hash will have in the XML file,
+        # to the hash method to be used.
+        #
+        # Apple used to simply call the sha1 the 'hash'. Now in the files2
+        # section they also include the sha256, so they called that 'hash2'.
+        self.hash_methods = {'hash': hashlib.sha1}
+        if sha256:
+            self.hash_methods['hash2'] = hashlib.sha256
+
+        self.rules = []
         for pattern, properties in rules_data.iteritems():
             self.rules.append(PathRule(pattern, properties))
 
@@ -120,7 +138,7 @@ class ResourceBuilder(object):
     def scan(self):
         """
         Walk entire directory, compile mapping
-        path relative to source_dir -> digest and other data
+        path relative to source_dir -> hash digests and other data
         """
         file_entries = {}
         # rule_debug_fmt = "rule: {0}, path: {1}, relative_path: {2}"
@@ -131,25 +149,43 @@ class ResourceBuilder(object):
                                                                     filename)
                 # log.debug(rule_debug_fmt.format(rule, path, relative_path))
 
+                # skip this file if the rule for this path is to exclude
                 if rule.is_exclusion():
                     continue
 
+                # skip this file if the rule for this path is to omit
                 if rule.is_omitted() and self.respect_omissions is True:
                     continue
 
+                # skip this file if the path is the main application
+                # TODO reconcile with the bundle.executable idea
                 if self.app_path == path:
                     continue
 
-                # the Data element in plists is base64-encoded
-                val = {'hash': plistlib.Data(get_hash_binary(path))}
+                # Okay, we're going to make a value for this file...
+                val = {}
+
+                # Get binary hashes about this file. We expect this to contain
+                # a dictionary of hash method to binary hash digest.
+                hash_digests = get_hash_digests(path)
+
+                # Encode the hashes.
+                # We wrap the binary hashes in the plist Data type.
+                # Depending on which section, we may not use all the hashes;
+                # we only use the hashes listed in self.hash_methods.
+                for key, hash_method in self.hash_methods.iteritems():
+                    if hash_method not in hash_digests:
+                        raise Exception("Expected hash digest missing")
+                    val[key] = plistlib.Data(hash_digests[hash_method])
 
                 if rule.is_optional():
                     val['optional'] = True
 
-                if len(val) == 1 and 'hash' in val:
-                    file_entries[relative_path] = val['hash']
-                else:
-                    file_entries[relative_path] = val
+                # if there's only one, non-optional hash, unwrap it from the dict
+                if len(val) == 1 and 'optional' not in val:
+                    val = val.values()[0]
+
+                file_entries[relative_path] = val
 
             for dirname in dirs:
                 rule, path, relative_path = self.get_rule_and_paths(root,
@@ -165,6 +201,32 @@ class ResourceBuilder(object):
         return file_entries
 
 
+@memoize
+def get_hash_digests(path):
+    """ Get several hashes of a file at path, encoded as binary """
+    # Since we don't want to read in files multiple times, we get
+    # all the hash algorithms we'll want. We also memoize the data
+    # because we'll be getting these digests several times for
+    # different parts of the emitted data.
+
+    # initialize the hashers, e.g. sha1, sha256, etc
+    sha1_hasher = hashlib.sha1()
+    sha256_hasher = hashlib.sha256()
+
+    # do all the hashing of this file
+    with open(path, 'rb') as afile:
+        while True:
+            buf = afile.read(HASH_BLOCKSIZE)
+            sha1_hasher.update(buf)
+            sha256_hasher.update(buf)
+            if len(buf) == 0:
+                break
+
+    # return a dictionary of hash methods to hash digests
+    return {hashlib.sha1: sha1_hasher.digest(),
+            hashlib.sha256: sha256_hasher.digest()}
+
+
 def get_template():
     """
     Obtain the 'template' plist which also contains things like
@@ -174,24 +236,6 @@ def get_template():
     template_path = os.path.join(current_dir, TEMPLATE_FILENAME)
     fh = open(template_path, 'r')
     return plistlib.readPlist(fh)
-
-
-@memoize
-def get_hash_hex(path):
-    """ Get the hash of a file at path, encoded as hexadecimal """
-    hasher = hashlib.sha1()
-    with open(path, 'rb') as afile:
-        buf = afile.read(HASH_BLOCKSIZE)
-        while len(buf) > 0:
-            hasher.update(buf)
-            buf = afile.read(HASH_BLOCKSIZE)
-    return hasher.hexdigest()
-
-
-@memoize
-def get_hash_binary(path):
-    """ Get the hash of a file at path, encoded as binary """
-    return binascii.a2b_hex(get_hash_hex(path))
 
 
 def write_plist(target_dir, plist):
@@ -221,6 +265,6 @@ def make_seal(source_app_path, target_dir=None):
     plist = copy.deepcopy(template)
     resource_builder = ResourceBuilder(source_app_path, rules)
     plist['files'] = resource_builder.scan()
-    resource_builder2 = ResourceBuilder(source_app_path, rules, True)
+    resource_builder2 = ResourceBuilder(source_app_path, rules, True, True)
     plist['files2'] = resource_builder2.scan()
     return write_plist(target_dir, plist)
