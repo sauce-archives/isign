@@ -96,10 +96,16 @@ def make_requirements(drs):
     return reqs
 
 
-def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
+def make_basic_codesig(entitlements_file, drs, code_limit, hashes, hash_type='sha1'):
     ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
     teamID = 'fake' + '\x00'
-    empty_hash = "\x00" * 20
+    if hash_type == 'sha1':
+        hash_type_int = 1
+        hash_size = 20
+    else:
+        hash_type_int = 2
+        hash_size = 32
+    empty_hash = "\x00" * hash_size
     cd = construct.Container(cd_start=None,
                              version=0x20200,
                              flags=0,
@@ -107,8 +113,8 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                              nSpecialSlots=5,
                              nCodeSlots=len(hashes),
                              codeLimit=code_limit,
-                             hashSize=20,
-                             hashType=1,
+                             hashSize=hash_size,
+                             hashType=hash_type_int,
                              spare1=0,
                              pageSize=12,
                              spare2=0,
@@ -116,7 +122,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                              scatterOffset=0,
                              teamIDOffset=52 + len(ident),
                              teamID=teamID,
-                             hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
+                             hashOffset=52 + (hash_size * 5) + len(ident) + len(teamID),
                              hashes=([empty_hash] * 5) + hashes,
                              )
     cd_data = macho_cs.CodeDirectory.build(cd)

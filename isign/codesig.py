@@ -17,8 +17,8 @@ class CodeDirectorySlot(object):
         self.codesig = codesig
 
     def get_hash(self):
-        return hashlib.sha1(self.get_contents()).digest()
-
+        fn = getattr(hashlib, self.codesig.get_codedirectory_hash_type())
+        return fn(self.get_contents()).digest()
 
 class EntitlementsSlot(CodeDirectorySlot):
     offset = -5
@@ -37,7 +37,8 @@ class ApplicationSlot(CodeDirectorySlot):
 class ResourceDirSlot(CodeDirectorySlot):
     offset = -3
 
-    def __init__(self, seal_path):
+    def __init__(self, codesig, seal_path):
+        CodeDirectorySlot.__init__(self, codesig)
         self.seal_path = seal_path
 
     def get_contents(self):
@@ -149,6 +150,16 @@ class Codesig(object):
     def get_codedirectory(self):
         return self.get_blob('CSMAGIC_CODEDIRECTORY')
 
+    def get_codedirectory_hash_type(self):
+        # 1 = sha1, 2 = sha256
+        hash_type = self.get_codedirectory().data.hashType
+        if hash_type == 1:
+            return 'sha1'
+        elif hash_type == 2:
+            return 'sha256'
+        else:
+            raise 'Unknown hash type %d' % hash_type
+        
     def get_codedirectory_hash_index(self, slot):
         """ The slots have negative offsets, because they start from the 'top'.
             So to get the actual index, we add it to the length of the
@@ -173,7 +184,7 @@ class Codesig(object):
             self.fill_codedirectory_slot(EntitlementsSlot(self))
 
         if self.has_codedirectory_slot(ResourceDirSlot):
-            self.fill_codedirectory_slot(ResourceDirSlot(seal_path))
+            self.fill_codedirectory_slot(ResourceDirSlot(self, seal_path))
 
         if self.has_codedirectory_slot(RequirementsSlot):
             self.fill_codedirectory_slot(RequirementsSlot(self))
