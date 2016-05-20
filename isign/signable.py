@@ -10,6 +10,7 @@ from codesig import (Codesig,
                      EntitlementsSlot,
                      ResourceDirSlot,
                      RequirementsSlot,
+                     ApplicationSlot,
                      InfoSlot)
 import logging
 import macho
@@ -139,6 +140,7 @@ class Executable(Signable):
     slot_classes = [EntitlementsSlot,
                     ResourceDirSlot,
                     RequirementsSlot,
+                    ApplicationSlot,
                     InfoSlot]
 
 

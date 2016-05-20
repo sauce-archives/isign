@@ -39,10 +39,10 @@ class Bundle(object):
 
     def __init__(self, path):
         self.path = path
-        info_path = join(self.path, 'Info.plist')
-        if not exists(info_path):
+        self.info_path = join(self.path, 'Info.plist')
+        if not exists(self.info_path):
             raise NotMatched("no Info.plist found; probably not a bundle")
-        self.info = biplist.readPlist(info_path)
+        self.info = biplist.readPlist(self.info_path)
         if not is_info_plist_native(self.info):
             raise NotMatched("not a native iOS bundle")
         # will be added later
@@ -130,7 +130,7 @@ class App(Bundle):
         Contains the provisioning profile, entitlements, etc.  """
 
     # the executable in this bundle will be an Executable (i.e. the main
-    # executaable of an app)
+    # executable of an app)
     executable_class = signable.Executable
 
     def __init__(self, path):
@@ -144,10 +144,12 @@ class App(Bundle):
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self, team_id):
+        # bundle_id = self.info['CFBundleIdentifier']
+        bundle_id = '*'
         entitlements = {
-            "keychain-access-groups": [team_id + '.*'],
+            "keychain-access-groups": [team_id + '.' + bundle_id],
             "com.apple.developer.team-identifier": team_id,
-            "application-identifier": team_id + '.*',
+            "application-identifier": team_id + '.' + bundle_id,
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
@@ -157,4 +159,9 @@ class App(Bundle):
         """ signs app in place """
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
+
+        # TEST: Rewrite Info.plist
+        # self.info['MinimumOSVersion'] = '6.0'
+        # biplist.writePlist(self.info, self.info_path, binary=True)
+        
         super(App, self).resign(signer)
