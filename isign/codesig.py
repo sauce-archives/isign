@@ -30,9 +30,6 @@ class EntitlementsSlot(CodeDirectorySlot):
 class ApplicationSlot(CodeDirectorySlot):
     offset = -4
 
-    def get_contents(self):
-        return 0
-
     def get_hash(self):
         return '\x00' * 20
 
@@ -87,7 +84,7 @@ class Codesig(object):
         return macho_cs.Blob_.build(blob)
 
     def set_entitlements(self, entitlements_path):
-        log.debug("entitlements:")
+        # log.debug("entitlements:")
         try:
             entitlements = self.get_blob('CSMAGIC_ENTITLEMENT')
         except KeyError:
@@ -99,13 +96,7 @@ class Codesig(object):
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
-            entitlements_data = macho_cs.Blob_.build(entitlements)
-            print "Old entitlements:"
-            print entitlements_data
-            
             entitlements.bytes = open(entitlements_path, "rb").read()
-            print "New entitlements: "
-            print entitlements.bytes
             entitlements.length = len(entitlements.bytes) + 8
             # entitlements_data = macho_cs.Blob_.build(entitlements)
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
@@ -113,12 +104,6 @@ class Codesig(object):
     def set_requirements(self, signer):
         # log.debug("requirements:")
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
-
-        # DEBUG
-        r_data = macho_cs.Blob_.build(requirements)
-        print "Old requirements:"
-        print r_data
-        # END DEBUG
         # requirements_data = macho_cs.Blob_.build(requirements)
         # log.debug(hashlib.sha1(requirements_data).hexdigest())
 
@@ -155,9 +140,6 @@ class Codesig(object):
             # rebuild requirements, and set length for whole thing
             requirements.bytes = macho_cs.Entitlements.build(requirements.data)
             requirements.length = len(requirements.bytes) + 8
-
-            print "New requirements:"
-            print requirements.bytes
 
         # then rebuild the whole data, but just to show the digest...?
         # requirements_data = macho_cs.Blob_.build(requirements)
@@ -242,11 +224,6 @@ class Codesig(object):
     def resign(self, bundle, signer):
         """ Do the actual signing. Create the structre and then update all the
             byte offsets """
-        # TODO - the hasattr is a code smell. Make entitlements dependent on
-        # isinstance(App, bundle) or signable type being Executable? May need to do
-        # visitor pattern?
-
-        print "PATH: %s" % bundle.path
         if len(self.construct.data.BlobIndex) >= 6:
             # Might be an app signed from Xcode 7.3+ with sha256 stuff
             codedirs = []
@@ -256,28 +233,29 @@ class Codesig(object):
 
             if len(codedirs) == 2:
                 # Remove the sha256 code directory
-                print "DEBUG: Found multiple code directories, fixing!"
                 i = codedirs.pop()
                 if len(self.construct.data.BlobIndex) <= i or self.construct.data.BlobIndex[i + 1].blob.magic != 'CSMAGIC_BLOBWRAPPER':
                     # There's no following blobwrapper
-                    raise "Could not find blob wrapper!"
+                    raise Exception("Could not find blob wrapper!")
                 
                 del self.construct.data.BlobIndex[i]
                 removed = 1
                 # CSMAGIC_BLOBWRAPPER is now at index i
 
-                # Remove any previous CSMAGIC_BLOBWRAPPERs
+                # Remove any previous CSMAGIC_BLOBWRAPPERs, the last one is at the expected position
                 for j in reversed(xrange(i)):
                     if self.construct.data.BlobIndex[j].blob.magic == 'CSMAGIC_BLOBWRAPPER':
                         del self.construct.data.BlobIndex[j]
                         removed += 1
 
                 self.construct.data.count -= removed
-                print "DEBUG: Fixed, removed %d sections!" % removed
                         
             elif len(codedirs) > 2:
-                raise "Too many code directories (%d)" % len(codedirs)
-        
+                raise Exception("Too many code directories (%d)" % len(codedirs))
+
+        # TODO - the hasattr is a code smell. Make entitlements dependent on
+        # isinstance(App, bundle) or signable type being Executable? May need to do
+        # visitor pattern?
         if hasattr(bundle, 'entitlements_path'):
             self.set_entitlements(bundle.entitlements_path)
         self.set_requirements(signer)
@@ -285,19 +263,6 @@ class Codesig(object):
         self.set_codedirectory(bundle.seal_path, signer)
         self.set_signature(signer)
         self.update_offsets()
-
-
-    def get_blob(self, magic):
-        for index in self.construct.data.BlobIndex:
-            if index.blob.magic == magic:
-                return index.blob
-        raise KeyError(magic)
-
-    def get_blob_data(self, magic):
-        """ convenience method, if we just want the data """
-        blob = self.get_blob(magic)
-        return macho_cs.Blob_.build(blob)
-
         
     # TODO make this optional, in case we want to check hashes or something
     # log.debug(hashes)

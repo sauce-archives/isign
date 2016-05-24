@@ -39,10 +39,10 @@ class Bundle(object):
 
     def __init__(self, path):
         self.path = path
-        self.info_path = join(self.path, 'Info.plist')
-        if not exists(self.info_path):
+        info_path = join(self.path, 'Info.plist')
+        if not exists(info_path):
             raise NotMatched("no Info.plist found; probably not a bundle")
-        self.info = biplist.readPlist(self.info_path)
+        self.info = biplist.readPlist(info_path)
         if not is_info_plist_native(self.info):
             raise NotMatched("not a native iOS bundle")
         # will be added later
@@ -144,8 +144,7 @@ class App(Bundle):
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self, team_id):
-        # bundle_id = self.info['CFBundleIdentifier']
-        bundle_id = '*'
+        bundle_id = self.info['CFBundleIdentifier']
         entitlements = {
             "keychain-access-groups": [team_id + '.' + bundle_id],
             "com.apple.developer.team-identifier": team_id,
@@ -159,9 +158,4 @@ class App(Bundle):
         """ signs app in place """
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
-
-        # TEST: Rewrite Info.plist
-        # self.info['MinimumOSVersion'] = '6.0'
-        # biplist.writePlist(self.info, self.info_path, binary=True)
-        
         super(App, self).resign(signer)
