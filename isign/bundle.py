@@ -130,7 +130,7 @@ class App(Bundle):
         Contains the provisioning profile, entitlements, etc.  """
 
     # the executable in this bundle will be an Executable (i.e. the main
-    # executaable of an app)
+    # executable of an app)
     executable_class = signable.Executable
 
     def __init__(self, path):
@@ -144,10 +144,11 @@ class App(Bundle):
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self, team_id):
+        bundle_id = self.info['CFBundleIdentifier']
         entitlements = {
-            "keychain-access-groups": [team_id + '.*'],
+            "keychain-access-groups": [team_id + '.' + bundle_id],
             "com.apple.developer.team-identifier": team_id,
-            "application-identifier": team_id + '.*',
+            "application-identifier": team_id + '.' + bundle_id,
             "get-task-allow": True
         }
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
