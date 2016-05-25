@@ -234,7 +234,7 @@ class Codesig(object):
             if len(codedirs) == 2:
                 # Remove the sha256 code directory
                 i = codedirs.pop()
-                if len(self.construct.data.BlobIndex) <= i or self.construct.data.BlobIndex[i + 1].blob.magic != 'CSMAGIC_BLOBWRAPPER':
+                if len(self.construct.data.BlobIndex) <= i + 1 or self.construct.data.BlobIndex[i + 1].blob.magic != 'CSMAGIC_BLOBWRAPPER':
                     # There's no following blobwrapper
                     raise Exception("Could not find blob wrapper!")
                 
