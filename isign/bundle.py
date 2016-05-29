@@ -30,6 +30,15 @@ def is_info_plist_native(plist):
         'iPhoneOS' in plist['CFBundleSupportedPlatforms']
     )
 
+def is_app_Executable(application):
+    def is_exe(fpath):
+        return os.path.isfile(fpath) and os.access(fpath, os.X_OK)
+
+    fpath, fname = os.path.split(application)
+    if fpath:
+        if is_exe(application):
+            return application
+    return None
 
 class Bundle(object):
     """ A bundle is a standard directory structure, a signable, installable set of files.
@@ -64,20 +73,25 @@ class Bundle(object):
 
     def sign(self, signer):
         """ Sign everything in this bundle, recursively with sub-bundles """
-        # log.debug("SIGNING: %s" % self.path)
+        #log.info("SIGNING: %s" % self.path)
+
+        # """ Making the main executable file (executable) """
+        # os.chmod(self.get_executable_path(), 0711)
+        # log.info("executable file %s" % self.get_executable_path())
+
         frameworks_path = join(self.path, 'Frameworks')
         if exists(frameworks_path):
-            # log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
+            log.info("SIGNING FRAMEWORKS: %s" % frameworks_path)
             # sign all the frameworks
             for framework_name in os.listdir(frameworks_path):
                 framework_path = join(frameworks_path, framework_name)
                 # log.debug("checking for framework: %s" % framework_path)
                 try:
                     framework = Framework(framework_path)
-                    # log.debug("resigning: %s" % framework_path)
+                    log.info("resigning: %s" % framework_path)
                     framework.resign(signer)
                 except NotMatched:
-                    # log.debug("not a framework: %s" % framework_path)
+                    log.info("not a framework: %s" % framework_path)
                     continue
             # sign all the dylibs
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
@@ -98,6 +112,14 @@ class Bundle(object):
                 appex = signable.Appex(appex_exec_path)
                 appex.sign(self, signer)
 
+        # sign all tweak's dylibs
+        dylib_paths1 = glob.glob(join(self.path, '*.dylib'))
+        for dylib_path1 in dylib_paths1:
+            if exists(dylib_path1):
+                log.info("Dylib file %s" % dylib_path1)
+                dylib = signable.Dylib(dylib_path1)
+                dylib.sign(self, signer)
+
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
@@ -105,6 +127,13 @@ class Bundle(object):
         # then sign the app
         executable = self.executable_class(self.get_executable_path())
         executable.sign(self, signer)
+
+        """ Making the main executable file (executable) """
+        if not is_app_Executable(self.get_executable_path()):
+            log.info("[1] not executable file %s" % self.get_executable_path())
+            os.chmod(self.get_executable_path(), 0711)
+            if is_app_Executable(self.get_executable_path()):
+                log.info("[2] became executable file %s" % self.get_executable_path())
 
     def resign(self, signer):
         """ signs bundle, modifies in place """
