@@ -237,7 +237,8 @@ def resign(input_path,
            key,
            apple_cert,
            provisioning_profile,
-           output_path):
+           output_path,
+           info_props=None):
     """ Unified interface to extract any kind of archive from
         a temporary file, resign it with these credentials,
         and create a similar archive for that resigned app """
@@ -253,6 +254,9 @@ def resign(input_path,
     try:
         archive = archive_factory(input_path)
         (temp_dir, bundle) = archive.unarchive_to_temp()
+        if info_props:
+            # Override info.plist props of the parent bundle
+            bundle.update_info_props(info_props)
         process_watchkit(bundle.path, REMOVE_WATCHKIT)
         bundle.resign(signer, provisioning_profile)
         archive.__class__.archive(temp_dir, output_path)

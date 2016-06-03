@@ -12,6 +12,7 @@
 import biplist
 import code_resources
 from exceptions import NotMatched
+import copy
 import glob
 import logging
 import os
@@ -35,14 +36,15 @@ class Bundle(object):
     """ A bundle is a standard directory structure, a signable, installable set of files.
         Apps are Bundles, but so are some kinds of Frameworks (libraries) """
     helpers = []
-    executable_class = None
+    signable_class = None
 
     def __init__(self, path):
         self.path = path
-        info_path = join(self.path, 'Info.plist')
-        if not exists(info_path):
+        self.info_path = join(self.path, 'Info.plist')
+        if not exists(self.info_path):
             raise NotMatched("no Info.plist found; probably not a bundle")
-        self.info = biplist.readPlist(info_path)
+        self.info = biplist.readPlist(self.info_path)
+        self.orig_info = None
         if not is_info_plist_native(self.info):
             raise NotMatched("not a native iOS bundle")
         # will be added later
@@ -61,6 +63,50 @@ class Bundle(object):
             raise Exception(
                 'could not find executable for {0}'.format(self.path))
         return executable
+
+    def update_info_props(self, new_props):
+        if self.orig_info is None:
+            self.orig_info = copy.deepcopy(self.info)
+
+        changed = False
+        if 'CFBundleIdentifier' in new_props and 'CFBundleURLTypes' in self.info and 'CFBundleURLTypes' not in new_props:
+            # The bundle identifier changed. Check CFBundleURLTypes for CFBundleURLName values matching the old bundle
+            # id if it's not being set explicitly
+            old_bundle_id = self.info['CFBundleIdentifier']
+            new_bundle_id = new_props['CFBundleIdentifier']
+            for url_type in self.info['CFBundleURLTypes']:
+                if 'CFBundleURLName' not in url_type:
+                    continue
+                if url_type['CFBundleURLName'] == old_bundle_id:
+                    url_type['CFBundleURLName'] = new_bundle_id
+                    changed = True
+
+        for key, val in new_props.iteritems():
+            is_new_key = key not in self.info
+            if is_new_key or self.info[key] != val:
+                if is_new_key:
+                    log.warn("Adding new Info.plist key: {}".format(key))
+                self.info[key] = val
+                changed = True
+
+        if changed:
+            biplist.writePlist(self.info, self.info_path, binary=True)
+        else:
+            self.orig_info = None
+
+    def info_props_changed(self):
+        return self.orig_info != None
+
+    def info_prop_changed(self, key):
+        if not self.orig_info:
+            # No props have been changed
+            return False
+        if key in self.info and key in self.orig_info and self.info[key] == self.orig_info[key]:
+            return False
+        return True
+
+    def get_info_prop(self, key):
+        return self.info[key]
 
     def sign(self, signer):
         """ Sign everything in this bundle, recursively with sub-bundles """
@@ -82,7 +128,7 @@ class Bundle(object):
             # sign all the dylibs
             dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
             for dylib_path in dylib_paths:
-                dylib = signable.Dylib(dylib_path)
+                dylib = signable.Dylib(self, dylib_path)
                 dylib.sign(self, signer)
 
         plugins_path = join(self.path, 'PlugIns')
@@ -95,7 +141,7 @@ class Bundle(object):
                     continue
                 plist = biplist.readPlist(plist_path)
                 appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
-                appex = signable.Appex(appex_exec_path)
+                appex = signable.Appex(self, appex_exec_path)
                 appex.sign(self, signer)
 
         # then create the seal
@@ -103,7 +149,7 @@ class Bundle(object):
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
                                                   self.path)
         # then sign the app
-        executable = self.executable_class(self.get_executable_path())
+        executable = self.signable_class(self, self.get_executable_path())
         executable.sign(self, signer)
 
     def resign(self, signer):
@@ -119,11 +165,10 @@ class Framework(Bundle):
         own provisioning profile. """
 
     # the executable in this bundle will be a Framework
-    executable_class = signable.Framework
+    signable_class = signable.Framework
 
     def __init__(self, path):
         super(Framework, self).__init__(path)
-
 
 class App(Bundle):
     """ The kind of bundle that is visible as an app to the user.
@@ -131,7 +176,7 @@ class App(Bundle):
 
     # the executable in this bundle will be an Executable (i.e. the main
     # executable of an app)
-    executable_class = signable.Executable
+    signable_class = signable.Executable
 
     def __init__(self, path):
         super(App, self).__init__(path)

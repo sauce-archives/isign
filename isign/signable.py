@@ -20,14 +20,14 @@ import tempfile
 
 log = logging.getLogger(__name__)
 
-
 class Signable(object):
     __metaclass__ = ABCMeta
 
     slot_classes = []
 
-    def __init__(self, path):
+    def __init__(self, bundle, path):
         log.debug("working on {0}".format(path))
+        self.bundle = bundle
         self.path = path
 
         self.f = open(self.path, "rb")
@@ -104,8 +104,28 @@ class Signable(object):
         offset = cmd.data.dataoff
         return offset, new_codesig_data
 
-    def should_fill_slot(self, slot):
-        return slot.__class__ in self.slot_classes
+    def should_fill_slot(self, codesig, slot):
+        slot_class = slot.__class__
+        if slot_class not in self.slot_classes:
+            # This signable does not have this slot
+            return False
+
+        if slot_class == InfoSlot and not self.bundle.info_props_changed():
+            # No Info.plist changes, don't fill
+            return False
+
+        if slot_class == ApplicationSlot and not codesig.is_sha256_signature():
+            # Application slot only needs to be zeroed out when there's a sha256 layer
+            return False
+
+        return True
+
+    def get_changed_bundle_id(self):
+        # Return a bundle ID to assign if Info.plist's CFBundleIdentifier value was changed
+        if self.bundle.info_prop_changed('CFBundleIdentifier'):
+            return self.bundle.get_info_prop('CFBundleIdentifier')
+        else:
+            return None
 
     def sign(self, app, signer):
         # copy self.f into temp, reset to beginning of file
@@ -143,13 +163,16 @@ class Executable(Signable):
                     ApplicationSlot,
                     InfoSlot]
 
-
 class Dylib(Signable):
     """ A dynamic library that isn't part of its own bundle, e.g.
-        the Swift libraries. """
+        the Swift libraries.
+
+        TODO: Dylibs have an info slot, however the Info.plist is embedded in the __TEXT section
+              of the file (__info_plist) instead of being a seperate file.
+              Add read/write of the embedded Info.plist so we can include InfoSlot below.
+    """
     slot_classes = [EntitlementsSlot,
-                    RequirementsSlot,
-                    InfoSlot]
+                    RequirementsSlot]
 
 class Appex(Signable):
     """ An app extension  """
