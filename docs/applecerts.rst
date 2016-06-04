@@ -10,7 +10,7 @@ doesn't involve an Apple machine. This worked for us in May 2015:
 .. code:: bash
 
         $ curl 'https://www.apple.com/appleca/AppleIncRootCertificate.cer' > AppleIncRootCertificate.cer
-        $ curl 'http://developer.apple.com/certificationauthority/AppleWWDRCA.cer' > AppleWWDRCA.cer
+        $ curl 'https://developer.apple.com/certificationauthority/AppleWWDRCA.cer' > AppleWWDRCA.cer
         $ openssl x509 -inform der -in AppleIncRootCertificate.cer -outform pem -out AppleIncRootCertificate.pem
         $ openssl x509 -inform der -in AppleWWDRCA.cer -outform pem -out AppleWWDRCA.pem
         $ cat AppleWWDRCA.pem AppleIncRootCertificate.pem > applecerts.pem
