@@ -83,7 +83,13 @@ def parse_args():
         required=False,
         help='Set logging level to debug.'
     )
-
+    parser.add_argument(
+        '-i', '--info',
+        dest='info_props',
+        required=False,
+        metavar='<Info.plist properties>',
+        help='List of comma-delimited key=value pairs of Info.plist properties to override'
+    )
     return parser.parse_args()
 
 
@@ -109,5 +115,16 @@ if __name__ == '__main__':
     for k, v in vars(args).iteritems():
         if k in resign_args and v is not None:
             kwargs[k] = v
+
+    # Convert the Info.plist property pairs to a dict format
+    if args.info_props:
+        info_props = {}
+        for arg in args.info_props.split(','):
+            i = arg.find('=')
+            if i < 0:
+                raise Exception('Invalid Info.plist argument: ' + arg)
+            info_props[arg[0:i]] = arg[i + 1:]
+        if info_props:
+            kwargs['info_props'] = info_props
 
     isign.resign(args.app_paths[0], **kwargs)
