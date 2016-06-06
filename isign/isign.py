@@ -51,3 +51,10 @@ def resign(input_path,
         # re-raise the exception without exposing internal
         # details of how it happened
         raise NotSignable(e)
+
+def view(input_path):
+    try:
+        return archive.view(input_path)
+    except exceptions.NotSignable as e:
+        raise NotSignable(e)
+    
