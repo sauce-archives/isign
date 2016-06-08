@@ -90,8 +90,15 @@ def parse_args():
         metavar='<Info.plist properties>',
         help='List of comma-delimited key=value pairs of Info.plist properties to override'
     )
+    parser.add_argument(
+        '-d', '--display',
+        dest='display_only',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Display information about the app without resigning'
+    )
     return parser.parse_args()
-
 
 if __name__ == '__main__':
     args = parse_args()
@@ -102,29 +109,34 @@ if __name__ == '__main__':
         level = logging.INFO
     log_to_stderr(level)
 
-    # Filter out args that don't matter to the
-    # resign call, like verbosity or help
-    resign_args = ['certificate',
-                   'key',
-                   'apple_cert',
-                   'provisioning_profile',
-                   'output_path']
-    kwargs = {}
-    # we want the unused command line args to be
-    # missing in kwargs, so the defaults are used
-    for k, v in vars(args).iteritems():
-        if k in resign_args and v is not None:
-            kwargs[k] = v
+    if args.display_only:
+        import json
+        bundle_info = isign.view(args.app_paths[0])
+        print json.dumps(bundle_info, indent=4, separators=(',', ': '))
+    else:
+        # Filter out args that don't matter to the
+        # resign call, like verbosity or help
+        resign_args = ['certificate',
+                       'key',
+                       'apple_cert',
+                       'provisioning_profile',
+                       'output_path']
+        kwargs = {}
+        # we want the unused command line args to be
+        # missing in kwargs, so the defaults are used
+        for k, v in vars(args).iteritems():
+            if k in resign_args and v is not None:
+                kwargs[k] = v
 
-    # Convert the Info.plist property pairs to a dict format
-    if args.info_props:
-        info_props = {}
-        for arg in args.info_props.split(','):
-            i = arg.find('=')
-            if i < 0:
-                raise Exception('Invalid Info.plist argument: ' + arg)
-            info_props[arg[0:i]] = arg[i + 1:]
-        if info_props:
-            kwargs['info_props'] = info_props
+        # Convert the Info.plist property pairs to a dict format
+        if args.info_props:
+            info_props = {}
+            for arg in args.info_props.split(','):
+                i = arg.find('=')
+                if i < 0:
+                    raise Exception('Invalid Info.plist argument: ' + arg)
+                info_props[arg[0:i]] = arg[i + 1:]
+            if info_props:
+                kwargs['info_props'] = info_props
 
-    isign.resign(args.app_paths[0], **kwargs)
+        isign.resign(args.app_paths[0], **kwargs)

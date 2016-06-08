@@ -231,6 +231,22 @@ def process_watchkit(root_bundle_path, should_remove=False):
         else:
             raise NotSignable("Cannot yet sign WatchKit bundles")
 
+def view(input_path):
+    if not exists(input_path):
+        raise IOError("{0} not found".format(input_path))
+    temp_dir = None
+    bundle_info = None
+    try:
+        archive = archive_factory(input_path)
+        (temp_dir, bundle) = archive.unarchive_to_temp()
+        bundle_info = bundle.info
+    except NotSignable as e:
+        log.info("Could not read: <{0}>: {1}\n".format(input_path, e))
+        raise
+    finally:
+        if temp_dir is not None and isdir(temp_dir):
+            shutil.rmtree(temp_dir)
+    return bundle_info
 
 def resign(input_path,
            certificate,
@@ -251,6 +267,7 @@ def resign(input_path,
                     apple_cert_file=apple_cert)
 
     temp_dir = None
+    bundle_info = None
     try:
         archive = archive_factory(input_path)
         (temp_dir, bundle) = archive.unarchive_to_temp()
@@ -259,6 +276,7 @@ def resign(input_path,
             bundle.update_info_props(info_props)
         process_watchkit(bundle.path, REMOVE_WATCHKIT)
         bundle.resign(signer, provisioning_profile)
+        bundle_info = bundle.info
         archive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
@@ -267,3 +285,4 @@ def resign(input_path,
     finally:
         if temp_dir is not None and isdir(temp_dir):
             shutil.rmtree(temp_dir)
+    return bundle_info
