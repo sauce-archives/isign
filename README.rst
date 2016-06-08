@@ -129,6 +129,7 @@ isign command line arguments
 ----------------------------
 
 .. code::
+
   # Resigning by specifying all credentials, input file, and output file
   $ isign -c /path/to/mycert.pem -k ~/mykey.pem -p path/to/my.mobileprovision \
           -o resigned.ipa original.ipa
