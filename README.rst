@@ -128,16 +128,19 @@ You can also call it from Python:
 isign command line arguments
 ----------------------------
 
-Synopsis:
-
 .. code::
+  # Resigning by specifying all credentials, input file, and output file
+  $ isign -c /path/to/mycert.pem -k ~/mykey.pem -p path/to/my.mobileprovision \
+          -o resigned.ipa original.ipa
 
-    isign [-h] [-a <path to applecerts.pem>] 
-               [-c <path to your cert in .pem form>]
-               [-k <path to your key in .pem form>] 
-               [-p <your.mobileprovision>] 
-               [-o <output path>]
-               <path to app to resign>
+  # Resigning, with credentials under default filenames in ~/.isign - less to type!
+  $ isign -o resigned.ipa original.ipa
+
+  # Modify Info.plist properties in resigned app
+  $ isign -i CFBundleIdentifier=com.example.myapp,CFBundleName=MyApp -o resigned.ipa original.ipa
+
+  # Get help
+  $ isign -h
 
 **-a <path>, --apple-cert <path>**
 
@@ -151,6 +154,13 @@ Path to your certificate in PEM format. Defaults to ``$HOME/.isign/certificate.p
 **-h, --help**
 
 Show a help message and exit.
+
+**-i, --info**
+
+While resigning, add or update info in the application's information property list (Info.plist). 
+Takes a comma-separated list of key=value pairs, such as 
+``CFBundleIdentifier=com.example.app,CFBundleName=ExampleApp``. Use with caution!
+See Apple documentation for `valid Info.plist keys <https://developer.apple.com/library/ios/documentation/General/Reference/InfoPlistKeyReference/Introduction/Introduction.html>`_.
 
 **-k <path>, --key <path>**
 
