@@ -140,6 +140,9 @@ isign command line arguments
   # Modify Info.plist properties in resigned app
   $ isign -i CFBundleIdentifier=com.example.myapp,CFBundleName=MyApp -o resigned.ipa original.ipa
 
+  # Display Info.plist properties from an app as JSON
+  $ isign -d my.ipa
+
   # Get help
   $ isign -h
 
@@ -151,6 +154,10 @@ never need it. In the event that the certificates need to be changed, See the `A
 **-c <path>, --certificate <path>**
 
 Path to your certificate in PEM format. Defaults to ``$HOME/.isign/certificate.pem``.
+
+**-d, --display**
+
+For the application path, display the information property list (Info.plist) as JSON.
 
 **-h, --help**
 
@@ -165,7 +172,7 @@ See Apple documentation for `valid Info.plist keys <https://developer.apple.com/
 
 **-k <path>, --key <path>**
 
-Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pwm``.
+Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pem``.
 
 **-o <path>, --output <path>**
 
@@ -175,6 +182,12 @@ Path to write the re-signed application. Defaults to ``out`` in your current wor
 
 Path to your provisioning profile. This should be associated with your certificate. Defaults to 
 ``$HOME/.isign/isign.mobileprovision``.
+
+**Application path**
+
+The app to be resigned is specified on the command line after other arguments. The application path is 
+typically an IPA, but can also be a ``.app`` directory or even a zipped ``.app`` directory. When
+resigning, ``isign`` will always create an archive of the same type as the original.
 
 
 .. _Contributing:
