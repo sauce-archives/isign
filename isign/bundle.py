@@ -111,6 +111,12 @@ class Bundle(object):
     def get_info_prop(self, key):
         return self.info[key]
 
+    def sign_dylibs(self, signer, path):
+        """ Sign all the dylibs in this directory """
+        for dylib_path in glob.glob(join(path, '*.dylib')):
+            dylib = signable.Dylib(self, dylib_path)
+            dylib.sign(self, signer)
+
     def sign(self, signer):
         """ Sign everything in this bundle, recursively with sub-bundles """
         # log.debug("SIGNING: %s" % self.path)
@@ -128,11 +134,11 @@ class Bundle(object):
                 except NotMatched:
                     # log.debug("not a framework: %s" % framework_path)
                     continue
-            # sign all the dylibs
-            dylib_paths = glob.glob(join(frameworks_path, '*.dylib'))
-            for dylib_path in dylib_paths:
-                dylib = signable.Dylib(self, dylib_path)
-                dylib.sign(self, signer)
+            # sign all the dylibs under Frameworks
+            self.sign_dylibs(signer, frameworks_path)
+
+        # sign any dylibs in the main directory (rare, but it happens)
+        self.sign_dylibs(signer, self.path)
 
         plugins_path = join(self.path, 'PlugIns')
         if exists(plugins_path):
