@@ -231,6 +231,7 @@ def process_watchkit(root_bundle_path, should_remove=False):
         else:
             raise NotSignable("Cannot yet sign WatchKit bundles")
 
+
 def view(input_path):
     if not exists(input_path):
         raise IOError("{0} not found".format(input_path))
@@ -247,6 +248,7 @@ def view(input_path):
         if temp_dir is not None and isdir(temp_dir):
             shutil.rmtree(temp_dir)
     return bundle_info
+
 
 def resign(input_path,
            certificate,

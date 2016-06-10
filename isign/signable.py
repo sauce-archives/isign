@@ -20,6 +20,7 @@ import tempfile
 
 log = logging.getLogger(__name__)
 
+
 class Signable(object):
     __metaclass__ = ABCMeta
 
@@ -163,6 +164,7 @@ class Executable(Signable):
                     ApplicationSlot,
                     InfoSlot]
 
+
 class Dylib(Signable):
     """ A dynamic library that isn't part of its own bundle, e.g.
         the Swift libraries.
@@ -173,6 +175,7 @@ class Dylib(Signable):
     """
     slot_classes = [EntitlementsSlot,
                     RequirementsSlot]
+
 
 class Appex(Signable):
     """ An app extension  """

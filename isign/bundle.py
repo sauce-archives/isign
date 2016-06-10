@@ -69,8 +69,11 @@ class Bundle(object):
             self.orig_info = copy.deepcopy(self.info)
 
         changed = False
-        if 'CFBundleIdentifier' in new_props and 'CFBundleURLTypes' in self.info and 'CFBundleURLTypes' not in new_props:
-            # The bundle identifier changed. Check CFBundleURLTypes for CFBundleURLName values matching the old bundle
+        if ('CFBundleIdentifier' in new_props and
+                'CFBundleURLTypes' in self.info and
+                'CFBundleURLTypes' not in new_props):
+            # The bundle identifier changed. Check CFBundleURLTypes for
+            # CFBundleURLName values matching the old bundle
             # id if it's not being set explicitly
             old_bundle_id = self.info['CFBundleIdentifier']
             new_bundle_id = new_props['CFBundleIdentifier']
@@ -95,7 +98,7 @@ class Bundle(object):
             self.orig_info = None
 
     def info_props_changed(self):
-        return self.orig_info != None
+        return self.orig_info is not None
 
     def info_prop_changed(self, key):
         if not self.orig_info:
@@ -169,6 +172,7 @@ class Framework(Bundle):
 
     def __init__(self, path):
         super(Framework, self).__init__(path)
+
 
 class App(Bundle):
     """ The kind of bundle that is visible as an app to the user.
