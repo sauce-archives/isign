@@ -158,6 +158,7 @@ class Signable(object):
         # log.debug("moving temporary file to {0}".format(self.path))
         os.rename(temp.name, self.path)
 
+
 class Executable(Signable):
     """ The main executable of an app. """
     slot_classes = [EntitlementsSlot,
