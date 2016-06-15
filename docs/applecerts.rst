@@ -5,12 +5,12 @@ You probably don't need to change this file, not for a long time.
 
 The ``applecerts.pem`` file can be constructed by these steps. In theory
 you can export them from Keychain Access, too, but here's a procedure that
-doesn't involve an Apple machine. This worked for us in May 2015:
+doesn't involve an Apple machine. This worked for us in June 2016:
 
 .. code:: bash
 
         $ curl 'https://www.apple.com/appleca/AppleIncRootCertificate.cer' > AppleIncRootCertificate.cer
-        $ curl 'http://developer.apple.com/certificationauthority/AppleWWDRCA.cer' > AppleWWDRCA.cer
+        $ curl 'https://developer.apple.com/certificationauthority/AppleWWDRCA.cer' > AppleWWDRCA.cer
         $ openssl x509 -inform der -in AppleIncRootCertificate.cer -outform pem -out AppleIncRootCertificate.pem
         $ openssl x509 -inform der -in AppleWWDRCA.cer -outform pem -out AppleWWDRCA.pem
         $ cat AppleWWDRCA.pem AppleIncRootCertificate.pem > applecerts.pem
