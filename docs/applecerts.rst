@@ -5,7 +5,7 @@ You probably don't need to change this file, not for a long time.
 
 The ``applecerts.pem`` file can be constructed by these steps. In theory
 you can export them from Keychain Access, too, but here's a procedure that
-doesn't involve an Apple machine. This worked for us in May 2015:
+doesn't involve an Apple machine. This worked for us in June 2016:
 
 .. code:: bash
 
