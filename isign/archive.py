@@ -150,7 +150,7 @@ class AppZip(object):
             temp_zip_dir = tempfile.mkdtemp(prefix="isign-zip-")
             temp_zip_file = join(temp_zip_dir, 'temp.zip')
             call([get_helper('zip'), "-qr", temp_zip_file, "."])
-            shutil.move(temp_zip_file, output_path)
+            shutil.move(temp_zip_file, join(old_cwd, output_path))
             log.info("archived %s to %s" % (cls.__name__, output_path))
         finally:
             if temp_zip_dir is not None and isdir(temp_zip_dir):
