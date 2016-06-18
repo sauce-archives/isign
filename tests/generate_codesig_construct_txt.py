@@ -22,7 +22,7 @@ log_to_stderr(logging.DEBUG)
 log = logging.getLogger(__name__)
 log.debug("generating a signature parse for an app")
 app = isign.archive.AppArchive(IsignBaseTest.TEST_APP)
-executable = Executable(app.get_executable_path())
+executable = Executable(app.executable_path)
 arch = executable.arches[0]
 codesig_str = str(arch['cmds']['LC_CODE_SIGNATURE'])
 print codesig_str

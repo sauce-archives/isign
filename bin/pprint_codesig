@@ -40,7 +40,7 @@ def print_codesig(path):
 
 
 def _print_codesig(bundle):
-    executable = Executable(bundle.get_executable_path())
+    executable = Executable(bundle.executable_path)
     for arch in executable.arches:
         print arch['cmds']['LC_CODE_SIGNATURE']
 

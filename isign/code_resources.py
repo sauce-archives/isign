@@ -8,8 +8,6 @@ import plistlib
 from plistlib import PlistWriter
 import re
 
-OUTPUT_DIRECTORY = '_CodeSignature'
-OUTPUT_FILENAME = 'CodeResources'
 TEMPLATE_FILENAME = 'code_resources_template.xml'
 # DIGEST_ALGORITHM = "sha1"
 HASH_BLOCKSIZE = 65536
@@ -91,9 +89,8 @@ class PathRule(object):
 class ResourceBuilder(object):
     NULL_PATH_RULE = PathRule()
 
-    def __init__(self, app_path, rules_data, respect_omissions=False):
-        self.app_path = app_path
-        self.app_dir = os.path.dirname(app_path)
+    def __init__(self, bundle, rules_data, respect_omissions=False):
+        self.bundle = bundle
         self.rules = []
         self.respect_omissions = respect_omissions
         for pattern, properties in rules_data.iteritems():
@@ -113,7 +110,7 @@ class ResourceBuilder(object):
 
     def get_rule_and_paths(self, root, path):
         path = os.path.join(root, path)
-        relative_path = os.path.relpath(path, self.app_dir)
+        relative_path = os.path.relpath(path, self.bundle.path)
         rule = self.find_rule(relative_path)
         return (rule, path, relative_path)
 
@@ -124,7 +121,10 @@ class ResourceBuilder(object):
         """
         file_entries = {}
         # rule_debug_fmt = "rule: {0}, path: {1}, relative_path: {2}"
-        for root, dirs, filenames in os.walk(self.app_dir):
+        relative_output_file = os.path.relpath(self.bundle.seal_path, self.bundle.path)
+        relative_output_dir = os.path.dirname(relative_output_file)
+
+        for root, dirs, filenames in os.walk(self.bundle.path):
             # log.debug("root: {0}".format(root))
             for filename in filenames:
                 rule, path, relative_path = self.get_rule_and_paths(root,
@@ -137,7 +137,7 @@ class ResourceBuilder(object):
                 if rule.is_omitted() and self.respect_omissions is True:
                     continue
 
-                if self.app_path == path:
+                if self.bundle.executable_path == path:
                     continue
 
                 # the Data element in plists is base64-encoded
@@ -151,16 +151,16 @@ class ResourceBuilder(object):
                 else:
                     file_entries[relative_path] = val
 
-            for dirname in dirs:
+            for directory in dirs:
                 rule, path, relative_path = self.get_rule_and_paths(root,
-                                                                    dirname)
+                                                                    directory)
 
                 if rule.is_nested() and '.' not in path:
-                    dirs.remove(dirname)
+                    dirs.remove(directory)
                     continue
 
-                if relative_path == OUTPUT_DIRECTORY:
-                    dirs.remove(dirname)
+                if relative_path == relative_output_dir:
+                    dirs.remove(directory)
 
         return file_entries
 
@@ -194,33 +194,28 @@ def get_hash_binary(path):
     return binascii.a2b_hex(get_hash_hex(path))
 
 
-def write_plist(target_dir, plist):
+def write_plist(seal_path, plist):
     """ Write the CodeResources file """
-    output_dir = os.path.join(target_dir, OUTPUT_DIRECTORY)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    output_path = os.path.join(output_dir, OUTPUT_FILENAME)
-    fh = open(output_path, 'w')
+    seal_dir = os.path.dirname(seal_path)
+    if not os.path.exists(seal_dir):
+        os.makedirs(seal_dir)
+    fh = open(seal_path, 'w')
     plistlib.writePlist(plist, fh)
-    return output_path
 
 
-def make_seal(source_app_path, target_dir=None):
+def make_seal(bundle):
     """
-    Given a source app, create a CodeResources file for the
-    surrounding directory, and write it into the appropriate path in a target
-    directory
+    Given a bundle, create a CodeResources file in the appropriate seal_path
+    as specified by the bundle.
     """
-    if target_dir is None:
-        target_dir = os.path.dirname(source_app_path)
     template = get_template()
     # n.b. code_resources_template not only contains a template of
     # what the file should look like; it contains default rules
     # deciding which files should be part of the seal
     rules = template['rules2']
     plist = copy.deepcopy(template)
-    resource_builder = ResourceBuilder(source_app_path, rules)
+    resource_builder = ResourceBuilder(bundle, rules)
     plist['files'] = resource_builder.scan()
-    resource_builder2 = ResourceBuilder(source_app_path, rules, True)
+    resource_builder2 = ResourceBuilder(bundle, rules, True)
     plist['files2'] = resource_builder2.scan()
-    return write_plist(target_dir, plist)
+    write_plist(bundle.seal_path, plist)

@@ -47,10 +47,10 @@ class Bundle(object):
         self.orig_info = None
         if not is_info_plist_native(self.info):
             raise NotMatched("not a native iOS bundle")
-        # will be added later
-        self.seal_path = None
+        self.executable_path = self._get_executable_path()
+        self.seal_path = join(self.path, '_CodeSignature', 'CodeResources')
 
-    def get_executable_path(self):
+    def _get_executable_path(self):
         """ Path to the main executable. For an app, this is app itself. For
             a Framework, this is the main framework """
         executable_name = None
@@ -58,11 +58,11 @@ class Bundle(object):
             executable_name = self.info['CFBundleExecutable']
         else:
             executable_name, _ = splitext(basename(self.path))
-        executable = join(self.path, executable_name)
-        if not exists(executable):
+        executable_path = join(self.path, executable_name)
+        if not exists(executable_path):
             raise Exception(
                 'could not find executable for {0}'.format(self.path))
-        return executable
+        return executable_path
 
     def update_info_props(self, new_props):
         if self.orig_info is None:
@@ -153,12 +153,9 @@ class Bundle(object):
                 appex = signable.Appex(self, appex_exec_path)
                 appex.sign(self, signer)
 
-        # then create the seal
-        # TODO maybe the app should know what its seal path should be...
-        self.seal_path = code_resources.make_seal(self.get_executable_path(),
-                                                  self.path)
+        code_resources.make_seal(self)
         # then sign the app
-        executable = self.signable_class(self, self.get_executable_path())
+        executable = self.signable_class(self, self.executable_path)
         executable.sign(self, signer)
 
     def resign(self, signer):

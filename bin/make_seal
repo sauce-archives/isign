@@ -2,6 +2,7 @@
 
 from optparse import OptionParser
 import isign.code_resources
+from isign.bundle import Bundle
 import logging
 
 FORMATTER = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -19,5 +20,5 @@ if __name__ == '__main__':
     log_to_stderr()
     parser = OptionParser()
     options, args = parser.parse_args()
-    source_app, target_dir = args
-    isign.code_resources.make_seal(source_app, target_dir)
+    bundle = Bundle(args[0])
+    isign.code_resources.make_seal(bundle)
