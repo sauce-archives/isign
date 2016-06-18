@@ -113,13 +113,19 @@ class Bundle(object):
 
     def sign_dylibs(self, signer, path):
         """ Sign all the dylibs in this directory """
+        modified_paths = []
         for dylib_path in glob.glob(join(path, '*.dylib')):
             dylib = signable.Dylib(self, dylib_path)
             dylib.sign(self, signer)
+            modified_paths.append(dylib.path)
+        return modified_paths
 
     def sign(self, signer):
-        """ Sign everything in this bundle, recursively with sub-bundles """
+        """ Sign everything in this bundle, recursively with sub-bundles.
+            Record the paths signed in modified_paths and return them """
         # log.debug("SIGNING: %s" % self.path)
+        modified_paths = []
+
         frameworks_path = join(self.path, 'Frameworks')
         if exists(frameworks_path):
             # log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
@@ -130,15 +136,15 @@ class Bundle(object):
                 try:
                     framework = Framework(framework_path)
                     # log.debug("resigning: %s" % framework_path)
-                    framework.resign(signer)
+                    modified_paths += framework.resign(signer)
                 except NotMatched:
                     # log.debug("not a framework: %s" % framework_path)
                     continue
             # sign all the dylibs under Frameworks
-            self.sign_dylibs(signer, frameworks_path)
+            modified_paths += self.sign_dylibs(signer, frameworks_path)
 
         # sign any dylibs in the main directory (rare, but it happens)
-        self.sign_dylibs(signer, self.path)
+        modified_paths += self.sign_dylibs(signer, self.path)
 
         plugins_path = join(self.path, 'PlugIns')
         if exists(plugins_path):
@@ -152,22 +158,24 @@ class Bundle(object):
                 appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
                 appex = signable.Appex(self, appex_exec_path)
                 appex.sign(self, signer)
+                modified_paths.append(appex.path)
 
-        code_resources.make_seal(self)
+        code_resources.make_seal(self, modified_paths)
+        modified_paths.append(self.seal_path)
         # then sign the main executable
         if self.executable_path is not None:
             executable = self.signable_class(self, self.executable_path)
             executable.sign(self, signer)
+            modified_paths.append(self.executable_path)
 
-        code_resources.make_seal(self)
-        # then sign the app
-        executable = self.signable_class(self, self.executable_path)
-        executable.sign(self, signer)
+        return modified_paths
 
     def resign(self, signer):
         """ signs bundle, modifies in place """
-        self.sign(signer)
+        modified_paths = self.sign(signer)
         log.debug("Resigned bundle at <%s>", self.path)
+        log.info("modified_paths: {}".format(', '.join(modified_paths)))
+        return modified_paths
 
 
 class Framework(Bundle):

@@ -204,7 +204,7 @@ def write_plist(seal_path, plist):
     plistlib.writePlist(plist, fh)
 
 
-def make_seal(bundle):
+def make_seal(bundle, modified_paths):
     """
     Given a bundle, create a CodeResources file in the appropriate seal_path
     as specified by the bundle.
