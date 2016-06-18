@@ -52,7 +52,8 @@ class Bundle(object):
 
     def _get_executable_path(self):
         """ Path to the main executable. For an app, this is app itself. For
-            a Framework, this is the main framework """
+            a Framework, this is the main framework. Not all bundles have
+            executables; some are just data. """
         executable_name = None
         if 'CFBundleExecutable' in self.info:
             executable_name = self.info['CFBundleExecutable']
@@ -60,8 +61,7 @@ class Bundle(object):
             executable_name, _ = splitext(basename(self.path))
         executable_path = join(self.path, executable_name)
         if not exists(executable_path):
-            raise Exception(
-                'could not find executable for {0}'.format(self.path))
+            executable_path = None
         return executable_path
 
     def update_info_props(self, new_props):
@@ -152,6 +152,12 @@ class Bundle(object):
                 appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
                 appex = signable.Appex(self, appex_exec_path)
                 appex.sign(self, signer)
+
+        code_resources.make_seal(self)
+        # then sign the main executable
+        if self.executable_path is not None:
+            executable = self.signable_class(self, self.executable_path)
+            executable.sign(self, signer)
 
         code_resources.make_seal(self)
         # then sign the app

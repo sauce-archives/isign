@@ -137,8 +137,9 @@ class ResourceBuilder(object):
                 if rule.is_omitted() and self.respect_omissions is True:
                     continue
 
-                if self.bundle.executable_path == path:
-                    continue
+                if self.bundle.executable_path is not None:
+                    if self.bundle.executable_path == path:
+                        continue
 
                 # the Data element in plists is base64-encoded
                 val = {'hash': plistlib.Data(get_hash_binary(path))}
