@@ -277,7 +277,10 @@ def resign(input_path,
             # Override info.plist props of the parent bundle
             bundle.update_info_props(info_props)
         process_watchkit(bundle.path, REMOVE_WATCHKIT)
-        bundle.resign(signer, provisioning_profile)
+        modified_paths = bundle.resign(signer, provisioning_profile)
+        log.info("modified paths:")
+        for p in modified_paths:
+            log.info("  " + p)
         bundle_info = bundle.info
         archive.__class__.archive(temp_dir, output_path)
     except NotSignable as e:

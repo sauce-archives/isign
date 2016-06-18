@@ -114,7 +114,7 @@ class ResourceBuilder(object):
         rule = self.find_rule(relative_path)
         return (rule, path, relative_path)
 
-    def scan(self):
+    def scan(self, modified_paths):
         """
         Walk entire directory, compile mapping
         path relative to source_dir -> digest and other data
@@ -130,6 +130,10 @@ class ResourceBuilder(object):
                 rule, path, relative_path = self.get_rule_and_paths(root,
                                                                     filename)
                 # log.debug(rule_debug_fmt.format(rule, path, relative_path))
+                if path in modified_paths:
+                    log.info("{} was modified!".format(path))
+                else:
+                    continue
 
                 if rule.is_exclusion():
                     continue
@@ -216,7 +220,7 @@ def make_seal(bundle, modified_paths):
     rules = template['rules2']
     plist = copy.deepcopy(template)
     resource_builder = ResourceBuilder(bundle, rules)
-    plist['files'] = resource_builder.scan()
+    plist['files'] = resource_builder.scan(modified_paths)
     resource_builder2 = ResourceBuilder(bundle, rules, True)
-    plist['files2'] = resource_builder2.scan()
+    plist['files2'] = resource_builder2.scan(modified_paths)
     write_plist(bundle.seal_path, plist)

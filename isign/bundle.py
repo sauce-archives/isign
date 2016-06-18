@@ -174,7 +174,6 @@ class Bundle(object):
         """ signs bundle, modifies in place """
         modified_paths = self.sign(signer)
         log.debug("Resigned bundle at <%s>", self.path)
-        log.info("modified_paths: {}".format(', '.join(modified_paths)))
         return modified_paths
 
 
@@ -224,4 +223,4 @@ class App(Bundle):
         """ signs app in place """
         self.provision(provisioning_profile)
         self.create_entitlements(signer.team_id)
-        super(App, self).resign(signer)
+        return super(App, self).resign(signer)
