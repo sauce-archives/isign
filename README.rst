@@ -183,6 +183,10 @@ Path to write the re-signed application. Defaults to ``out`` in your current wor
 Path to your provisioning profile. This should be associated with your certificate. Defaults to 
 ``$HOME/.isign/isign.mobileprovision``.
 
+**-v, --verbose**
+
+More verbose logs will be printed to STDERR.
+
 **Application path**
 
 The app to be resigned is specified on the command line after other arguments. The application path is 
