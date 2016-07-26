@@ -12,6 +12,8 @@ done
 
 # run test suite
 find . -name '*.pyc' -delete
+pushd tests >/dev/null
 version=$(python -c "import $package; print ${package}.__version__")
 echo "Testing $name v${version}"
 nosetests
+popd >/dev/null
