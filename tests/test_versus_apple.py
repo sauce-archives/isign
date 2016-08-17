@@ -185,6 +185,11 @@ class TestVersusApple(IsignBaseTest):
             assert key in hashes
             assert int(hashes[key], 16) != 0
 
+    def assert_matching_identifier(self, app_path, expected):
+        info = self.codesign_display(app_path)
+        identifier = info['Identifier'][0]
+        assert identifier == expected
+
     def check_bundle(self, path):
         """ look at info for bundles (apps and frameworks) """
         info = self.codesign_display(path)
@@ -198,6 +203,53 @@ class TestVersusApple(IsignBaseTest):
         self.assert_common_signed_properties(info)
         self.assert_hashes_for_signable(info, [-2, -1])
 
+    def test_override_identifier(self):
+        """ Resign an app with identifiers of varying lengths, test that
+            they were signed correctly with the new identifier  """
+        # skip if this isn't a Mac with codesign installed
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
+
+        old_cwd = os.getcwd()
+        
+        info = self.codesign_display(self.TEST_APP)
+        original_id = info['Identifier'][0]
+
+        # Make sure our original ID is long enough to test shorter bundle ids
+        assert len(original_id) >= 6
+        
+        alphabet = 'abcdefghijklmnopqrstuvwxyz'
+        while len(alphabet) <= len(original_id):
+            alphabet += alphabet
+
+        # Test with a shorter bundle ID
+        short_id = alphabet[0:len(original_id) / 2 + 1]
+        working_dir = tempfile.mkdtemp()
+        os.chdir(working_dir)
+        resigned_app_path = join(working_dir, 'Short.app')
+        self.resign(self.TEST_APP,
+                    output_path=resigned_app_path,
+                    info_props={
+                        'CFBundleIdentifier': short_id
+                    })
+        self.assert_matching_identifier(resigned_app_path, short_id)
+        shutil.rmtree(working_dir)
+
+        # Test with a longer bundle ID
+        long_id = alphabet[0:len(original_id) + 1]
+        working_dir = tempfile.mkdtemp()
+        os.chdir(working_dir)
+        resigned_app_path = join(working_dir, 'Long.app')
+        self.resign(self.TEST_APP,
+                    output_path=resigned_app_path,
+                    info_props={
+                        'CFBundleIdentifier': long_id
+                    })
+        self.assert_matching_identifier(resigned_app_path, long_id)
+        shutil.rmtree(working_dir)
+        
+        os.chdir(old_cwd)
+        
     def test_app(self):
         """ Extract a resigned app with frameworks, analyze if some expected
             things about them are true """

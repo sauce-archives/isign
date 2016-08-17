@@ -198,9 +198,15 @@ class Codesig(object):
 
         cd = self.get_codedirectory()
         cd.data.teamID = signer.team_id
-        if self.signable.get_changed_bundle_id():
-            cd.data.ident = self.signable.get_changed_bundle_id()
-
+        
+        changed_bundle_id = self.signable.get_changed_bundle_id()
+        if changed_bundle_id:
+            offset_change = len(changed_bundle_id) - len(cd.data.ident)
+            cd.data.ident = changed_bundle_id
+            cd.data.hashOffset += offset_change
+            cd.data.teamIDOffset += offset_change
+            cd.length += offset_change
+            
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
         # cd_data = macho_cs.Blob_.build(cd)
         # log.debug(len(cd_data))
