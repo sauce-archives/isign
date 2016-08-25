@@ -204,7 +204,10 @@ class Codesig(object):
             offset_change = len(changed_bundle_id) - len(cd.data.ident)
             cd.data.ident = changed_bundle_id
             cd.data.hashOffset += offset_change
-            cd.data.teamIDOffset += offset_change
+            if cd.data.teamIDOffset == None:
+                cd.data.teamIDOffset = offset_change
+            else:
+                cd.data.teamIDOffset += offset_change
             cd.length += offset_change
             
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
