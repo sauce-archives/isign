@@ -18,6 +18,7 @@ import logging
 import os
 from os.path import basename, exists, join, splitext
 import signable
+import signer
 import shutil
 
 
@@ -198,19 +199,25 @@ class App(Bundle):
     def provision(self, provision_path):
         shutil.copyfile(provision_path, self.provision_path)
 
-    def create_entitlements(self, team_id):
-        bundle_id = self.info['CFBundleIdentifier']
-        entitlements = {
-            "keychain-access-groups": [team_id + '.' + bundle_id],
-            "com.apple.developer.team-identifier": team_id,
-            "application-identifier": team_id + '.' + bundle_id,
-            "get-task-allow": True
-        }
-        biplist.writePlist(entitlements, self.entitlements_path, binary=False)
-        # log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
+    def extract_entitlements(self, provision_path):
+        cmd = [
+            "smime",
+            "-inform", "der",
+            "-verify",
+            "-in", provision_path
+        ]
+
+        profile_text = signer.openssl_command(cmd, None)
+        plist_dict = biplist.readPlistFromString(profile_text)
+
+        if "Entitlements" in plist_dict:
+          biplist.writePlist(plist_dict["Entitlements"], self.entitlements_path, binary=False)
+          log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
+        else:
+          log.debug("failed to write entitlements")
 
     def resign(self, signer, provisioning_profile):
         """ signs app in place """
         self.provision(provisioning_profile)
-        self.create_entitlements(signer.team_id)
+        self.extract_entitlements(provisioning_profile)
         super(App, self).resign(signer)
