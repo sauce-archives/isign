@@ -211,10 +211,10 @@ class App(Bundle):
         plist_dict = biplist.readPlistFromString(profile_text)
 
         if "Entitlements" in plist_dict:
-          biplist.writePlist(plist_dict["Entitlements"], self.entitlements_path, binary=False)
-          log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
+            biplist.writePlist(plist_dict["Entitlements"], self.entitlements_path, binary=False)
+            log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
         else:
-          log.debug("failed to write entitlements")
+            log.debug("failed to write entitlements")
 
     def resign(self, signer, provisioning_profile):
         """ signs app in place """
