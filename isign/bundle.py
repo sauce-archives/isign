@@ -204,6 +204,7 @@ class App(Bundle):
             "smime",
             "-inform", "der",
             "-verify",
+            "-noverify",
             "-in", provision_path
         ]
 
