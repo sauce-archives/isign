@@ -22,9 +22,11 @@ MINIMUM_OPENSSL_VERSION = '1.0.1'
 log = logging.getLogger(__name__)
 
 
-def openssl_command(args, data=None):
-    """ given array of args, and optionally data to write,
-        return results of openssl command """
+def openssl_command(args, data=None, expect_err=False):
+    """ Given array of args, and optionally data to write,
+        return results of openssl command.
+        Some commands always write something to stderr, so allow
+        for that with the expect_err param. """
     cmd = [OPENSSL] + args
     cmd_str = ' '.join(cmd)
     # log.debug('running command ' + cmd_str)
@@ -35,12 +37,19 @@ def openssl_command(args, data=None):
     if data is not None:
         proc.stdin.write(data)
     out, err = proc.communicate()
-    if err is not None and err != '':
-        log.error("Command `{0}` returned error:\n{1}".format(cmd_str, err))
+
+    if not expect_err:
+        if err is not None and err != '':
+            log.error("Command `{0}` returned error:\n{1}".format(cmd_str, err))
+
     if proc.returncode != 0:
         msg = "openssl command `{0}` failed, see log for error".format(cmd_str)
         raise Exception(msg)
-    return out
+
+    if expect_err:
+        return (out, err)
+    else:
+        return out
 
 
 def get_installed_openssl_version():
