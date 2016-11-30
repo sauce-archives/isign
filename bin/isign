@@ -100,11 +100,11 @@ def parse_args():
     )
     parser.add_argument(
         '-e', '--entitlements',
-        dest='entitlements_file',
+        dest='alternate_entitlements_path',
         required=False,
-        metavar='<entitlements path>',
+        metavar='<alternate entitlements path>',
         type=absolute_path_argument,
-        help='Path to alternate entitlements file'
+        help='Sign with these entitlements, rather than ones extracted from provisioning profile'
     )
     return parser.parse_args()
 
@@ -128,7 +128,8 @@ if __name__ == '__main__':
                        'key',
                        'apple_cert',
                        'provisioning_profile',
-                       'output_path']
+                       'output_path',
+                       'alternate_entitlements_path']
         kwargs = {}
         # we want the unused command line args to be
         # missing in kwargs, so the defaults are used
