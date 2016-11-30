@@ -14,7 +14,7 @@ from codesig import (Codesig,
                      InfoSlot)
 import logging
 import macho
-from makesig import make_signature
+# from makesig import make_signature
 import os
 import tempfile
 
@@ -75,10 +75,11 @@ class Signable(object):
             codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
             # log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
-            log.info("signing from scratch!")
-            entitlements_file = '/Users/neilk/projects/ios-apps/unsigned_entitlements.plist'
-            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
-            arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
+            raise Exception('At this time, isign cannot sign an unsigned app.')
+            # log.info("signing from scratch!")
+            # entitlements_file = '/path/to/some/entitlements.plist'
+            # codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
+            # arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
 
         arch['codesig'] = Codesig(self, codesig_data)
         arch['codesig_len'] = len(codesig_data)

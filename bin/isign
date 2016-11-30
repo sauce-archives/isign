@@ -98,6 +98,14 @@ def parse_args():
         required=False,
         help='Display information about the app without resigning'
     )
+    parser.add_argument(
+        '-e', '--entitlements',
+        dest='entitlements_file',
+        required=False,
+        metavar='<entitlements path>',
+        type=absolute_path_argument,
+        help='Path to alternate entitlements file'
+    )
     return parser.parse_args()
 
 if __name__ == '__main__':
