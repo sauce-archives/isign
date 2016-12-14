@@ -7,6 +7,9 @@
 # tool, and make sure it's the right version.
 
 from distutils import spawn
+from exceptions import (ImproperCredentials,
+                        MissingCredentials,
+                        OpenSslFailure)
 import logging
 from OpenSSL import crypto
 import os
@@ -44,7 +47,7 @@ def openssl_command(args, data=None, expect_err=False):
 
     if proc.returncode != 0:
         msg = "openssl command `{0}` failed, see log for error".format(cmd_str)
-        raise Exception(msg)
+        raise OpenSslFailure(msg)
 
     if expect_err:
         return (out, err)
@@ -90,14 +93,14 @@ class Signer(object):
             if not os.path.exists(filename):
                 msg = "Can't find {0}".format(filename)
                 log.warn(msg)
-                raise Exception(msg)
+                raise MissingCredentials(msg)
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
         team_id = self._get_team_id()
         if team_id is None:
-            raise Exception("Cert file does not contain Subject line"
-                            "with Apple Organizational Unit (OU)")
+            raise ImproperCredentials("Cert file does not contain Subject line"
+                                      "with Apple Organizational Unit (OU)")
         self.team_id = team_id
         self.check_openssl_version()
 
@@ -124,8 +127,8 @@ class Signer(object):
         if len(signature) < 128:
             too_small_msg = "Command `{0}` returned success, but signature "
             "seems too small ({1} bytes)"
-            raise Exception(too_small_msg.format(' '.join(cmd),
-                                                 len(signature)))
+            raise OpenSslFailure(too_small_msg.format(' '.join(cmd),
+                                                      len(signature)))
         return signature
 
     def get_common_name(self):
