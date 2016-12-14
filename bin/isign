@@ -26,7 +26,8 @@ def parse_args():
     # defaults in isign.resign will be used
     parser = argparse.ArgumentParser(
         description='Resign an iOS application with a new identity '
-                    'and provisioning profile.')
+                    'and provisioning profile. See documentation for '
+                    'how to obtain properly formatted credentials.')
     parser.add_argument(
         '-p', '--provisioning-profile',
         dest='provisioning_profile',
@@ -41,7 +42,9 @@ def parse_args():
         required=False,
         metavar='<apple cert>',
         type=absolute_path_argument,
-        help='Path to Apple certificate in .pem form'
+        help='Path to Apple certificate in PEM form. You only need to specify '
+             'this if the Apple certificate in the isign package is out of '
+             'date.'
     )
     parser.add_argument(
         '-k', '--key',
@@ -49,7 +52,7 @@ def parse_args():
         required=False,
         metavar='<key path>',
         type=absolute_path_argument,
-        help='Path to your organization\'s key in .p12 format'
+        help='Path to your organization\'s key in PEM format.'
     )
     parser.add_argument(
         '-c', '--certificate',
@@ -57,7 +60,17 @@ def parse_args():
         required=False,
         metavar='<certificate path>',
         type=absolute_path_argument,
-        help='Path to your organization\'s certificate in .pem form'
+        help='Path to your organization\'s certificate in PEM format'
+    )
+    parser.add_argument(
+        '-n', '--credentials',
+        dest='credentials_dir',
+        required=False,
+        metavar='<directory>',
+        help='Equivalent to '
+             '-k <directory>/key.pem '
+             '-c <directory>/certificate.pem '
+             '-p <directory>/isign.mobileprovision'
     )
     parser.add_argument(
         '-o', '--output',
@@ -100,6 +113,18 @@ def parse_args():
     )
     return parser.parse_args()
 
+
+def filter_args(args, interested):
+    """ Filter all args to args that we are interested in """
+    # We want the unused command line args to be
+    # missing in kwargs, so the defaults are used
+    kwargs = {}
+    for k, v in vars(args).iteritems():
+        if k in interested and v is not None:
+            kwargs[k] = v
+    return kwargs
+
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -110,23 +135,18 @@ if __name__ == '__main__':
     log_to_stderr(level)
 
     if args.display_only:
+        # Only show information
         import json
         bundle_info = isign.view(args.app_paths[0])
         print json.dumps(bundle_info, indent=4, separators=(',', ': '))
+
     else:
-        # Filter out args that don't matter to the
-        # resign call, like verbosity or help
-        resign_args = ['certificate',
-                       'key',
-                       'apple_cert',
-                       'provisioning_profile',
-                       'output_path']
+        # Handle the various kinds of resign operations
         kwargs = {}
-        # we want the unused command line args to be
-        # missing in kwargs, so the defaults are used
-        for k, v in vars(args).iteritems():
-            if k in resign_args and v is not None:
-                kwargs[k] = v
+
+        # There's only one output path, so it doesn't make sense
+        # to have multiple input paths
+        app_path = args.app_paths[0]
 
         # Convert the Info.plist property pairs to a dict format
         if args.info_props:
@@ -139,4 +159,32 @@ if __name__ == '__main__':
             if info_props:
                 kwargs['info_props'] = info_props
 
-        isign.resign(args.app_paths[0], **kwargs)
+        if args.credentials_dir:
+            # Handle a resign with credentials directory.
+            # First check they haven't over-specified credential paths
+            incompatible_args = ['certificate', 'key', 'provisioning_profile']
+            args_dict = vars(args)
+            for k, v in vars(args).iteritems():
+                if k in incompatible_args and v is not None:
+                    raise Exception("Incompatible arguments. Do not use any of " +
+                                    ", ".join(['--' + s for s in incompatible_args]) + " "
+                                    "with the --credentials argument.")
+            # looks good, now massage args into method arguments
+            resign_args = ['apple_cert',
+                           'output_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign_with_creds_dir(app_path,
+                                        args.credentials_dir,
+                                        **kwargs)
+        else:
+            # Handle standard resign. User may have specified all, some
+            # or none of the credential files, in which case we rely on
+            # isign.resign() to supply defaults.
+            # Massage args into method arguments
+            resign_args = ['certificate',
+                           'key',
+                           'apple_cert',
+                           'provisioning_profile',
+                           'output_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign(app_path, **kwargs)

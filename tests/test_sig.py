@@ -12,7 +12,7 @@ class TestSigner(IsignBaseTest):
             signer = isign.signer.Signer(
                 signer_key_file=self.KEY,
                 signer_cert_file=self.CERTIFICATE,
-                apple_cert_file=isign.isign.APPLE_CERT_PATH)
+                apple_cert_file=isign.isign.DEFAULT_APPLE_CERT_PATH)
             isign.signer.OPENSSL = join(self.TEST_DIR, "bad_openssl")
             with self.assertRaises(Exception):
                 signer.sign("some data")
