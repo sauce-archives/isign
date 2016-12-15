@@ -259,6 +259,11 @@ def resign(input_path,
     if not exists(input_path):
         raise IOError("{0} not found".format(input_path))
 
+    log.debug('Signing with apple_cert: {}'.format(apple_cert))
+    log.debug('Signing with key: {}'.format(key))
+    log.debug('Signing with certificate: {}'.format(certificate))
+    log.debug('Signing with provisioning_profile: {}'.format(provisioning_profile))
+
     signer = Signer(signer_cert_file=certificate,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)

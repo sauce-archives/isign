@@ -174,6 +174,16 @@ See Apple documentation for `valid Info.plist keys <https://developer.apple.com/
 
 Path to your private key in PEM format. Defaults to ``$HOME/.isign/key.pem``.
 
+**-n <directory>, --credentials <directory>**
+
+Equivalent to:
+
+.. code::
+
+   -k <directory>/key.pem 
+   -c <directory>/certificate.pem 
+   -p <directory>/isign.mobileprovision
+
 **-o <path>, --output <path>**
 
 Path to write the re-signed application. Defaults to ``out`` in your current working directory.
