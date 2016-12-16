@@ -5,11 +5,11 @@
 
 import biplist
 from bundle import App, Bundle, is_info_plist_native
-from exceptions import NotSignable, NotMatched
+from exceptions import MissingHelpers, NotSignable, NotMatched
 from distutils import spawn
 import logging
 import os
-from os.path import abspath, dirname, exists, isdir, join
+from os.path import abspath, dirname, exists, isdir, isfile, join
 import tempfile
 import re
 from subprocess import call
@@ -41,6 +41,30 @@ def make_temp_dir():
 class AppArchive(object):
     """ The simplest form of archive -- a naked App Bundle, with no extra directory structure,
         compression, etc """
+
+    @classmethod
+    def find_bundle_dir(cls, path):
+        """ Included for similarity with the zipped archive classes. In this case, the bundle dir
+            *is* the directory """
+        return path
+
+    @classmethod
+    def precheck(cls, path):
+        if not isdir(path):
+            return False
+        plist_path = join(cls.find_bundle_dir(path), "Info.plist")
+        plist = biplist.readPlist(plist_path)
+        is_native = is_info_plist_native(plist)
+        log.debug("is_native: {}".format(is_native))
+        return is_native
+
+    @classmethod
+    def archive(cls, path, output_path):
+        if exists(output_path):
+            shutil.rmtree(output_path)
+        shutil.move(path, output_path)
+        log.info("archived %s to %s" % (cls.__name__, output_path))
+
     def __init__(self, path):
         self.path = path
 
@@ -51,82 +75,88 @@ class AppArchive(object):
         shutil.copytree(self.path, containing_dir)
         return containing_dir, App(containing_dir)
 
-    @classmethod
-    def archive(cls, path, output_path):
-        if exists(output_path):
-            shutil.rmtree(output_path)
-        shutil.move(path, output_path)
-        log.info("archived %s to %s" % (cls.__name__, output_path))
 
-
-class AppZip(object):
+class AppZipArchive(object):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
     app_dir_pattern = r'^([^/]+\.app/).*$'
     extensions = ['.zip']
     helpers = ['zip', 'unzip']
 
-    def __init__(self, path):
-        self.path = path
-        if not self.is_helpers_present():
-            raise NotSignable("helpers not present")
-        relative_app_dir, is_native = self.precheck()
-        self.relative_app_dir = relative_app_dir
-        if relative_app_dir is None:
-            raise NotMatched("no app directory found")
-        if not is_native:
-            raise NotMatched("not a native iOS app")
-
-    def is_helpers_present(self):
+    @classmethod
+    def is_helpers_present(cls):
         """ returns False if any of our helper apps wasn't found in class init """
         is_present = True
-        for helper_name in self.helpers:
+        for helper_name in cls.helpers:
             if get_helper(helper_name) is None:
-                log.error("missing helper for class {}: {}".format(self.__class__.__name__, helper_name))
+                log.error("missing helper for class {}: {}".format(cls.__name__, helper_name))
                 is_present = False
                 break
         return is_present
 
-    def is_archive_extension_match(self):
+    @classmethod
+    def is_archive_extension_match(cls, path):
         """ does this path have the right extension """
-        for extension in self.extensions:
-            if self.path.endswith(extension):
+        log.debug('extension match')
+        for extension in cls.extensions:
+            log.debug('extension match: %s', extension)
+            if path.endswith(extension):
                 return True
         return False
 
-    def precheck(self):
+    @classmethod
+    def find_bundle_dir(cls, zipfile_obj):
+        relative_bundle_dir = None
+        apps = set()
+        file_list = zipfile_obj.namelist()
+        for file_name in file_list:
+            matched = re.match(cls.app_dir_pattern, file_name)
+            if matched:
+                apps.add(matched.group(1))
+        if len(apps) == 1:
+            log.debug("found one app")
+            relative_bundle_dir = apps.pop()
+        elif len(apps) > 1:
+            log.warning('more than one app found in archive')
+        else:
+            log.warning('no apps found in archive')
+        return relative_bundle_dir
+
+    @classmethod
+    def precheck(cls, path):
         """ Checks if an archive looks like this kind of app. Have to examine
             within the zipfile, b/c we don't want to make temp dirs just yet. This
             recapitulates a very similar precheck in the Bundle class """
-        relative_app_dir = None
+        if not isfile(path):
+            return False
+        if not cls.is_helpers_present():
+            raise MissingHelpers("helpers not present")
         is_native = False
-        if (self.is_archive_extension_match() and
-                zipfile.is_zipfile(self.path)):
+        log.debug('precheck')
+        log.debug('path: %s', path)
+        if (cls.is_archive_extension_match(path) and
+                zipfile.is_zipfile(path)):
             log.debug("this is an archive, and a zipfile")
-            z = zipfile.ZipFile(self.path)
-            apps = set()
-            file_list = z.namelist()
-            for file_name in file_list:
-                matched = re.match(self.app_dir_pattern, file_name)
-                if matched:
-                    apps.add(matched.group(1))
-            if len(apps) == 1:
-                log.debug("found one app")
-                relative_app_dir = apps.pop()
-                plist_path = join(relative_app_dir, "Info.plist")
-                plist_bytes = z.read(plist_path)
+            zipfile_obj = zipfile.ZipFile(path)
+            relative_bundle_dir = cls.find_bundle_dir(zipfile_obj)
+            if relative_bundle_dir is not None:
+                plist_path = join(relative_bundle_dir, "Info.plist")
+                plist_bytes = zipfile_obj.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = is_info_plist_native(plist)
                 log.debug("is_native: {}".format(is_native))
-            if len(apps) > 1:
-                log.warning('more than one app found in archive')
+        return is_native
 
-        return (relative_app_dir, is_native)
+    def __init__(self, path):
+        self.path = path
+        zipfile_obj = zipfile.ZipFile(path)
+        self.relative_bundle_dir = self.find_bundle_dir(zipfile_obj)
 
+    # TODO part of init?
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
-        app_dir = abspath(os.path.join(containing_dir, self.relative_app_dir))
+        app_dir = abspath(os.path.join(containing_dir, self.relative_bundle_dir))
         return containing_dir, App(app_dir)
 
     @classmethod
@@ -154,7 +184,7 @@ class AppZip(object):
                 shutil.rmtree(temp_zip_dir)
 
 
-class Ipa(AppZip):
+class IpaArchive(AppZipArchive):
     """ IPA is Apple's standard for distributing apps. Much like an AppZip,
         but slightly different paths """
     extensions = ['.ipa']
@@ -163,26 +193,14 @@ class Ipa(AppZip):
 
 def archive_factory(path):
     """ Guess what kind of archive we are dealing with, return an
-        archive object. """
-    if isdir(path):
-        try:
-            return AppArchive(path)
-        except NotSignable as e:
-            log.error("Error initializing app dir: %s", e)
-            raise NotSignable(e)
-    else:
-        obj = None
-        for cls in [AppZip, Ipa]:
-            try:
-                obj = cls(path)
-                log.debug("File %s matched as %s", path, cls.__name__)
-                break
-            except NotMatched as e:
-                log.debug("File %s not matched as %s: %s", path, cls, e)
-        if obj is not None:
-            return obj
-
-    raise NotSignable("No matching app format found for %s" % path)
+        archive object. Returns None if path did not match any archive type """
+    archive = None
+    for cls in [IpaArchive, AppZipArchive, AppArchive]:
+        if cls.precheck(path):
+            archive = cls(path)
+            log.debug("File %s matched as %s", path, cls.__name__)
+            break
+    return archive
 
 
 def get_watchkit_paths(root_bundle_path):
@@ -234,6 +252,8 @@ def view(input_path):
     bundle_info = None
     try:
         archive = archive_factory(input_path)
+        if archive is None:
+            raise NotSignable('No matching archive type found')
         (temp_dir, bundle) = archive.unarchive_to_temp()
         bundle_info = bundle.info
     except NotSignable as e:
@@ -272,6 +292,8 @@ def resign(input_path,
     bundle_info = None
     try:
         archive = archive_factory(input_path)
+        if archive is None:
+            raise NotSignable('No matching archive type found')
         (temp_dir, bundle) = archive.unarchive_to_temp()
         if info_props:
             # Override info.plist props of the parent bundle
