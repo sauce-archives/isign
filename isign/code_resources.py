@@ -147,9 +147,9 @@ class ResourceBuilder(object):
                     val['optional'] = True
 
                 if len(val) == 1 and 'hash' in val:
-                    file_entries[relative_path] = val['hash']
+                    file_entries[relative_path.decode("utf-8")] = val['hash']
                 else:
-                    file_entries[relative_path] = val
+                    file_entries[relative_path.decode("utf-8")] = val
 
             for dirname in dirs:
                 rule, path, relative_path = self.get_rule_and_paths(root,

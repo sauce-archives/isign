@@ -125,7 +125,7 @@ class AppZip(object):
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
-        call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
+        call([get_helper('unzip'), "-O", "UTF-8", "-qu", self.path, "-d", containing_dir])
         app_dir = abspath(os.path.join(containing_dir, self.relative_app_dir))
         return containing_dir, App(app_dir)
 
