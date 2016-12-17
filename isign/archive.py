@@ -282,6 +282,8 @@ def view(input_path):
     bundle_info = None
     try:
         archive = archive_factory(input_path)
+        if archive is None:
+            raise NotMatched('No matching archive type found')
         ua = archive.unarchive_to_temp()
         bundle_info = ua.bundle.info
     finally:
