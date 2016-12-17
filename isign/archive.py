@@ -38,6 +38,48 @@ def make_temp_dir():
     return tempfile.mkdtemp(prefix="isign-")
 
 
+def get_watchkit_paths(root_bundle_path):
+    """ collect sub-bundles of this bundle that have watchkit """
+    # typical structure:
+    #
+    # app_bundle
+    #   ...
+    #   some_directory
+    #     watchkit_extension   <-- this is the watchkit bundle
+    #       Info.plist
+    #       watchkit_bundle    <-- this is the part that runs on the Watch
+    #         Info.plist       <-- WKWatchKitApp=True
+    #
+    watchkit_paths = []
+    for path, _, _ in os.walk(root_bundle_path):
+        if path == root_bundle_path:
+            continue
+        try:
+            bundle = Bundle(path)
+        except NotMatched:
+            # this directory is not a bundle
+            continue
+        if bundle.info.get('WKWatchKitApp') is True:
+            # get the *containing* bundle
+            watchkit_paths.append(dirname(path))
+    return watchkit_paths
+
+
+def process_watchkit(root_bundle_path, should_remove=False):
+    """ Unfortunately, we currently can't sign WatchKit. If you don't
+        care about watchkit functionality, it is
+        generally harmless to remove it, so that's the default.
+        Remove when https://github.com/saucelabs/isign/issues/20 is fixed """
+    watchkit_paths = get_watchkit_paths(root_bundle_path)
+    if len(watchkit_paths) > 0:
+        if should_remove:
+            for path in watchkit_paths:
+                log.warning("Removing WatchKit bundle {}".format(path))
+                shutil.rmtree(path)
+        else:
+            raise NotSignable("Cannot yet sign WatchKit bundles")
+
+
 class AppArchive(object):
     """ The simplest form of archive -- a naked App Bundle, with no extra directory structure,
         compression, etc """
@@ -73,6 +115,7 @@ class AppArchive(object):
         log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
         shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(self.path, containing_dir)
+        process_watchkit(containing_dir, REMOVE_WATCHKIT)
         return containing_dir, App(containing_dir)
 
 
@@ -157,6 +200,7 @@ class AppZipArchive(object):
         containing_dir = make_temp_dir()
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
         app_dir = abspath(os.path.join(containing_dir, self.relative_bundle_dir))
+        process_watchkit(app_dir, REMOVE_WATCHKIT)
         return containing_dir, App(app_dir)
 
     @classmethod
@@ -201,48 +245,6 @@ def archive_factory(path):
             log.debug("File %s matched as %s", path, cls.__name__)
             break
     return archive
-
-
-def get_watchkit_paths(root_bundle_path):
-    """ collect sub-bundles of this bundle that have watchkit """
-    # typical structure:
-    #
-    # app_bundle
-    #   ...
-    #   some_directory
-    #     watchkit_extension   <-- this is the watchkit bundle
-    #       Info.plist
-    #       watchkit_bundle    <-- this is the part that runs on the Watch
-    #         Info.plist       <-- WKWatchKitApp=True
-    #
-    watchkit_paths = []
-    for path, _, _ in os.walk(root_bundle_path):
-        if path == root_bundle_path:
-            continue
-        try:
-            bundle = Bundle(path)
-        except NotMatched:
-            # this directory is not a bundle
-            continue
-        if bundle.info.get('WKWatchKitApp') is True:
-            # get the *containing* bundle
-            watchkit_paths.append(dirname(path))
-    return watchkit_paths
-
-
-def process_watchkit(root_bundle_path, should_remove=False):
-    """ Unfortunately, we currently can't sign WatchKit. If you don't
-        care about watchkit functionality, it is
-        generally harmless to remove it, so that's the default.
-        Remove when https://github.com/saucelabs/isign/issues/20 is fixed """
-    watchkit_paths = get_watchkit_paths(root_bundle_path)
-    if len(watchkit_paths) > 0:
-        if should_remove:
-            for path in watchkit_paths:
-                log.warning("Removing WatchKit bundle {}".format(path))
-                shutil.rmtree(path)
-        else:
-            raise NotSignable("Cannot yet sign WatchKit bundles")
 
 
 def view(input_path):
@@ -298,7 +300,6 @@ def resign(input_path,
         if info_props:
             # Override info.plist props of the parent bundle
             bundle.update_info_props(info_props)
-        process_watchkit(bundle.path, REMOVE_WATCHKIT)
         bundle.resign(signer, provisioning_profile)
         bundle_info = bundle.info
         archive.__class__.archive(temp_dir, output_path)
