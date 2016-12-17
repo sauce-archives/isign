@@ -116,7 +116,7 @@ class AppArchive(object):
         shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(self.path, containing_dir)
         process_watchkit(containing_dir, REMOVE_WATCHKIT)
-        return containing_dir, App(containing_dir)
+        return UncompressedArchive(containing_dir, containing_dir, self.__class__)
 
 
 class AppZipArchive(object):
@@ -201,7 +201,7 @@ class AppZipArchive(object):
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
         app_dir = abspath(os.path.join(containing_dir, self.relative_bundle_dir))
         process_watchkit(app_dir, REMOVE_WATCHKIT)
-        return containing_dir, App(app_dir)
+        return UncompressedArchive(containing_dir, app_dir, self.__class__)
 
     @classmethod
     def archive(cls, containing_dir, output_path):
@@ -235,6 +235,34 @@ class IpaArchive(AppZipArchive):
     app_dir_pattern = r'^(Payload/[^/]+\.app/).*$'
 
 
+class UncompressedArchive(object):
+    """ This just keeps track of some state with an unzipped app archive and
+        how to re-zip it back up once re-signed. The bundle is located somewhere
+        inside the containing directory, but might be a few directories down, like in
+        a ContainingDir/Payload/something.app
+
+        This class is also useful if you have an app that's already unzipped and
+        you want to sign it.
+
+        We also do some watchkit processing here, but only because it's a convenient
+        place to apply that hack """
+    def __init__(self, containing_dir, app_dir, archive_class):
+        self.containing_dir = containing_dir
+        self.bundle = App(app_dir)
+        self.archive_class = archive_class
+
+    def archive(self, output_path):
+        """ Re-zip this back up, or simply copy it out, depending on what the
+            original archive class did """
+        self.archive_class.archive(self.containing_dir, output_path)
+
+    def remove(self):
+        # the containing dir might be gone already b/c AppArchive simply moves
+        # it to the desired target when done
+        if exists(self.containing_dir) and isdir(self.containing_dir):
+            shutil.rmtree(self.containing_dir)
+
+
 def archive_factory(path):
     """ Guess what kind of archive we are dealing with, return an
         archive object. Returns None if path did not match any archive type """
@@ -250,20 +278,16 @@ def archive_factory(path):
 def view(input_path):
     if not exists(input_path):
         raise IOError("{0} not found".format(input_path))
-    temp_dir = None
+    ua = None
     bundle_info = None
     try:
         archive = archive_factory(input_path)
-        if archive is None:
-            raise NotSignable('No matching archive type found')
-        (temp_dir, bundle) = archive.unarchive_to_temp()
-        bundle_info = bundle.info
-    except NotSignable as e:
-        log.info("Could not read: <{0}>: {1}\n".format(input_path, e))
-        raise
+        ua = archive.unarchive_to_temp()
+        bundle_info = ua.bundle.info
     finally:
-        if temp_dir is not None and isdir(temp_dir):
-            shutil.rmtree(temp_dir)
+        log.debug('finally....')
+        if ua is not None:
+            ua.remove()
     return bundle_info
 
 
@@ -290,24 +314,24 @@ def resign(input_path,
                     signer_key_file=key,
                     apple_cert_file=apple_cert)
 
-    temp_dir = None
+    ua = None
     bundle_info = None
     try:
         archive = archive_factory(input_path)
         if archive is None:
             raise NotSignable('No matching archive type found')
-        (temp_dir, bundle) = archive.unarchive_to_temp()
+        ua = archive.unarchive_to_temp()
         if info_props:
             # Override info.plist props of the parent bundle
-            bundle.update_info_props(info_props)
-        bundle.resign(signer, provisioning_profile)
-        bundle_info = bundle.info
-        archive.__class__.archive(temp_dir, output_path)
+            ua.bundle.update_info_props(info_props)
+        ua.bundle.resign(signer, provisioning_profile)
+        bundle_info = ua.bundle.info
+        ua.archive(output_path)
     except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
         log.info(msg)
         raise
     finally:
-        if temp_dir is not None and isdir(temp_dir):
-            shutil.rmtree(temp_dir)
+        if ua is not None:
+            ua.remove()
     return bundle_info
