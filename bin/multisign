@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+# From a single IPA, generate multiple re-signed IPAs simultaneously.
+# Why? Because you might want to distribute an app to a lot of organizations at once,
+# or perhaps you need to sign for an enterprise and a local debug deployment all at
+# the same time, and you want it to be fast.
+
+# Depends on the existence of external `zip` and `unzip` programs.
+
+import argparse
+from os.path import abspath, expanduser
+import logging
+
+FORMATTER = logging.Formatter('%(message)s')
+log = logging.getLogger(__name__)
+
+
+def log_to_stderr(level=logging.INFO):
+    root = logging.getLogger()
+    root.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(FORMATTER)
+    root.addHandler(handler)
+
+
+def absolute_path_argument(path):
+    return abspath(expanduser(path))
+
+
+def parse_args():
+    # note that for arguments which eventually get fed into
+    # isign.resign, we deliberately don't set defaults. The kwarg
+    # defaults in isign.resign will be used
+    parser = argparse.ArgumentParser(
+        description='From a single IPA, generate multiple re-signed IPAs simultaneously')
+    parser.add_argument(
+        '-i', '--ipa',
+        dest='ipa',
+        required=True,
+        metavar='<file>',
+        type=absolute_path_argument,
+        help='Path to input IPA'
+    )
+    parser.add_argument(
+        'credential_paths',
+        nargs='+',
+        metavar='<directory>',
+        type=absolute_path_argument,
+        help='Paths to directories containing credentials with standardized names'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        dest='verbose',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Set logging level to debug.'
+    )
+    return parser.parse_args()
+
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    if args.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    log_to_stderr(level)
+
+    log.debug('got credential paths: {}'.format(', '.join(args.credential_paths)))
+    log.debug('got incoming IPA: {}'.format(args.ipa))
