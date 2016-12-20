@@ -8,7 +8,10 @@
 # Depends on the existence of external `zip` and `unzip` programs.
 
 import argparse
-from os.path import abspath, expanduser
+from os.path import abspath, basename, dirname, expanduser, join, splitext
+from isign import isign
+from isign.archive import archive_factory
+from isign.signer import Signer
 import logging
 
 FORMATTER = logging.Formatter('%(message)s')
@@ -34,19 +37,26 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='From a single IPA, generate multiple re-signed IPAs simultaneously')
     parser.add_argument(
-        '-i', '--ipa',
-        dest='ipa',
+        '-a', '--app',
+        dest='app',
         required=True,
         metavar='<file>',
         type=absolute_path_argument,
-        help='Path to input IPA'
+        help='Path to input app'
     )
     parser.add_argument(
-        'credential_paths',
+        'credential_dirs',
         nargs='+',
         metavar='<directory>',
         type=absolute_path_argument,
         help='Paths to directories containing credentials with standardized names'
+    )
+    parser.add_argument(
+        '-i', '--info',
+        dest='info_props',
+        required=False,
+        metavar='<Info.plist properties>',
+        help='List of comma-delimited key=value pairs of Info.plist properties to override'
     )
     parser.add_argument(
         '-v', '--verbose',
@@ -59,6 +69,83 @@ def parse_args():
     return parser.parse_args()
 
 
+def get_resigned_path(original_path, credential_dir, prefix):
+    """ Given:
+            original_path=/path/to/original/app.ipa,
+            credential_dir = /home/me/cred1
+            prefix = '_foo_'
+        returns:
+            /path/to/original/_foo_cred1_app.ipa,
+    """
+    original_name = basename(original_path)
+    original_dir = dirname(original_path)
+    resigned_name = prefix + basename(credential_dir) + '_' + original_name
+    return join(original_dir, resigned_name)
+
+
+def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"):
+    """ Given a path to an IPA, and paths to credential directories,
+        produce re-signed versions of the IPA with each credentials in the
+        same directory as the original. e.g., when
+
+            original_path=/path/to/original/app.ipa,
+            credential_dirs = ['/home/me/cred1', '/home/me/cred2']
+            prefix = '_foo_'
+
+        It will generate resigned ipa archives like:
+            /path/to/original/_foo_cred1_app.ipa,
+            /path/to/original/_foo_cred2_app.ipa
+
+        If info_props are provided, it will overwrite those properties in
+        the app's Info.plist.
+    """
+    pass
+
+    # ua is potentially an isign.UncompressedArchive
+    ua = None
+
+    archive = archive_factory(original_path)
+    if archive is None:
+        log.debug("that didn't look like an app...")
+        return
+
+    try:
+        ua = archive.unarchive_to_temp()
+        if info_props:
+            # Override info.plist props of the parent bundle
+            ua.bundle.update_info_props(info_props)
+
+        for credential_dir in credential_dirs:
+            log.debug("doing %s", credential_dir)
+
+            # get the credential files, create the 'signer'
+            credential_paths = isign.get_credential_paths(credential_dir)
+            signer = Signer(signer_cert_file=credential_paths['certificate'],
+                            signer_key_file=credential_paths['key'],
+                            apple_cert_file=isign.DEFAULT_APPLE_CERT_PATH)
+
+            # TODO copy it N times, create UAs to start from
+
+            # sign it (in place)
+            ua.bundle.resign(signer, credential_paths['provisioning_profile'])
+
+            resigned_path = get_resigned_path(original_path, credential_dir, prefix)
+
+            log.debug("outputing %s", resigned_path)
+            # and archive it there
+            ua.archive(resigned_path)
+
+    except isign.NotSignable as e:
+        msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
+        log.info(msg)
+        raise
+
+    finally:
+        if ua is not None:
+            ua.remove()
+
+
+
 if __name__ == '__main__':
     args = parse_args()
 
@@ -68,5 +155,17 @@ if __name__ == '__main__':
         level = logging.INFO
     log_to_stderr(level)
 
-    log.debug('got credential paths: {}'.format(', '.join(args.credential_paths)))
-    log.debug('got incoming IPA: {}'.format(args.ipa))
+    # Convert the Info.plist property pairs to a dict format
+    info_props = None
+    if args.info_props:
+        info_props = {}
+        for arg in args.info_props.split(','):
+            i = arg.find('=')
+            if i < 0:
+                raise Exception('Invalid Info.plist argument: ' + arg)
+            info_props[arg[0:i]] = arg[i + 1:]
+
+    log.debug('got credential paths: {}'.format(', '.join(args.credential_dirs)))
+    log.debug('got incoming app: {}'.format(args.app))
+
+    multisign(args.app, args.credential_dirs, info_props)
