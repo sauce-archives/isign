@@ -13,6 +13,7 @@ from isign import isign
 from isign.archive import archive_factory
 from isign.signer import Signer
 import logging
+from multiprocessing import Pool
 
 FORMATTER = logging.Formatter('%(message)s')
 log = logging.getLogger(__name__)
@@ -83,6 +84,24 @@ def get_resigned_path(original_path, credential_dir, prefix):
     return join(original_dir, resigned_name)
 
 
+def resign(ua, credential_dir, resigned_path):
+    """ Given a path to an uncompressed archive, credential directory, and desired
+        output path, resign accordingly """
+
+    # get the credential files, create the 'signer'
+    credential_paths = isign.get_credential_paths(credential_dir)
+    signer = Signer(signer_cert_file=credential_paths['certificate'],
+                    signer_key_file=credential_paths['key'],
+                    apple_cert_file=isign.DEFAULT_APPLE_CERT_PATH)
+
+    # sign it (in place)
+    ua.bundle.resign(signer, credential_paths['provisioning_profile'])
+
+    log.debug("outputing %s", resigned_path)
+    # and archive it there
+    ua.archive(resigned_path)
+
+
 def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"):
     """ Given a path to an IPA, and paths to credential directories,
         produce re-signed versions of the IPA with each credentials in the
@@ -101,7 +120,7 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
     """
     pass
 
-    # ua is potentially an isign.UncompressedArchive
+    # ua is potentially an isign.archive.UncompressedArchive
     ua = None
 
     archive = archive_factory(original_path)
@@ -115,25 +134,18 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
             # Override info.plist props of the parent bundle
             ua.bundle.update_info_props(info_props)
 
-        for credential_dir in credential_dirs:
-            log.debug("doing %s", credential_dir)
+        # create uncompressed archives for each credential to be signed
+        ua_credential_dir_pairs = [(ua, credential_dirs[0])]
+        for i in range(1, len(credential_dirs)):
+            cloned_ua = ua.clone(ua.path + '_' + str(i))
+            ua_credential_dir_pairs.append((cloned_ua, credential_dirs[i]))
 
-            # get the credential files, create the 'signer'
-            credential_paths = isign.get_credential_paths(credential_dir)
-            signer = Signer(signer_cert_file=credential_paths['certificate'],
-                            signer_key_file=credential_paths['key'],
-                            apple_cert_file=isign.DEFAULT_APPLE_CERT_PATH)
-
-            # TODO copy it N times, create UAs to start from
-
-            # sign it (in place)
-            ua.bundle.resign(signer, credential_paths['provisioning_profile'])
-
+        # sign each with credentials
+        for pair in ua_credential_dir_pairs:
+            (ua, credential_dir) = pair
+            log.debug("doing %s %s", ua.path, credential_dir)
             resigned_path = get_resigned_path(original_path, credential_dir, prefix)
-
-            log.debug("outputing %s", resigned_path)
-            # and archive it there
-            ua.archive(resigned_path)
+            resign(ua, credential_dir, resigned_path)
 
     except isign.NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
@@ -167,5 +179,11 @@ if __name__ == '__main__':
 
     log.debug('got credential paths: {}'.format(', '.join(args.credential_dirs)))
     log.debug('got incoming app: {}'.format(args.app))
+
+    # ensure basenames are unique
+    unique_basenames = set([basename(p) for p in args.credential_dirs])
+    if len(args.credential_dirs) != len(unique_basenames):
+        raise Exception('Credential directories do not have unique basenames. '
+                        'Cannot name output archives automatically. Sorry!')
 
     multisign(args.app, args.credential_dirs, info_props)

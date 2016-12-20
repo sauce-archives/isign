@@ -9,7 +9,7 @@ from exceptions import MissingHelpers, NotSignable, NotMatched
 from distutils import spawn
 import logging
 import os
-from os.path import abspath, dirname, exists, isdir, isfile, join
+from os.path import abspath, dirname, exists, isdir, isfile, join, normpath
 import tempfile
 import re
 from subprocess import call
@@ -116,7 +116,7 @@ class AppArchive(object):
         shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(self.path, containing_dir)
         process_watchkit(containing_dir, REMOVE_WATCHKIT)
-        return UncompressedArchive(containing_dir, containing_dir, self.__class__)
+        return UncompressedArchive(containing_dir, '.', self.__class__)
 
 
 class AppZipArchive(object):
@@ -199,9 +199,9 @@ class AppZipArchive(object):
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
-        app_dir = abspath(os.path.join(containing_dir, self.relative_bundle_dir))
+        app_dir = abspath(join(containing_dir, self.relative_bundle_dir))
         process_watchkit(app_dir, REMOVE_WATCHKIT)
-        return UncompressedArchive(containing_dir, app_dir, self.__class__)
+        return UncompressedArchive(containing_dir, self.relative_bundle_dir, self.__class__)
 
     @classmethod
     def archive(cls, containing_dir, output_path):
@@ -246,21 +246,35 @@ class UncompressedArchive(object):
 
         We also do some watchkit processing here, but only because it's a convenient
         place to apply that hack """
-    def __init__(self, containing_dir, app_dir, archive_class):
-        self.containing_dir = containing_dir
-        self.bundle = App(app_dir)
+    def __init__(self, path, relative_bundle_dir, archive_class):
+        """ Path is the "Containing dir", the dir at the root level of the unzipped archive
+                (or the dir itself, in the case of an AppArchive archive)
+            relative bundle dir is the dir containing the bundle, e.g. Payload/Foo.app
+            archive class is the kind of archive this was (Ipa, etc.) """
+        self.path = path
+        self.relative_bundle_dir = relative_bundle_dir
         self.archive_class = archive_class
+        bundle_path = normpath(join(path, relative_bundle_dir))
+        self.bundle = App(bundle_path)
 
     def archive(self, output_path):
         """ Re-zip this back up, or simply copy it out, depending on what the
             original archive class did """
-        self.archive_class.archive(self.containing_dir, output_path)
+        self.archive_class.archive(self.path, output_path)
+
+    def clone(self, target_path):
+        """ Copy the uncompressed archive somewhere else, return initialized
+            UncompressedArchive """
+        shutil.copytree(self.path, target_path)
+        return self.__class__(target_path,
+                              self.relative_bundle_dir,
+                              self.archive_class)
 
     def remove(self):
         # the containing dir might be gone already b/c AppArchive simply moves
         # it to the desired target when done
-        if exists(self.containing_dir) and isdir(self.containing_dir):
-            shutil.rmtree(self.containing_dir)
+        if exists(self.path) and isdir(self.path):
+            shutil.rmtree(self.path)
 
 
 def archive_factory(path):
