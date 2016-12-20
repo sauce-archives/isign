@@ -8,7 +8,7 @@
 # Depends on the existence of external `zip` and `unzip` programs.
 
 import argparse
-from os.path import abspath, basename, dirname, expanduser, join, splitext
+from os.path import abspath, basename, dirname, expanduser, isdir, join
 from isign import isign
 from isign.archive import archive_factory
 from isign.signer import Signer
@@ -88,6 +88,7 @@ def resign(ua, credential_dir, resigned_path):
     """ Given a path to an uncompressed archive, credential directory, and desired
         output path, resign accordingly """
 
+    log.debug('resigning with %s %s -> %s', ua.path, credential_dir, resigned_path)
     # get the credential files, create the 'signer'
     credential_paths = isign.get_credential_paths(credential_dir)
     signer = Signer(signer_cert_file=credential_paths['certificate'],
@@ -125,7 +126,7 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
 
     archive = archive_factory(original_path)
     if archive is None:
-        log.debug("that didn't look like an app...")
+        log.debug("%s didn't look like an app...", original_path)
         return
 
     try:
@@ -140,12 +141,15 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
             cloned_ua = ua.clone(ua.path + '_' + str(i))
             ua_credential_dir_pairs.append((cloned_ua, credential_dirs[i]))
 
-        # sign each with credentials
+        # sign each uncompressed archive with credentials, and make archives
         for pair in ua_credential_dir_pairs:
-            (ua, credential_dir) = pair
-            log.debug("doing %s %s", ua.path, credential_dir)
-            resigned_path = get_resigned_path(original_path, credential_dir, prefix)
-            resign(ua, credential_dir, resigned_path)
+            try:
+                (ua, credential_dir) = pair
+                log.debug("doing %s %s", ua.path, credential_dir)
+                resigned_path = get_resigned_path(original_path, credential_dir, prefix)
+                resign(ua, credential_dir, resigned_path)
+            finally:
+                ua.remove()
 
     except isign.NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
@@ -153,7 +157,7 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
         raise
 
     finally:
-        if ua is not None:
+        if ua is not None and isdir(ua.path):
             ua.remove()
 
 

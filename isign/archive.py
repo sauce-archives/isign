@@ -274,6 +274,7 @@ class UncompressedArchive(object):
         # the containing dir might be gone already b/c AppArchive simply moves
         # it to the desired target when done
         if exists(self.path) and isdir(self.path):
+            log.debug('removing ua: %s', self.path)
             shutil.rmtree(self.path)
 
 
