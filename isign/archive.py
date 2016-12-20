@@ -117,7 +117,7 @@ class AppZip(object):
                 plist_bytes = z.read(plist_path)
                 plist = biplist.readPlistFromString(plist_bytes)
                 is_native = is_info_plist_native(plist)
-                log.debug("is_native: {}".format(is_native))
+                log.info("is_native: {}".format(is_native))
             if len(apps) > 1:
                 log.warning('more than one app found in archive')
 
@@ -125,7 +125,7 @@ class AppZip(object):
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
-        call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
+        call([get_helper('unzip'), "-oqq", self.path, "-d", containing_dir])
         app_dir = abspath(os.path.join(containing_dir, self.relative_app_dir))
         return containing_dir, App(app_dir)
 
