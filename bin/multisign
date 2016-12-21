@@ -34,9 +34,6 @@ def absolute_path_argument(path):
 
 
 def parse_args():
-    # note that for arguments which eventually get fed into
-    # isign.resign, we deliberately don't set defaults. The kwarg
-    # defaults in isign.resign will be used
     parser = argparse.ArgumentParser(
         description='From a single IPA, generate multiple re-signed IPAs simultaneously')
     parser.add_argument(
