@@ -180,7 +180,7 @@ def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"
         p.map(resign, resign_args)
 
     except isign.NotSignable as e:
-        msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
+        msg = "Not signable: <{0}>: {1}\n".format(original_path, e)
         log.info(msg)
         raise
 
