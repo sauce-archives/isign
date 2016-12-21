@@ -242,10 +242,7 @@ class UncompressedArchive(object):
         a ContainingDir/Payload/something.app
 
         This class is also useful if you have an app that's already unzipped and
-        you want to sign it.
-
-        We also do some watchkit processing here, but only because it's a convenient
-        place to apply that hack """
+        you want to sign it. """
     def __init__(self, path, relative_bundle_dir, archive_class):
         """ Path is the "Containing dir", the dir at the root level of the unzipped archive
                 (or the dir itself, in the case of an AppArchive archive)
