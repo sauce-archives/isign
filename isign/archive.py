@@ -299,7 +299,6 @@ def view(input_path):
         ua = archive.unarchive_to_temp()
         bundle_info = ua.bundle.info
     finally:
-        log.debug('finally....')
         if ua is not None:
             ua.remove()
     return bundle_info
