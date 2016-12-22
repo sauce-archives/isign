@@ -50,6 +50,7 @@ setup(
                   'version.json'],
     },
     scripts=['bin/isign',
+             'bin/multisign',
              'bin/isign_export_creds.sh',
              'bin/isign_guess_mobileprovision.sh']
 )
