@@ -13,9 +13,10 @@ class TestCredentialsDir(IsignBaseTest):
     def test_creds_dir(self):
         # this directory contains credentials with the standard names
         # key.pem, certificate.pem, isign.mobileprovision
-        credentials_dir = join(self.TEST_DIR, 'credentials_std_names')
         output_path = self.get_temp_file()
-        isign.resign_with_creds_dir(self.TEST_IPA, credentials_dir, output_path=output_path)
+        isign.resign_with_creds_dir(self.TEST_IPA,
+                                    self.CREDENTIALS_DIR,
+                                    output_path=output_path)
         assert exists(output_path)
         assert os.path.getsize(output_path) > 0
         self.unlink(output_path)

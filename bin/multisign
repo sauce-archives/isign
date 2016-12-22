@@ -8,7 +8,7 @@
 # Depends on the existence of external `zip` and `unzip` programs.
 
 import argparse
-from os.path import abspath, basename, expanduser
+from os.path import abspath, basename, dirname, expanduser, join
 from isign.multisign import multisign
 import logging
 
@@ -63,6 +63,13 @@ def parse_args():
     )
     return parser.parse_args()
 
+def get_output_path(original_path, credential_dir):
+    """ Create some filename based on the credential directory and original path """
+    original_name = basename(original_path)
+    original_dir = dirname(original_path)
+    resigned_name = basename(credential_dir) + '_' + original_name
+    return join(original_dir, resigned_name)
+
 
 if __name__ == '__main__':
     args = parse_args()
@@ -92,6 +99,10 @@ if __name__ == '__main__':
         raise Exception('Credential directories do not have unique basenames. '
                         'Cannot name output archives automatically. Sorry!')
 
-    results = multisign(args.app, args.credential_dirs, info_props)
+    credential_dirs_to_output_paths = {}
+    for d in args.credential_dirs:
+        credential_dirs_to_output_paths[d] = get_output_path(args.app, d)
+
+    results = multisign(args.app, credential_dirs_to_output_paths, info_props)
     for credentials_dir, resigned_app_path in results:
         log.info("resigned with %s to %s", credentials_dir, resigned_app_path)

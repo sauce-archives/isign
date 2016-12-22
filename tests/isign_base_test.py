@@ -25,6 +25,8 @@ class IsignBaseTest(unittest.TestCase):
     CERTIFICATE = join(TEST_DIR, 'credentials', 'test.cert.pem')
     PROVISIONING_PROFILE = join(TEST_DIR, 'credentials', 'test.mobileprovision')
     ERROR_KEY = '_errors'
+    CREDENTIALS_DIR = join(TEST_DIR, 'credentials_std_names')
+    CREDENTIALS_DIR_2 = join(TEST_DIR, 'credentials_std_names_2')
     # Fake Apple organizational unit
     OU = 'ISIGNTESTS'
 

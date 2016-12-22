@@ -102,4 +102,6 @@ out.ipa
 !tests/credentials/test.mobileprovision
 !tests/credentials_std_names/certificate.pem
 !tests/credentials_std_names/isign.mobileprovision
-!tests/credentials_std_names/key.pem
+!tests/credentials_std_names2/key.pem
+!tests/credentials_std_names2/certificate.pem
+!tests/credentials_std_names2/isign.mobileprovision
