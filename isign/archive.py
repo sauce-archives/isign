@@ -91,11 +91,15 @@ class AppArchive(object):
         return path
 
     @classmethod
+    def get_info(cls, path):
+        plist_path = join(cls.find_bundle_dir(path), "Info.plist")
+        return biplist.readPlist(plist_path)
+
+    @classmethod
     def precheck(cls, path):
         if not isdir(path):
             return False
-        plist_path = join(cls.find_bundle_dir(path), "Info.plist")
-        plist = biplist.readPlist(plist_path)
+        plist = cls.get_info(path)
         is_native = is_info_plist_native(plist)
         log.debug("is_native: {}".format(is_native))
         return is_native
@@ -109,6 +113,8 @@ class AppArchive(object):
 
     def __init__(self, path):
         self.path = path
+        self.relative_bundle_dir = '.'
+        self.bundle_info = self.get_info(self.path)
 
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
@@ -183,19 +189,24 @@ class AppZipArchive(object):
             zipfile_obj = zipfile.ZipFile(path)
             relative_bundle_dir = cls.find_bundle_dir(zipfile_obj)
             if relative_bundle_dir is not None:
-                plist_path = join(relative_bundle_dir, "Info.plist")
-                plist_bytes = zipfile_obj.read(plist_path)
-                plist = biplist.readPlistFromString(plist_bytes)
+                plist = cls.get_info(relative_bundle_dir, zipfile_obj)
                 is_native = is_info_plist_native(plist)
                 log.debug("is_native: {}".format(is_native))
         return is_native
+
+    @classmethod
+    def get_info(cls, relative_bundle_dir, zipfile_obj):
+        plist_path = join(relative_bundle_dir, "Info.plist")
+        plist_bytes = zipfile_obj.read(plist_path)
+        return biplist.readPlistFromString(plist_bytes)
 
     def __init__(self, path):
         self.path = path
         zipfile_obj = zipfile.ZipFile(path)
         self.relative_bundle_dir = self.find_bundle_dir(zipfile_obj)
+        self.bundle_info = self.get_info(self.relative_bundle_dir,
+                                         zipfile_obj)
 
-    # TODO part of init?
     def unarchive_to_temp(self):
         containing_dir = make_temp_dir()
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
