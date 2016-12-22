@@ -1,3 +1,4 @@
-These credentials exist to test the 'credentials directory' feature in isign.
+These credentials exist to test the 'multisign' feature in isign
 
-The credentials are copied from ../credentials and just have the correct names.
+The credentials are copied from ../credentials_std_names, and exist solely to have
+a separate path to point to them.
