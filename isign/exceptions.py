@@ -7,9 +7,14 @@ class NotSignable(Exception):
     pass
 
 
-class NotMatched(NotSignable):
+class NotMatched(Exception):
     """ thrown if we can't find any app class for
         this file path """
+    pass
+
+
+class MissingHelpers(NotSignable):
+    """ thrown if helper apps are missing """
     pass
 
 

@@ -29,6 +29,9 @@ class TestPublicInterface(IsignBaseTest):
     def test_app_with_frameworks_ipa(self):
         self._test_signable(self.TEST_WITH_FRAMEWORKS_IPA, self.get_temp_file())
 
+    def test_appzip(self):
+        self._test_signable(self.TEST_APPZIP, self.get_temp_file())
+
     def test_non_app_txt(self):
         self._test_unsignable(self.TEST_NONAPP_TXT, self.get_temp_file())
 

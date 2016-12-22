@@ -1,0 +1,218 @@
+#!/usr/bin/env python
+
+# From a single IPA, generate multiple re-signed IPAs simultaneously.
+# Why? Because you might want to distribute an app to a lot of organizations at once,
+# or perhaps you need to sign for an enterprise and a local debug deployment all at
+# the same time, and you want it to be fast.
+
+# Depends on the existence of external `zip` and `unzip` programs.
+
+import argparse
+from os.path import abspath, basename, dirname, expanduser, isdir, join
+from isign import isign
+from isign.archive import archive_factory
+from isign.signer import Signer
+import logging
+import multiprocessing
+
+FORMATTER = logging.Formatter('%(message)s')
+log = logging.getLogger(__name__)
+
+MAX_PROCESSES = multiprocessing.cpu_count() - 1
+
+
+def log_to_stderr(level=logging.INFO):
+    root = logging.getLogger()
+    root.setLevel(level)
+    handler = logging.StreamHandler()
+    handler.setFormatter(FORMATTER)
+    root.addHandler(handler)
+
+
+def absolute_path_argument(path):
+    return abspath(expanduser(path))
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='From a single IPA, generate multiple re-signed IPAs simultaneously')
+    parser.add_argument(
+        '-a', '--app',
+        dest='app',
+        required=True,
+        metavar='<file>',
+        type=absolute_path_argument,
+        help='Path to input app'
+    )
+    parser.add_argument(
+        'credential_dirs',
+        nargs='+',
+        metavar='<directory>',
+        type=absolute_path_argument,
+        help='Paths to directories containing credentials with standardized names'
+    )
+    parser.add_argument(
+        '-i', '--info',
+        dest='info_props',
+        required=False,
+        metavar='<Info.plist properties>',
+        help='List of comma-delimited key=value pairs of Info.plist properties to override'
+    )
+    parser.add_argument(
+        '-v', '--verbose',
+        dest='verbose',
+        action='store_true',
+        default=False,
+        required=False,
+        help='Set logging level to debug.'
+    )
+    return parser.parse_args()
+
+
+def get_resigned_path(original_path, credential_dir, prefix):
+    """ Given:
+            original_path=/path/to/original/app.ipa,
+            credential_dir = /home/me/cred1
+            prefix = '_foo_'
+        returns:
+            /path/to/original/_foo_cred1_app.ipa,
+    """
+    original_name = basename(original_path)
+    original_dir = dirname(original_path)
+    resigned_name = prefix + basename(credential_dir) + '_' + original_name
+    return join(original_dir, resigned_name)
+
+
+def resign(args):
+    """ Given a tuple consisting of a path to an uncompressed archive,
+        credential directory, and desired output path, resign accordingly """
+    ua, credential_dir, resigned_path = args
+
+    try:
+        log.debug('resigning with %s %s -> %s', ua.path, credential_dir, resigned_path)
+        # get the credential files, create the 'signer'
+        credential_paths = isign.get_credential_paths(credential_dir)
+        signer = Signer(signer_cert_file=credential_paths['certificate'],
+                        signer_key_file=credential_paths['key'],
+                        apple_cert_file=isign.DEFAULT_APPLE_CERT_PATH)
+
+        # sign it (in place)
+        ua.bundle.resign(signer, credential_paths['provisioning_profile'])
+
+        log.debug("outputing %s", resigned_path)
+        # and archive it there
+        ua.archive(resigned_path)
+    finally:
+        ua.remove()
+
+
+def clone_ua(args):
+    original_ua, target_ua_path = args
+    log.debug('cloning %s to %s', original_ua.path, target_ua_path)
+    ua = original_ua.clone(target_ua_path)
+    log.debug('done cloning to %s', original_ua.path)
+    return ua
+
+
+def multisign(original_path, credential_dirs, info_props=None, prefix="_signed_"):
+    """ Given a path to an IPA, and paths to credential directories,
+        produce re-signed versions of the IPA with each credentials in the
+        same directory as the original. e.g., when
+
+            original_path=/path/to/original/app.ipa,
+            credential_dirs = ['/home/me/cred1', '/home/me/cred2']
+            prefix = '_foo_'
+
+        It will generate resigned ipa archives like:
+            /path/to/original/_foo_cred1_app.ipa,
+            /path/to/original/_foo_cred2_app.ipa
+
+        If info_props are provided, it will overwrite those properties in
+        the app's Info.plist.
+    """
+    p = multiprocessing.Pool(MAX_PROCESSES)
+
+    # ua is potentially an isign.archive.UncompressedArchive
+    ua = None
+
+    archive = archive_factory(original_path)
+    if archive is None:
+        log.debug("%s didn't look like an app...", original_path)
+        return
+
+    try:
+        ua = archive.unarchive_to_temp()
+        if info_props:
+            # Override info.plist props
+            ua.bundle.update_info_props(info_props)
+
+        # Since the signing process rewrites files, we must first create uncompressed archives
+        # for each credentials_directory.
+        # The first is simply the uncompressed archive we just made
+        uas = [ua]
+
+        # But the rest need to be copied. This might take a while, so let's do it in parallel
+        # this will copy them to /path/to/uncompressedArchive_1, .._2, and so on
+        # and make UncompressedArchive objects that can be used for resigning
+        target_ua_paths = []
+        for i in range(1, len(credential_dirs)):
+            target_ua_paths.append((ua, ua.path + '_' + str(i)))
+        uas += p.map(clone_ua, target_ua_paths)
+
+        # now we should have one UncompressedArchive for every credential directory
+        assert len(uas) == len(credential_dirs)
+
+        # We will now construct arguments for all the resignings
+        resign_args = []
+        for i in range(0, len(credential_dirs)):
+            resign_args += [(
+                uas[i],
+                credential_dirs[i],
+                get_resigned_path(original_path, credential_dirs[i], prefix)
+            )]
+        log.debug('resign args: %s', resign_args)
+
+        # In parallel, resign each uncompressed archive with supplied credentials,
+        # and make archives in the desired paths.
+        p.map(resign, resign_args)
+
+    except isign.NotSignable as e:
+        msg = "Not signable: <{0}>: {1}\n".format(original_path, e)
+        log.info(msg)
+        raise
+
+    finally:
+        if ua is not None and isdir(ua.path):
+            ua.remove()
+
+
+
+if __name__ == '__main__':
+    args = parse_args()
+
+    if args.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+    log_to_stderr(level)
+
+    # Convert the Info.plist property pairs to a dict format
+    info_props = None
+    if args.info_props:
+        info_props = {}
+        for arg in args.info_props.split(','):
+            i = arg.find('=')
+            if i < 0:
+                raise Exception('Invalid Info.plist argument: ' + arg)
+            info_props[arg[0:i]] = arg[i + 1:]
+
+    log.debug('got credential paths: {}'.format(', '.join(args.credential_dirs)))
+    log.debug('got incoming app: {}'.format(args.app))
+
+    # ensure basenames are unique
+    unique_basenames = set([basename(p) for p in args.credential_dirs])
+    if len(args.credential_dirs) != len(unique_basenames):
+        raise Exception('Credential directories do not have unique basenames. '
+                        'Cannot name output archives automatically. Sorry!')
+
+    multisign(args.app, args.credential_dirs, info_props)
