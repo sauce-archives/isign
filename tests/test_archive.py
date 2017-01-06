@@ -1,5 +1,5 @@
 from isign_base_test import IsignBaseTest
-from isign.archive import archive_factory, AppArchive, AppZipArchive, IpaArchive
+from isign.archive import archive_factory, Archive, AppArchive, AppZipArchive, IpaArchive
 import logging
 
 log = logging.getLogger(__name__)
@@ -11,6 +11,7 @@ class TestArchive(IsignBaseTest):
         archive = archive_factory(filename)
         assert archive is not None
         assert archive.__class__ is klass
+        assert isinstance(archive, Archive)
 
     def test_archive_factory_app(self):
         self._test_good(self.TEST_APP, AppArchive)
@@ -20,6 +21,10 @@ class TestArchive(IsignBaseTest):
 
     def test_archive_factory_ipa(self):
         self._test_good(self.TEST_IPA, IpaArchive)
+
+    def test_archive_factory_nonapp_dir(self):
+        archive = archive_factory(self.TEST_NONAPP_DIR)
+        assert archive is None
 
     def test_archive_factory_nonapp_ipa(self):
         archive = archive_factory(self.TEST_NONAPP_IPA)
