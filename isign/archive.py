@@ -91,13 +91,18 @@ class AppArchive(object):
         return path
 
     @classmethod
+    def _get_plist_path(cls, path):
+        return join(cls.find_bundle_dir(path), "Info.plist")
+
+    @classmethod
     def get_info(cls, path):
-        plist_path = join(cls.find_bundle_dir(path), "Info.plist")
-        return biplist.readPlist(plist_path)
+        return biplist.readPlist(cls._get_plist_path(path))
 
     @classmethod
     def precheck(cls, path):
         if not isdir(path):
+            return False
+        if not os.path.exists(cls._get_plist_path(path)):
             return False
         plist = cls.get_info(path)
         is_native = is_info_plist_native(plist)
@@ -172,6 +177,10 @@ class AppZipArchive(object):
         return relative_bundle_dir
 
     @classmethod
+    def _get_plist_path(cls, relative_bundle_dir):
+        return join(relative_bundle_dir, "Info.plist")
+
+    @classmethod
     def precheck(cls, path):
         """ Checks if an archive looks like this kind of app. Have to examine
             within the zipfile, b/c we don't want to make temp dirs just yet. This
@@ -189,6 +198,9 @@ class AppZipArchive(object):
             zipfile_obj = zipfile.ZipFile(path)
             relative_bundle_dir = cls.find_bundle_dir(zipfile_obj)
             if relative_bundle_dir is not None:
+                plist_path = cls._get_plist_path(relative_bundle_dir)
+                if plist_path not in zipfile_obj.namelist():
+                    return False
                 plist = cls.get_info(relative_bundle_dir, zipfile_obj)
                 is_native = is_info_plist_native(plist)
                 log.debug("is_native: {}".format(is_native))
@@ -196,7 +208,7 @@ class AppZipArchive(object):
 
     @classmethod
     def get_info(cls, relative_bundle_dir, zipfile_obj):
-        plist_path = join(relative_bundle_dir, "Info.plist")
+        plist_path = cls._get_plist_path(relative_bundle_dir)
         plist_bytes = zipfile_obj.read(plist_path)
         return biplist.readPlistFromString(plist_bytes)
 
