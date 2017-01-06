@@ -3,6 +3,7 @@
     common interface to extract these apps to a temp file, then resign them,
     and create an archive of the same type """
 
+import abc
 import biplist
 from bundle import App, Bundle, is_info_plist_native
 from exceptions import MissingHelpers, NotSignable, NotMatched
@@ -80,7 +81,38 @@ def process_watchkit(root_bundle_path, should_remove=False):
             raise NotSignable("Cannot yet sign WatchKit bundles")
 
 
-class AppArchive(object):
+class Archive(object):
+    __metaclass__ = abc.ABCMeta
+    # we use abc.abstractmethod throughout because there are certain class
+    # methods we want to ensure are implemented.
+
+    @abc.abstractmethod
+    def unarchive_to_temp(self):
+        """ Unarchive and copy to a temp directory """
+        pass
+
+    @abc.abstractmethod
+    def archive(cls, path, output_path):
+        """ Archive a directory to an output path """
+        pass
+
+    @abc.abstractmethod
+    def get_info(cls, path):
+        """ Obtain app metadata from Info.plist without unarchiving """
+        pass
+
+    @abc.abstractmethod
+    def precheck(cls, path):
+        """ Check if this is, in fact, an archive of this type """
+        pass
+
+    @abc.abstractmethod
+    def find_bundle_dir(cls, path):
+        """ Locate the directory of the main app (aka bundle) """
+        pass
+
+
+class AppArchive(Archive):
     """ The simplest form of archive -- a naked App Bundle, with no extra directory structure,
         compression, etc """
 
@@ -130,7 +162,7 @@ class AppArchive(object):
         return UncompressedArchive(containing_dir, '.', self.__class__)
 
 
-class AppZipArchive(object):
+class AppZipArchive(Archive):
     """ Just like an app, except it's zipped up, and when repackaged,
         should be re-zipped. """
     app_dir_pattern = r'^([^/]+\.app/).*$'
