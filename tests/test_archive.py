@@ -38,8 +38,46 @@ class TestArchive(IsignBaseTest):
         archive = archive_factory(self.TEST_SIMULATOR_APP)
         assert archive is None
 
-    def test_archive_info(self):
-        archive = archive_factory(self.TEST_IPA)
+
+class TestBundleInfo(IsignBaseTest):
+
+    def _test_bundle_info(self, filename):
+        archive = archive_factory(filename)
         assert archive is not None
         assert archive.bundle_info is not None
         assert archive.bundle_info['CFBundleName'] == 'isignTestApp'
+
+    def test_app_archive_info(self):
+        self._test_bundle_info(self.TEST_APP)
+
+    def test_appzip_archive_info(self):
+        self._test_bundle_info(self.TEST_APPZIP)
+
+    def test_ipa_archive_info(self):
+        self._test_bundle_info(self.TEST_IPA)
+
+
+class TestArchivePrecheck(IsignBaseTest):
+
+    def test_precheck_app(self):
+        assert AppArchive.precheck(self.TEST_APP)
+
+    def test_precheck_appzip(self):
+        assert AppZipArchive.precheck(self.TEST_APPZIP)
+
+    def test_precheck_ipa(self):
+        assert IpaArchive.precheck(self.TEST_IPA)
+
+    def test_bad_precheck_app(self):
+        assert AppArchive.precheck(self.TEST_NONAPP_DIR) is False
+        assert AppArchive.precheck(self.TEST_APPZIP) is False
+        assert AppArchive.precheck(self.TEST_IPA) is False
+
+    def test_bad_precheck_appzip(self):
+        assert AppZipArchive.precheck(self.TEST_APP) is False
+        assert AppZipArchive.precheck(self.TEST_IPA) is False
+
+    def test_bad_precheck_ipa(self):
+        assert IpaArchive.precheck(self.TEST_APP) is False
+        assert IpaArchive.precheck(self.TEST_APPZIP) is False
+        assert IpaArchive.precheck(self.TEST_NONAPP_IPA) is False
