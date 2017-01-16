@@ -2,7 +2,7 @@
 set -e
 
 # determine local paths
-pushd $(dirname $0) >/dev/null
+pushd $(dirname "$0") >/dev/null
 DEV_DIR=$PWD
 cd ..
 SRC_DIR=$PWD
