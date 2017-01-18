@@ -40,4 +40,4 @@ But we could still do better in the general case:
 But wait!
 ~~~~~~~~~
 
-Incidentally, if what you're looking for is to resign one app with multiple credentials, look into the `multisign` scripts. There can save a significant amount of time by unzipping the original app only once.
+Incidentally, if what you're looking for is to resign one app with multiple credentials, look into the `multisign` scripts. There can save a significant amount of time by unzipping the original app only once, and using a process pool to exploit multiple cores.
