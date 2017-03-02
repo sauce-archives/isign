@@ -110,7 +110,7 @@ class Signer(object):
             msg = "Signing may not work: OpenSSL version is {0}, need {1} !"
             log.warn(msg.format(openssl_version, MINIMUM_OPENSSL_VERSION))
 
-    def sign(self, data):
+    def sign(self, data, digest_algorithm = "sha1"):
         """ sign data, return filehandle """
         cmd = [
             "cms",
@@ -119,7 +119,8 @@ class Signer(object):
             "-signer", self.signer_cert_file,
             "-inkey", self.signer_key_file,
             "-keyform", "pem",
-            "-outform", "DER"
+            "-outform", "DER",
+            "-md", digest_algorithm
         ]
         signature = openssl_command(cmd, data)
         # in some cases we've seen this return a zero length file.
