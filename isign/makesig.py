@@ -178,9 +178,6 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
 
 
 def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
-    raise Exception("Making a signature is not fully implemented. This code was"
-                    "abandoned since we think our customers will only give us signed"
-                    "apps. But, it almost works, so it's preserved here.")
     # sign from scratch
     log.debug("signing from scratch")
 
