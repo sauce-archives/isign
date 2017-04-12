@@ -9,9 +9,13 @@
 
 import construct
 import hashlib
+import logging
 import math
 import macho
 import macho_cs
+
+
+log = logging.getLogger(__name__)
 
 
 def make_arg(data_type, arg):
@@ -60,12 +64,12 @@ def make_expr(op, *args):
 def make_requirements(drs):
     expr = make_expr(
         'And',
-        ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
-        ('AppleGenericAnchor',),
+        ('Ident', 'com.facebook.internal.focusrepresentativeapp.development'),
+        ('AppleGenericAnchor',))
         # TODO pull this from the X509 cert
         # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
-        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
+#        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
+#        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
 
@@ -97,8 +101,8 @@ def make_requirements(drs):
 
 
 def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
-    ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
-    teamID = 'fake' + '\x00'
+    ident = 'com.facebook.internal.focusrepresentativeapp.development' + '\x00'
+    teamID = 'V9WTTPBFK9' + '\x00'
     empty_hash = "\x00" * 20
     cd = construct.Container(cd_start=None,
                              version=0x20200,
@@ -142,15 +146,18 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                                       ))
     offset += requirements_index.blob.length
 
-    entitlements_bytes = open(entitlements_file, "rb").read()
-    entitlements_index = construct.Container(type=5,
-                                             offset=offset,
-                                             blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
-                                                                      length=len(entitlements_bytes) + 8,
-                                                                      data="",
-                                                                      bytes=entitlements_bytes
-                                                                      ))
-    offset += entitlements_index.blob.length
+    entitlements_index = None
+    if entitlements_file != None:
+        entitlements_bytes = open(entitlements_file, "rb").read()
+        entitlements_index = construct.Container(type=5,
+                                                 offset=offset,
+                                                 blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
+                                                                          length=len(entitlements_bytes) + 8,
+                                                                          data="",
+                                                                          bytes=entitlements_bytes
+                                                                          ))
+        offset += entitlements_index.blob.length
+
     sigwrapper_index = construct.Container(type=65536,
                                            offset=offset,
                                            blob=construct.Container(magic='CSMAGIC_BLOBWRAPPER',
@@ -158,10 +165,10 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                                     data="",
                                                                     bytes="",
                                                                     ))
-    indicies = [cd_index,
+    indicies = filter(None, [cd_index,
                 requirements_index,
                 entitlements_index,
-                sigwrapper_index]
+                sigwrapper_index])
 
     superblob = construct.Container(
         sb_start=0,
@@ -190,19 +197,19 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
 
     # generate code hashes
     hashes = []
-    #log.debug("codesig offset:", codesig_offset)
+    log.debug("codesig offset: {}".format(codesig_offset))
     start_offset = arch_macho.macho_start
-    end_offset = macho_end
-    #log.debug("new start-end", start_offset, end_offset)
+    end_offset = arch_end #macho_end
+    log.debug("new start-end {} {}".format(start_offset, end_offset))
     codeLimit = end_offset - start_offset
-    #log.debug("new cL:", codeLimit)
+    log.debug("new cL: {}".format(hex(codeLimit)))
     nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
-    #log.debug("new nCS:", nCodeSlots)
+    log.debug("new nCS: {}".format(nCodeSlots))
     for i in xrange(nCodeSlots):
         f.seek(start_offset + 0x1000 * i)
         actual_data = f.read(min(0x1000, end_offset - f.tell()))
         actual = hashlib.sha1(actual_data).digest()
-        #log.debug(actual.encode('hex'))
+        log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
         hashes.append(actual)
 
     codesig_cons = make_basic_codesig(entitlements_file,
@@ -220,4 +227,4 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     arch_macho.ncmds += 1
     arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
     cmds['LC_CODE_SIGNATURE'] = cmd
-
+    return codesig_data

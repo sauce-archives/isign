@@ -38,6 +38,7 @@ class Bundle(object):
         Apps are Bundles, but so are some kinds of Frameworks (libraries) """
     helpers = []
     signable_class = None
+    entitlements_path = None  # Not set for every bundle type
 
     def __init__(self, path):
         self.path = path
@@ -50,6 +51,9 @@ class Bundle(object):
             raise NotMatched("not a native iOS bundle")
         # will be added later
         self.seal_path = None
+
+    def get_entitlements_path(self):
+        return self.entitlements_path
 
     def get_executable_path(self):
         """ Path to the main executable. For an app, this is app itself. For
@@ -229,8 +233,6 @@ class App(Bundle):
 
     def resign(self, signer, provisioning_profile, alternate_entitlements_path=None):
         """ signs app in place """
-        # copy the provisioning profile in
-        self.provision(provisioning_profile)
 
         # TODO all this mucking about with entitlements feels wrong. The entitlements_path is
         # not actually functional, it's just a way of passing it to later stages of signing.
@@ -239,6 +241,9 @@ class App(Bundle):
 
         # In the typical case, we add entitlements from the pprof into the app's signature
         if alternate_entitlements_path is None:
+            # copy the provisioning profile in
+            self.provision(provisioning_profile)
+
             entitlements = self.extract_entitlements(provisioning_profile)
         else:
             log.info("signing with alternative entitlements: {}".format(alternate_entitlements_path))

@@ -68,6 +68,8 @@ class Signable(object):
             name = cmd.cmd
             arch['cmds'][name] = cmd
 
+        codesig_data = None
+
         if 'LC_CODE_SIGNATURE' in arch['cmds']:
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
             codesig_offset = arch['macho'].macho_start + arch['lc_codesig'].data.dataoff
@@ -77,7 +79,7 @@ class Signable(object):
         else:
 #            raise Exception('At this time, isign cannot sign an unsigned app.')
             log.info("signing from scratch!")
-            entitlements_file = '/path/to/some/entitlements.plist'
+            entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
             codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
 
