@@ -66,6 +66,7 @@ class InfoSlot(CodeDirectorySlot):
 class Codesig(object):
     """ wrapper around construct for code signature """
     def __init__(self, signable, data):
+        log.debug("existing data is {}".format(len(data)))
         self.signable = signable
         self.construct = macho_cs.Blob.parse(data)
         self.is_sha256 = len(self.construct.data.BlobIndex) >= 6

@@ -12,7 +12,9 @@ import hashlib
 import logging
 import math
 import macho
+import macho_debug
 import macho_cs
+import utils
 
 import binascii
 
@@ -66,11 +68,11 @@ def make_requirements(drs):
     expr = make_expr(
         'And',
         ('Ident', 'com.facebook.internal.focusrepresentativeapp.development'),
-        ('AppleGenericAnchor',))
+        ('AppleGenericAnchor',),
         # TODO pull this from the X509 cert
         # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-#        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
-#        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Mark Wang (A9KM4F7M4Q)']),
+        ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
 
@@ -124,6 +126,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                              hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
                              hashes=([empty_hash] * 5) + hashes,
                              )
+
     cd_data = macho_cs.CodeDirectory.build(cd)
 
     offset = 44
@@ -182,6 +185,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
         length=len(data) + 8,
         data=data,
         bytes=data))
+    #print len(chunk)
     return macho_cs.Blob.parse(chunk)
 
 
@@ -207,8 +211,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     log.debug("new nCS: {}".format(nCodeSlots))
 
 
-    # generate fake command (like what codesign_allocate does)
-    fake_hashes = [hashlib.sha1('').digest()]*nCodeSlots
+    # generate placeholder LC_CODE_SIGNATURE (like what codesign_allocate does)
+    fake_hashes = ["\x00" * 20]*nCodeSlots
 
     codesig_cons = make_basic_codesig(entitlements_file,
             drs,
@@ -216,32 +220,68 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             fake_hashes)
     codesig_data = macho_cs.Blob.build(codesig_cons)
     cmd_data = construct.Container(dataoff=codesig_offset,
-            datasize=len(codesig_data))
+            datasize=29790) #len(codesig_data))  # TODO(markwang): why doesn't this give the right length?
     cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
             cmdsize=16,
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
-    arch_macho.commands.append(cmd)
+
+    codesig_length = ((len(codesig_data) + 16 - 1) & -16)
+    log.debug("codesig length (padded to 16): {}".format(codesig_length))
+
+    log.debug("old ncmds: {}".format(arch_macho.ncmds))
     arch_macho.ncmds += 1
-    arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
+    log.debug("new ncmds: {}".format(arch_macho.ncmds))
+
+    log.debug("old sizeofcmds: {}".format(arch_macho.sizeofcmds))
+    arch_macho.sizeofcmds += cmd.cmdsize
+    log.debug("new sizeofcmds: {}".format(arch_macho.sizeofcmds))
+
+    arch_macho.commands.append(cmd)
+
+
+    # Patch __LINKEDIT
+    for lc in arch_macho.commands:
+        if lc.cmd == 'LC_SEGMENT_64' or lc.cmd == 'LC_SEGMENT':
+            if lc.data.segname == '__LINKEDIT':
+                log.debug("found __LINKEDIT, old filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
+
+                lc.data.filesize = ((lc.data.filesize + 16 - 1) & -16) + codesig_length
+                if (lc.data.filesize > lc.data.vmsize):
+                    lc.data.vmsize = ((lc.data.filesize + 4096 - 1) & -4096)
+
+                lc.bytes = macho.Segment64.build(lc.data)
+                log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
+
 
     actual_data = macho.MachO.build(arch_macho)
 
+    adf = open("actual.data", "wb")
+    adf.write(actual_data)
+    adf.close()
+
+    actual_data = actual_data + ("\x00" * 4096)
+    log.debug("after fixup: len={}, {}".format(len(actual_data), macho.MachO.parse(actual_data)))
+
+
     hashes = []
     for i in xrange(nCodeSlots):
-        if i > 0:
+
+        if i > 1:
             f.seek(start_offset + 0x1000 * i)
             actual_data_slice = f.read(min(0x1000, end_offset - f.tell()))
         else:
             actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
 
         if i < 2:
-            log.debug("Data is {}, len {}".format(binascii.hexlify(actual_data_slice), hex(len(actual_data_slice))))
+            utils.print_data(actual_data_slice)
+#            log.debug("Data is {}, len {}".format(binascii.hexlify(actual_data_slice), hex(len(actual_data_slice))))
 
         actual = hashlib.sha1(actual_data_slice).digest()
         log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
         hashes.append(actual)
 
+    # Replace placeholder with real one.
     codesig_cons = make_basic_codesig(entitlements_file,
             drs,
             codeLimit,

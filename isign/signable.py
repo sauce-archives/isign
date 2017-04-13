@@ -37,7 +37,11 @@ class Signable(object):
         self.f.seek(0)
 
         self.m = macho.MachoFile.parse_stream(self.f)
+        self.sign_from_scratch = False
+
+        # may set sign_from_scratch to True
         self.arches = self._parse_arches()
+
 
     def _parse_arches(self):
         """ parse architectures and associated Codesig """
@@ -79,6 +83,7 @@ class Signable(object):
         else:
 #            raise Exception('At this time, isign cannot sign an unsigned app.')
             log.info("signing from scratch!")
+            self.sign_from_scratch = True
             entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
             codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
@@ -86,10 +91,12 @@ class Signable(object):
         arch['codesig'] = Codesig(self, codesig_data)
         arch['codesig_len'] = len(codesig_data)
 
+        if self.sign_from_scratch:
+            arch['codesig_data'] = codesig_data
+
         return arch
 
     def _sign_arch(self, arch, app, signer):
-
         arch['codesig'].resign(app, signer)
 
         new_codesig_data = arch['codesig'].build_data()
@@ -109,14 +116,17 @@ class Signable(object):
         return offset, new_codesig_data
 
     def should_fill_slot(self, codesig, slot):
+        if self.sign_from_scratch:
+            return True
+
         slot_class = slot.__class__
         if slot_class not in self.slot_classes:
             # This signable does not have this slot
             return False
 
-        #if slot_class == InfoSlot and not self.bundle.info_props_changed():
+        if slot_class == InfoSlot and not self.bundle.info_props_changed():
             # No Info.plist changes, don't fill
-        #    return False
+            return False
 
         if slot_class == ApplicationSlot and not codesig.is_sha256_signature():
             # Application slot only needs to be zeroed out when there's a sha256 layer
