@@ -114,9 +114,9 @@ class Signable(object):
             # This signable does not have this slot
             return False
 
-        if slot_class == InfoSlot and not self.bundle.info_props_changed():
+        #if slot_class == InfoSlot and not self.bundle.info_props_changed():
             # No Info.plist changes, don't fill
-            return False
+        #    return False
 
         if slot_class == ApplicationSlot and not codesig.is_sha256_signature():
             # Application slot only needs to be zeroed out when there's a sha256 layer
@@ -139,14 +139,14 @@ class Signable(object):
         temp.seek(0)
 
         # write new codesign blocks for each arch
-        # offset_fmt = ("offset: {2}, write offset: {0}, "
-        #               "new_codesig_data len: {1}")
+        offset_fmt = ("offset: {2}, write offset: {0}, "
+                      "new_codesig_data len: {1}")
         for arch in self.arches:
             offset, new_codesig_data = self._sign_arch(arch, app, signer)
             write_offset = arch['macho'].macho_start + offset
-            # log.debug(offset_fmt.format(write_offset,
-            #                             len(new_codesig_data),
-            #                             offset))
+            log.debug(offset_fmt.format(write_offset,
+                                        len(new_codesig_data),
+                                        offset))
             temp.seek(write_offset)
             temp.write(new_codesig_data)
 

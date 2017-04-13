@@ -14,6 +14,7 @@ import math
 import macho
 import macho_cs
 
+import binascii
 
 log = logging.getLogger(__name__)
 
@@ -196,7 +197,6 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     codesig_offset = arch_end
 
     # generate code hashes
-    hashes = []
     log.debug("codesig offset: {}".format(codesig_offset))
     start_offset = arch_macho.macho_start
     end_offset = arch_end #macho_end
@@ -205,10 +205,40 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     log.debug("new cL: {}".format(hex(codeLimit)))
     nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
     log.debug("new nCS: {}".format(nCodeSlots))
+
+
+    # generate fake command (like what codesign_allocate does)
+    fake_hashes = [hashlib.sha1('').digest()]*nCodeSlots
+
+    codesig_cons = make_basic_codesig(entitlements_file,
+            drs,
+            codeLimit,
+            fake_hashes)
+    codesig_data = macho_cs.Blob.build(codesig_cons)
+    cmd_data = construct.Container(dataoff=codesig_offset,
+            datasize=len(codesig_data))
+    cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
+            cmdsize=16,
+            data=cmd_data,
+            bytes=macho.CodeSigRef.build(cmd_data))
+    arch_macho.commands.append(cmd)
+    arch_macho.ncmds += 1
+    arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
+
+    actual_data = macho.MachO.build(arch_macho)
+
+    hashes = []
     for i in xrange(nCodeSlots):
-        f.seek(start_offset + 0x1000 * i)
-        actual_data = f.read(min(0x1000, end_offset - f.tell()))
-        actual = hashlib.sha1(actual_data).digest()
+        if i > 0:
+            f.seek(start_offset + 0x1000 * i)
+            actual_data_slice = f.read(min(0x1000, end_offset - f.tell()))
+        else:
+            actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
+
+        if i < 2:
+            log.debug("Data is {}, len {}".format(binascii.hexlify(actual_data_slice), hex(len(actual_data_slice))))
+
+        actual = hashlib.sha1(actual_data_slice).digest()
         log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
         hashes.append(actual)
 
@@ -223,8 +253,6 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             cmdsize=16,
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
-    arch_macho.commands.append(cmd)
-    arch_macho.ncmds += 1
-    arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
+    arch_macho.commands[-1] = cmd
     cmds['LC_CODE_SIGNATURE'] = cmd
     return codesig_data
