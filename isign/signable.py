@@ -135,13 +135,14 @@ class Signable(object):
         return offset, new_codesig_data
 
     def should_fill_slot(self, codesig, slot):
-        if self.sign_from_scratch:
-            return True
 
         slot_class = slot.__class__
         if slot_class not in self.slot_classes:
             # This signable does not have this slot
             return False
+
+        if self.sign_from_scratch:
+            return True
 
         if slot_class == InfoSlot and not self.bundle.info_props_changed():
             # No Info.plist changes, don't fill

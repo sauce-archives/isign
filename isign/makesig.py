@@ -235,6 +235,7 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
     codesig_length = codesig_data_length #utils.round_up(29790, 16) #((len(codesig_data) + 16 - 1) & -16)
     log.debug("codesig length: {}".format(codesig_length))
 
+
     log.debug("old ncmds: {}".format(arch_macho.ncmds))
     arch_macho.ncmds += 1
     log.debug("new ncmds: {}".format(arch_macho.ncmds))
@@ -243,45 +244,48 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
     arch_macho.sizeofcmds += cmd.cmdsize
     log.debug("new sizeofcmds: {}".format(arch_macho.sizeofcmds))
 
+
     arch_macho.commands.append(cmd)
 
 
-    # Patch __LINKEDIT
-    for lc in arch_macho.commands:
-        if lc.cmd == 'LC_SEGMENT_64' or lc.cmd == 'LC_SEGMENT':
-            if lc.data.segname == '__LINKEDIT':
-                log.debug("found __LINKEDIT, old filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
-
-                lc.data.filesize = utils.round_up(lc.data.filesize, 16) + codesig_length
-                if (lc.data.filesize > lc.data.vmsize):
-                    lc.data.vmsize = utils.round_up(lc.data.filesize, 4096)
-
-                lc.bytes = macho.Segment64.build(lc.data)
-                log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
-
-
-    actual_data = macho.MachO.build(arch_macho)
-
-    actual_data = actual_data + ("\x00" * 4096)
-#    log.debug("after fixup: len={}, {}".format(len(actual_data), macho.MachO.parse(actual_data)))
-
 
     hashes = []
-    for i in xrange(nCodeSlots):
+    if codesig_data_length > 0:
+        # Patch __LINKEDIT
+        for lc in arch_macho.commands:
+            if lc.cmd == 'LC_SEGMENT_64' or lc.cmd == 'LC_SEGMENT':
+                if lc.data.segname == '__LINKEDIT':
+                    log.debug("found __LINKEDIT, old filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
 
-        if i > 1:
-            f.seek(start_offset + 0x1000 * i)
-            bytes_to_read = min(0x1000, end_offset - f.tell())
-            actual_data_slice = f.read(bytes_to_read)
-            if len(actual_data_slice) < bytes_to_read:
-                log.warn("expected {} bytes but got {}, padding.".format(bytes_to_read, len(actual_data_slice)))
-                actual_data_slice += ("\x00" * (bytes_to_read - len(actual_data_slice)))
-        else:
+                    lc.data.filesize = utils.round_up(lc.data.filesize, 16) + codesig_length
+                    if (lc.data.filesize > lc.data.vmsize):
+                        lc.data.vmsize = utils.round_up(lc.data.filesize, 4096)
+
+                    lc.bytes = macho.Segment64.build(lc.data)
+                    log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
+
+
+        actual_data = macho.MachO.build(arch_macho)
+        log.debug("actual_data length with codesig LC {}".format(len(actual_data)))
+        f.seek(len(actual_data))
+        bytes_to_read = end_offset - f.tell()
+        file_slice = f.read(bytes_to_read)
+        if len(file_slice) < bytes_to_read:
+            log.warn("expected {} bytes but got {}, zero padding.".format(bytes_to_read, len(file_slice)))
+            file_slice += ("\x00" * (bytes_to_read - len(file_slice)))
+        actual_data += file_slice
+
+#        actual_data = actual_data + ("\x00" * 4096)
+
+
+        for i in xrange(nCodeSlots):
             actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
 
-        actual = hashlib.sha1(actual_data_slice).digest()
-        log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
-        hashes.append(actual)
+            actual = hashlib.sha1(actual_data_slice).digest()
+            log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
+            hashes.append(actual)
+    else:
+        hashes = fake_hashes
 
     # Replace placeholder with real one.
     codesig_cons = make_basic_codesig(entitlements_file,
