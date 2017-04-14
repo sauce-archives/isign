@@ -198,12 +198,12 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     if drs_lc:
         drs = drs_lc.data.blob
 
-    codesig_offset = arch_end
+    codesig_offset = utils.round_up(arch_end, 16)
 
     # generate code hashes
     log.debug("codesig offset: {}".format(codesig_offset))
     start_offset = arch_macho.macho_start
-    end_offset = arch_end #macho_end
+    end_offset = codesig_offset #macho_end
     log.debug("new start-end {} {}".format(start_offset, end_offset))
     codeLimit = end_offset - start_offset
     log.debug("new cL: {}".format(hex(codeLimit)))
@@ -269,13 +269,16 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
 
         if i > 1:
             f.seek(start_offset + 0x1000 * i)
-            actual_data_slice = f.read(min(0x1000, end_offset - f.tell()))
+            bytes_to_read = min(0x1000, end_offset - f.tell())
+            actual_data_slice = f.read(bytes_to_read)
+            if len(actual_data_slice) < bytes_to_read:
+                log.warn("expected {} bytes but got {}".format(bytes_to_read, len(actual_data_slice)))
+                actual_data_slice += ("\x00" * (bytes_to_read - len(actual_data_slice)))
         else:
             actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
 
-        if i < 2:
-            utils.print_data(actual_data_slice)
-#            log.debug("Data is {}, len {}".format(binascii.hexlify(actual_data_slice), hex(len(actual_data_slice))))
+#        if i < 2:
+#            utils.print_data(actual_data_slice)
 
         actual = hashlib.sha1(actual_data_slice).digest()
         log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
