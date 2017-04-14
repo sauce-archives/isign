@@ -64,14 +64,14 @@ def make_expr(op, *args):
                                data=data)
 
 
-def make_requirements(drs):
+def make_requirements(drs, ident):
     expr = make_expr(
         'And',
-        ('Ident', 'com.facebook.internal.focusrepresentativeapp.development'),
+        ('Ident', ident),
         ('AppleGenericAnchor',),
         # TODO pull this from the X509 cert
         # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Distribution: Facebook, Inc. (V9WTTPBFK9)']),
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Distribution: Facebook, Inc. (In-House)']),
         ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
@@ -104,8 +104,14 @@ def make_requirements(drs):
 
 
 def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
-    ident = 'com.facebook.internal.focusrepresentativeapp.development' + '\x00'
-    teamID = 'V9WTTPBFK9' + '\x00'
+    ident = 'com.facebook.MobileConfig'
+    log.debug("codelimit: {}".format(code_limit))
+    if code_limit > 1000000:
+        ident = 'com.facebook.internal.focusrepresentativeapp.development'
+    teamID = '4W5TH4RKQ2'
+
+
+    teamID = teamID + '\x00'
     empty_hash = "\x00" * 20
     cd = construct.Container(cd_start=None,
                              version=0x20200,
@@ -119,11 +125,11 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                              spare1=0,
                              pageSize=12,
                              spare2=0,
-                             ident=ident,
+                             ident=ident + '\x00',
                              scatterOffset=0,
-                             teamIDOffset=52 + len(ident),
+                             teamIDOffset=52 + len(ident) + 1,
                              teamID=teamID,
-                             hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
+                             hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
                              hashes=([empty_hash] * 5) + hashes,
                              )
 
@@ -139,7 +145,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                             ))
 
     offset += cd_index.blob.length
-    reqs_sblob = make_requirements(drs)
+    reqs_sblob = make_requirements(drs, ident)
     reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
     requirements_index = construct.Container(type=2,
                                              offset=offset,
