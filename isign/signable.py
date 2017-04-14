@@ -26,10 +26,11 @@ class Signable(object):
 
     slot_classes = []
 
-    def __init__(self, bundle, path):
+    def __init__(self, bundle, path, signer):
         log.debug("working on {0}".format(path))
         self.bundle = bundle
         self.path = path
+        self.signer = signer
 
         self.f = open(self.path, "rb")
         self.f.seek(0, os.SEEK_END)
@@ -85,7 +86,25 @@ class Signable(object):
             log.info("signing from scratch!")
             self.sign_from_scratch = True
             entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
-            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file)
+
+            # Stage 1: Fake signature
+            fake_codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, 0)
+
+            macho.ncmds -= 1
+            macho.commands = macho.commands[:-1]
+
+            # Get the length
+            fake_codesig = Codesig(self, fake_codesig_data)
+            fake_codesig.set_signature(self.signer)
+            fake_codesig.update_offsets()
+            fake_codesig_length = len(fake_codesig.build_data())
+
+            log.debug("fake codesig length: {}".format(fake_codesig_length))
+
+            # stage 2: real signature
+            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, fake_codesig_length)
+
+
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
 
         arch['codesig'] = Codesig(self, codesig_data)
@@ -101,7 +120,7 @@ class Signable(object):
 
         new_codesig_data = arch['codesig'].build_data()
         new_codesig_len = len(new_codesig_data)
-        # log.debug("new codesig len: {0}".format(new_codesig_len))
+        log.debug("new codesig len is: {0}".format(new_codesig_len))
 
         padding_length = arch['codesig_len'] - new_codesig_len
         new_codesig_data += "\x00" * padding_length

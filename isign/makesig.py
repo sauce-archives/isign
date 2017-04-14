@@ -71,7 +71,7 @@ def make_requirements(drs):
         ('AppleGenericAnchor',),
         # TODO pull this from the X509 cert
         # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Mark Wang (A9KM4F7M4Q)']),
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Distribution: Facebook, Inc. (V9WTTPBFK9)']),
         ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
@@ -189,7 +189,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
     return macho_cs.Blob.parse(chunk)
 
 
-def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
+def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length):
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -219,14 +219,20 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             codeLimit,
             fake_hashes)
     codesig_data = macho_cs.Blob.build(codesig_cons)
+
     cmd_data = construct.Container(dataoff=codesig_offset,
-            datasize=29790) #len(codesig_data))  # TODO(markwang): why doesn't this give the right length?
+            datasize=codesig_data_length) #len(codesig_data))  # TODO(markwang): why doesn't this give the right length?
     cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
             cmdsize=16,
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
 
-    codesig_length = 29790 #utils.round_up(29790, 16) #((len(codesig_data) + 16 - 1) & -16)
+    log.debug("CS blob before: {}".format(utils.print_structure(codesig_cons, macho_cs.Blob)))
+
+    log.debug("len(codesig_data): {}".format(len(codesig_data)))
+
+
+    codesig_length = codesig_data_length #utils.round_up(29790, 16) #((len(codesig_data) + 16 - 1) & -16)
     log.debug("codesig length: {}".format(codesig_length))
 
     log.debug("old ncmds: {}".format(arch_macho.ncmds))
@@ -246,9 +252,9 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             if lc.data.segname == '__LINKEDIT':
                 log.debug("found __LINKEDIT, old filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
 
-                lc.data.filesize = ((lc.data.filesize + 16 - 1) & -16) + codesig_length
+                lc.data.filesize = utils.round_up(lc.data.filesize, 16) + codesig_length
                 if (lc.data.filesize > lc.data.vmsize):
-                    lc.data.vmsize = ((lc.data.filesize + 4096 - 1) & -4096)
+                    lc.data.vmsize = utils.round_up(lc.data.filesize, 4096)
 
                 lc.bytes = macho.Segment64.build(lc.data)
                 log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
@@ -256,12 +262,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
 
     actual_data = macho.MachO.build(arch_macho)
 
-    adf = open("actual.data", "wb")
-    adf.write(actual_data)
-    adf.close()
-
     actual_data = actual_data + ("\x00" * 4096)
-    log.debug("after fixup: len={}, {}".format(len(actual_data), macho.MachO.parse(actual_data)))
+#    log.debug("after fixup: len={}, {}".format(len(actual_data), macho.MachO.parse(actual_data)))
 
 
     hashes = []
@@ -276,9 +278,6 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
                 actual_data_slice += ("\x00" * (bytes_to_read - len(actual_data_slice)))
         else:
             actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
-
-#        if i < 2:
-#            utils.print_data(actual_data_slice)
 
         actual = hashlib.sha1(actual_data_slice).digest()
         log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))

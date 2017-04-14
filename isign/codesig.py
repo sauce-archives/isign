@@ -4,6 +4,8 @@ import hashlib
 import logging
 import macho_cs
 
+import utils
+
 log = logging.getLogger(__name__)
 
 
@@ -69,12 +71,16 @@ class Codesig(object):
         log.debug("existing data is {}".format(len(data)))
         self.signable = signable
         self.construct = macho_cs.Blob.parse(data)
+        utils.dump_to_file("cs.old", utils.print_structure(self.construct, macho_cs.Blob))
+
         self.is_sha256 = len(self.construct.data.BlobIndex) >= 6
 
     def is_sha256_signature(self):
         return self.is_sha256
 
     def build_data(self):
+        utils.dump_to_file("cs.new", utils.print_structure(self.construct, macho_cs.Blob))
+
         return macho_cs.Blob.build(self.construct)
 
     def get_blob(self, magic):
@@ -182,6 +188,13 @@ class Codesig(object):
             self.get_codedirectory().data.hashes[index] = slot.get_hash()
 
     def set_codedirectory(self, seal_path, info_path, signer):
+        cd = self.get_codedirectory()
+        cd.bytes = macho_cs.CodeDirectory.build(cd.data)
+        cd_data = macho_cs.Blob_.build(cd)
+        log.debug("CD blob length before: {}".format(len(cd_data)))
+
+
+
         if self.has_codedirectory_slot(EntitlementsSlot):
             self.fill_codedirectory_slot(EntitlementsSlot(self))
 
@@ -212,12 +225,13 @@ class Codesig(object):
             cd.length += offset_change
 
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
-        # cd_data = macho_cs.Blob_.build(cd)
-        # log.debug(len(cd_data))
+        cd_data = macho_cs.Blob_.build(cd)
+        log.debug("CD blob length after: {}".format(len(cd_data)))
         # open("cdrip", "wb").write(cd_data)
         # log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
 
     def set_signature(self, signer):
+
         # TODO how do we even know this blobwrapper contains the signature?
         # seems like this is a coincidence of the structure, where
         # it's the only blobwrapper at that level...
@@ -227,6 +241,10 @@ class Codesig(object):
         # signer._log_parsed_asn1(sigwrapper.data.data.value)
         # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
         cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
+
+        utils.dump_to_file("cs.old2", utils.print_structure(self.construct, macho_cs.Blob))
+
+
         sig = signer.sign(cd_data)
         # log.debug("sig len: {0}".format(len(sig)))
         # log.debug("old sig len: {0}".format(len(oldsig)))
@@ -289,7 +307,10 @@ class Codesig(object):
         # Possible refactor - make entitlements data part of Signer rather than Bundle?
         if hasattr(bundle, 'entitlements_path'):
             self.set_entitlements(bundle.entitlements_path)
+
+        # TODO(markwang):  no need to set_requirements() if signing from scratch
         self.set_requirements(signer)
+
         # See docs/codedirectory.rst for some notes on optional hashes
         self.set_codedirectory(bundle.seal_path, bundle.info_path, signer)
         self.set_signature(signer)

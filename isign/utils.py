@@ -10,3 +10,14 @@ def print_data(data):
 
 def round_up(x, k):
     return ((x + k - 1) & -k)
+
+
+def print_structure(container, struct):
+    actual_data = struct.build(container)
+    return "{}".format(struct.parse(actual_data))
+
+
+def dump_to_file(filename, string):
+    adf = open(filename, "wb")
+    adf.write(string)
+    adf.close()

@@ -163,7 +163,7 @@ class Bundle(object):
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
                                                   self.path)
         # then sign the app
-        executable = self.signable_class(self, self.get_executable_path())
+        executable = self.signable_class(self, self.get_executable_path(), signer)
         executable.sign(self, signer)
 
     def resign(self, signer):
