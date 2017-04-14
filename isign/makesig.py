@@ -226,8 +226,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
 
-    codesig_length = ((len(codesig_data) + 16 - 1) & -16)
-    log.debug("codesig length (padded to 16): {}".format(codesig_length))
+    codesig_length = 29790 #utils.round_up(29790, 16) #((len(codesig_data) + 16 - 1) & -16)
+    log.debug("codesig length: {}".format(codesig_length))
 
     log.debug("old ncmds: {}".format(arch_macho.ncmds))
     arch_macho.ncmds += 1
@@ -272,7 +272,7 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             bytes_to_read = min(0x1000, end_offset - f.tell())
             actual_data_slice = f.read(bytes_to_read)
             if len(actual_data_slice) < bytes_to_read:
-                log.warn("expected {} bytes but got {}".format(bytes_to_read, len(actual_data_slice)))
+                log.warn("expected {} bytes but got {}, padding.".format(bytes_to_read, len(actual_data_slice)))
                 actual_data_slice += ("\x00" * (bytes_to_read - len(actual_data_slice)))
         else:
             actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
