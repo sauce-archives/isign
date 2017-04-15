@@ -101,13 +101,11 @@ def make_requirements(drs, ident, common_name):
     return reqs
 
 
-def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer):
+def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident):
     # TODO(markwang): remove hack
     common_name = signer.get_common_name()
-    ident = 'com.facebook.MobileConfig'
+    log.debug("ident: {}".format(ident))
     log.debug("codelimit: {}".format(code_limit))
-    if code_limit > 1000000:
-        ident = 'com.facebook.internal.focusrepresentativeapp.development'
     teamID = signer._get_team_id()
 
 
@@ -195,7 +193,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer):
     return macho_cs.Blob.parse(chunk)
 
 
-def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length, signer):
+def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length, signer, ident):
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -224,7 +222,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
             drs,
             codeLimit,
             fake_hashes,
-            signer)
+            signer,
+            ident)
     codesig_data = macho_cs.Blob.build(codesig_cons)
 
     cmd_data = construct.Container(dataoff=codesig_offset,
@@ -299,7 +298,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
             drs,
             codeLimit,
             hashes,
-            signer)
+            signer,
+            ident)
     codesig_data = macho_cs.Blob.build(codesig_cons)
     cmd_data = construct.Container(dataoff=codesig_offset,
             datasize=len(codesig_data))
