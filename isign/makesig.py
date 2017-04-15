@@ -64,14 +64,12 @@ def make_expr(op, *args):
                                data=data)
 
 
-def make_requirements(drs, ident):
+def make_requirements(drs, ident, common_name):
     expr = make_expr(
         'And',
         ('Ident', ident),
         ('AppleGenericAnchor',),
-        # TODO pull this from the X509 cert
-        # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Distribution: Facebook, Inc. (In-House)']),
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', common_name]),
         ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
@@ -103,12 +101,14 @@ def make_requirements(drs, ident):
     return reqs
 
 
-def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
+def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer):
+    # TODO(markwang): remove hack
+    common_name = signer.get_common_name()
     ident = 'com.facebook.MobileConfig'
     log.debug("codelimit: {}".format(code_limit))
     if code_limit > 1000000:
         ident = 'com.facebook.internal.focusrepresentativeapp.development'
-    teamID = '4W5TH4RKQ2'
+    teamID = signer._get_team_id()
 
 
     teamID = teamID + '\x00'
@@ -145,7 +145,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                             ))
 
     offset += cd_index.blob.length
-    reqs_sblob = make_requirements(drs, ident)
+    reqs_sblob = make_requirements(drs, ident, common_name)
     reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
     requirements_index = construct.Container(type=2,
                                              offset=offset,
@@ -195,7 +195,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
     return macho_cs.Blob.parse(chunk)
 
 
-def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length):
+def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length, signer):
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -223,7 +223,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
     codesig_cons = make_basic_codesig(entitlements_file,
             drs,
             codeLimit,
-            fake_hashes)
+            fake_hashes,
+            signer)
     codesig_data = macho_cs.Blob.build(codesig_cons)
 
     cmd_data = construct.Container(dataoff=codesig_offset,
@@ -297,7 +298,8 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
     codesig_cons = make_basic_codesig(entitlements_file,
             drs,
             codeLimit,
-            hashes)
+            hashes,
+            signer)
     codesig_data = macho_cs.Blob.build(codesig_cons)
     cmd_data = construct.Container(dataoff=codesig_offset,
             datasize=len(codesig_data))

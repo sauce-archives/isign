@@ -88,7 +88,7 @@ class Signable(object):
             entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
 
             # Stage 1: Fake signature
-            fake_codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, 0)
+            fake_codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, 0, self.signer)
 
             macho.ncmds -= 1
             macho.commands = macho.commands[:-1]
@@ -102,7 +102,7 @@ class Signable(object):
             log.debug("fake codesig length: {}".format(fake_codesig_length))
 
             # stage 2: real signature
-            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, fake_codesig_length)
+            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, fake_codesig_length, self.signer)
 
 
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']
