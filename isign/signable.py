@@ -49,24 +49,27 @@ class Signable(object):
         arch_macho = self.m.data
         arches = []
         if 'FatArch' in arch_macho:
+            log.debug('found fat binary')
             for i, arch in enumerate(arch_macho.FatArch):
+                log.debug('found fat slice: cputype {}, cpusubtype {}'.format(arch.cputype, arch.cpusubtype))
+                log.debug('fat arch: {}'.format(arch))
                 this_arch_macho = arch.MachO
-                next_macho = i + 1
-                if next_macho == len(arch_macho.FatArch):  # last
-                    this_macho_end = self.file_end
-                else:
-                    next_arch = arch_macho.FatArch[next_macho]
-                    this_macho_end = next_arch.MachO.macho_start
+                log.debug('arch offset: {}, size: {}'.format(arch.offset, arch.size))
                 arches.append(self._get_arch(this_arch_macho,
-                                             this_macho_end))
+                                             arch.offset,
+                                             arch.size))
         else:
+            log.debug('found thin binary: cputype {}, cpusubtype {}'.format(arch_macho.cputype, arch_macho.cpusubtype))
             arches.append(self._get_arch(arch_macho,
+                                         0,
                                          self.file_end))
 
         return arches
 
-    def _get_arch(self, macho, macho_end):
-        arch = {'macho': macho, 'macho_end': macho_end}
+    def _get_arch(self, macho, arch_offset, arch_size):
+        log.debug('macho {}'.format(macho, arch_size))
+
+        arch = {'macho': macho, 'arch_offset': arch_offset, 'arch_size': arch_size}
 
         arch['cmds'] = {}
         for cmd in macho.commands:
@@ -88,7 +91,7 @@ class Signable(object):
             entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
 
             # Stage 1: Fake signature
-            fake_codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, 0, self.signer, self.bundle.get_info_prop('CFBundleIdentifier'))
+            fake_codesig_data = make_signature(macho, arch_offset, arch_size, arch['cmds'], self.f, entitlements_file, 0, self.signer, self.bundle.get_info_prop('CFBundleIdentifier'))
 
             macho.ncmds -= 1
             macho.commands = macho.commands[:-1]
@@ -102,7 +105,7 @@ class Signable(object):
             log.debug("fake codesig length: {}".format(fake_codesig_length))
 
             # stage 2: real signature
-            codesig_data = make_signature(macho, macho_end, arch['cmds'], self.f, entitlements_file, fake_codesig_length, self.signer, self.bundle.get_info_prop('CFBundleIdentifier'))
+            codesig_data = make_signature(macho, arch_offset, arch_size, arch['cmds'], self.f, entitlements_file, fake_codesig_length, self.signer, self.bundle.get_info_prop('CFBundleIdentifier'))
 
 
             arch['lc_codesig'] = arch['cmds']['LC_CODE_SIGNATURE']

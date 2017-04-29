@@ -193,7 +193,9 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident
     return macho_cs.Blob.parse(chunk)
 
 
-def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_data_length, signer, ident):
+def make_signature(arch_macho, arch_offset, arch_size, cmds, f, entitlements_file, codesig_data_length, signer, ident):
+    # NB: arch_offset is absolute in terms of file start.  Everything else is relative to arch_offset!
+
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -202,16 +204,13 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
     if drs_lc:
         drs = drs_lc.data.blob
 
-    codesig_offset = utils.round_up(arch_end, 16)
+    codesig_offset = utils.round_up(arch_size, 16)
 
     # generate code hashes
     log.debug("codesig offset: {}".format(codesig_offset))
-    start_offset = arch_macho.macho_start
-    end_offset = codesig_offset #macho_end
-    log.debug("new start-end {} {}".format(start_offset, end_offset))
-    codeLimit = end_offset - start_offset
+    codeLimit = codesig_offset
     log.debug("new cL: {}".format(hex(codeLimit)))
-    nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
+    nCodeSlots = int(math.ceil(float(codesig_offset) / 0x1000))
     log.debug("new nCS: {}".format(nCodeSlots))
 
 
@@ -267,14 +266,20 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
                     if (lc.data.filesize > lc.data.vmsize):
                         lc.data.vmsize = utils.round_up(lc.data.filesize, 4096)
 
-                    lc.bytes = macho.Segment64.build(lc.data)
+                    if lc.cmd == 'LC_SEGMENT_64':
+                        lc.bytes = macho.Segment64.build(lc.data)
+                    else:
+                        lc.bytes = macho.Segment.build(lc.data)
+
                     log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
 
 
         actual_data = macho.MachO.build(arch_macho)
         log.debug("actual_data length with codesig LC {}".format(len(actual_data)))
-        f.seek(len(actual_data))
-        bytes_to_read = end_offset - f.tell()
+
+        # Now seek to the start of the actual data and read until the end of the arch.
+        f.seek(arch_offset + len(actual_data))
+        bytes_to_read = codesig_offset + arch_offset - f.tell()
         file_slice = f.read(bytes_to_read)
         if len(file_slice) < bytes_to_read:
             log.warn("expected {} bytes but got {}, zero padding.".format(bytes_to_read, len(file_slice)))
@@ -285,10 +290,10 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file, codesig_dat
 
 
         for i in xrange(nCodeSlots):
-            actual_data_slice = actual_data[(start_offset + 0x1000 * i):(start_offset + 0x1000 * i + 0x1000)]
+            actual_data_slice = actual_data[(0x1000 * i):(0x1000 * i + 0x1000)]
 
             actual = hashlib.sha1(actual_data_slice).digest()
-            log.debug("Slot {} (File page @{}): {}".format(i, hex(start_offset + 0x1000 * i), actual.encode('hex')))
+            log.debug("Slot {} (File page @{}): {}".format(i, hex(0x1000 * i), actual.encode('hex')))
             hashes.append(actual)
     else:
         hashes = fake_hashes
