@@ -17,6 +17,7 @@ import macho
 from makesig import make_signature
 import os
 import tempfile
+import utils
 
 log = logging.getLogger(__name__)
 
@@ -53,10 +54,12 @@ class Signable(object):
             for i, arch in enumerate(arch_macho.FatArch):
                 log.debug('found fat slice: cputype {}, cpusubtype {}'.format(arch.cputype, arch.cpusubtype))
                 this_arch_macho = arch.MachO
-                log.debug('arch offset: {}, size: {}'.format(arch.offset, arch.size))
-                arches.append(self._get_arch(this_arch_macho,
+                log.debug('slice {}: arch offset: {}, size: {}'.format(i, arch.offset, arch.size))
+                arch_object = self._get_arch(this_arch_macho,
                                              arch.offset,
-                                             arch.size))
+                                             arch.size)
+                arch_object['fat_index'] = i
+                arches.append(arch_object)
         else:
             log.debug('found thin binary: cputype {}, cpusubtype {}'.format(arch_macho.cputype, arch_macho.cpusubtype))
             arches.append(self._get_arch(arch_macho,
@@ -164,43 +167,85 @@ class Signable(object):
             return None
 
     def sign(self, app, signer):
+
+        temp = tempfile.NamedTemporaryFile('wb', delete=False)
+
         # If signing fat binary from scratch, need special handling
+
+        # TODO: we assume that if any slice is unsigned, all slices are.  This should be true in practice but
+        # we should still guard against this.
         if self.sign_from_scratch and 'FatArch' in self.m.data:
+            assert len(self.arches) >= 2
+
             # todo(markwang): Update fat headers and mach_start for each slice if needewd
             log.debug('signing fat binary from scratch')
 
-            for arch in self.arches:
+            sorted_archs = sorted(self.arches, key=lambda arch: arch['arch_offset'])
+
+
+            prev_arch_end = 0
+            for arch in sorted_archs:
                 fatentry = arch['macho'] # has pointert to container
 
+                codesig_arch_offset, new_codesig_data = self._sign_arch(arch, app, signer)
+                codesig_file_offset = arch['arch_offset'] + codesig_arch_offset
+                log.debug('existing arch slice: cputype {}, cpusubtype {}, offset {}, size {}'.format(fatentry.cputype, fatentry.cpusubtype, arch['arch_offset'], arch['arch_size']))
+                log.debug("codesig arch offset: {2}, file offset: {0}, len: {1}".format(codesig_file_offset,
+                                            len(new_codesig_data),
+                                            codesig_arch_offset))
+                assert codesig_file_offset >= (arch['arch_offset'] + arch['arch_size'])
+
+                # Store the old slice offset/sizes because we need them when we copy the data slices from self.f to temp
+                arch['old_arch_offset'] = arch['arch_offset']
+                arch['old_arch_size'] = arch['arch_size']
+
+                arch['codesig_arch_offset'] = codesig_arch_offset
+                arch['codesig_data'] = new_codesig_data
+
+                new_arch_size = codesig_arch_offset + len(new_codesig_data)
+
+                if prev_arch_end > arch['arch_offset']:
+                    arch['arch_offset'] = utils.round_up(prev_arch_end, 16384)
+
+                prev_arch_end = arch['arch_offset'] + new_arch_size
+                arch['arch_size'] = new_arch_size
+
+                log.debug('new arch slice after codesig: offset {}, size {}'.format(arch['arch_offset'], arch['arch_size']))
+
+
+
+            # write slices and code signatures in reverse order
+            for arch in reversed(sorted_archs):
+                self.f.seek(arch['old_arch_offset'])
+                temp.seek(arch['arch_offset'])
+                temp.write(self.f.read(arch['old_arch_size']))
+
+                temp.seek(arch['arch_offset'] + arch['codesig_arch_offset'])
+                temp.write(arch['codesig_data'])
+
+                fatarch_info = self.m.data.FatArch[arch['fat_index']]
+                fatarch_info.size = arch['arch_size']
+                fatarch_info.offset = arch['arch_offset']
+
+
+
+        else:
+            # copy self.f into temp, reset to beginning of file
+            self.f.seek(0)
+            temp.write(self.f.read())
+            temp.seek(0)
+
+            # write new codesign blocks for each arch
+            offset_fmt = ("offset: {2}, write offset: {0}, "
+                          "new_codesig_data len: {1}")
+            for arch in self.arches:
                 offset, new_codesig_data = self._sign_arch(arch, app, signer)
                 write_offset = arch['macho'].macho_start + offset
-                log.debug('existing fat slice: cputype {}, cpusubtype {}, offset {}, size {}'.format(fatentry.cputype, fatentry.cpusubtype, arch['arch_offset'], arch['arch_size']))
-                log.debug("codesig arch offset: {2}, file offset: {0}, len: {1}".format(write_offset,
+                log.debug(offset_fmt.format(write_offset,
                                             len(new_codesig_data),
                                             offset))
-                assert write_offset >= (arch['arch_offset'] + arch['arch_size'])
-            return
-
-
-
-
-        # copy self.f into temp, reset to beginning of file
-        temp = tempfile.NamedTemporaryFile('wb', delete=False)
-        self.f.seek(0)
-        temp.write(self.f.read())
-        temp.seek(0)
-
-        # write new codesign blocks for each arch
-        offset_fmt = ("offset: {2}, write offset: {0}, "
-                      "new_codesig_data len: {1}")
-        for arch in self.arches:
-            offset, new_codesig_data = self._sign_arch(arch, app, signer)
-            write_offset = arch['macho'].macho_start + offset
-            log.debug(offset_fmt.format(write_offset,
-                                        len(new_codesig_data),
-                                        offset))
-            temp.seek(write_offset)
-            temp.write(new_codesig_data)
+                temp.seek(write_offset)
+                temp.write(new_codesig_data)
 
         # write new headers
         temp.seek(0)
