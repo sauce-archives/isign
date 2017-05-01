@@ -32,7 +32,7 @@ def openssl_command(args, data=None, expect_err=False):
         for that with the expect_err param. """
     cmd = [OPENSSL] + args
     cmd_str = ' '.join(cmd)
-    log.debug('running command ' + cmd_str)
+    # log.debug('running command ' + cmd_str)
     proc = subprocess.Popen(cmd,
                             stdin=subprocess.PIPE,
                             stderr=subprocess.PIPE,

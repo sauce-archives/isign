@@ -119,7 +119,7 @@ class Bundle(object):
     def sign_dylibs(self, signer, path):
         """ Sign all the dylibs in this directory """
         for dylib_path in glob.glob(join(path, '*.dylib')):
-            dylib = signable.Dylib(self, dylib_path)
+            dylib = signable.Dylib(self, dylib_path, signer)
             dylib.sign(self, signer)
 
     def sign(self, signer):

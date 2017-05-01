@@ -69,8 +69,6 @@ class Signable(object):
         return arches
 
     def _get_arch(self, macho, arch_offset, arch_size):
-        log.debug('macho {}'.format(macho, arch_size))
-
         arch = {'macho': macho, 'arch_offset': arch_offset, 'arch_size': arch_size}
 
         arch['cmds'] = {}

@@ -327,7 +327,7 @@ class UncompressedArchive(object):
         # it to the desired target when done
         if exists(self.path) and isdir(self.path):
             log.debug('removing ua: %s', self.path)
-#            shutil.rmtree(self.path)
+            shutil.rmtree(self.path)
 
 
 def archive_factory(path):
