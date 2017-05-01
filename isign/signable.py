@@ -52,7 +52,6 @@ class Signable(object):
             log.debug('found fat binary')
             for i, arch in enumerate(arch_macho.FatArch):
                 log.debug('found fat slice: cputype {}, cpusubtype {}'.format(arch.cputype, arch.cpusubtype))
-                log.debug('fat arch: {}'.format(arch))
                 this_arch_macho = arch.MachO
                 log.debug('arch offset: {}, size: {}'.format(arch.offset, arch.size))
                 arches.append(self._get_arch(this_arch_macho,
@@ -85,7 +84,6 @@ class Signable(object):
             codesig_data = self.f.read(arch['lc_codesig'].data.datasize)
             # log.debug("codesig len: {0}".format(len(codesig_data)))
         else:
-#            raise Exception('At this time, isign cannot sign an unsigned app.')
             log.info("signing from scratch!")
             self.sign_from_scratch = True
             entitlements_file = self.bundle.get_entitlements_path()  #'/path/to/some/entitlements.plist'
@@ -119,6 +117,7 @@ class Signable(object):
         return arch
 
     def _sign_arch(self, arch, app, signer):
+    # Returns slice-relative offset, code signature blob
         arch['codesig'].resign(app, signer)
 
         new_codesig_data = arch['codesig'].build_data()
@@ -165,6 +164,26 @@ class Signable(object):
             return None
 
     def sign(self, app, signer):
+        # If signing fat binary from scratch, need special handling
+        if self.sign_from_scratch and 'FatArch' in self.m.data:
+            # todo(markwang): Update fat headers and mach_start for each slice if needewd
+            log.debug('signing fat binary from scratch')
+
+            for arch in self.arches:
+                fatentry = arch['macho'] # has pointert to container
+
+                offset, new_codesig_data = self._sign_arch(arch, app, signer)
+                write_offset = arch['macho'].macho_start + offset
+                log.debug('existing fat slice: cputype {}, cpusubtype {}, offset {}, size {}'.format(fatentry.cputype, fatentry.cpusubtype, arch['arch_offset'], arch['arch_size']))
+                log.debug("codesig arch offset: {2}, file offset: {0}, len: {1}".format(write_offset,
+                                            len(new_codesig_data),
+                                            offset))
+                assert write_offset >= (arch['arch_offset'] + arch['arch_size'])
+            return
+
+
+
+
         # copy self.f into temp, reset to beginning of file
         temp = tempfile.NamedTemporaryFile('wb', delete=False)
         self.f.seek(0)
