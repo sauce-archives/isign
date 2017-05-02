@@ -12,11 +12,9 @@ import hashlib
 import logging
 import math
 import macho
-import macho_debug
 import macho_cs
 import utils
 
-import binascii
 
 log = logging.getLogger(__name__)
 
@@ -102,14 +100,10 @@ def make_requirements(drs, ident, common_name):
 
 
 def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident):
-    # TODO(markwang): remove hack
     common_name = signer.get_common_name()
     log.debug("ident: {}".format(ident))
     log.debug("codelimit: {}".format(code_limit))
-    teamID = signer._get_team_id()
-
-
-    teamID = teamID + '\x00'
+    teamID = signer._get_team_id() + '\x00'
     empty_hash = "\x00" * 20
     cd = construct.Container(cd_start=None,
                              version=0x20200,
@@ -189,7 +183,6 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident
         length=len(data) + 8,
         data=data,
         bytes=data))
-    #print len(chunk)
     return macho_cs.Blob.parse(chunk)
 
 
@@ -226,20 +219,17 @@ def make_signature(arch_macho, arch_offset, arch_size, cmds, f, entitlements_fil
     codesig_data = macho_cs.Blob.build(codesig_cons)
 
     cmd_data = construct.Container(dataoff=codesig_offset,
-            datasize=codesig_data_length) #len(codesig_data))  # TODO(markwang): why doesn't this give the right length?
+            datasize=codesig_data_length)
     cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
             cmdsize=16,
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
 
     log.debug("CS blob before: {}".format(utils.print_structure(codesig_cons, macho_cs.Blob)))
-
     log.debug("len(codesig_data): {}".format(len(codesig_data)))
 
-
-    codesig_length = codesig_data_length #utils.round_up(29790, 16) #((len(codesig_data) + 16 - 1) & -16)
+    codesig_length = codesig_data_length
     log.debug("codesig length: {}".format(codesig_length))
-
 
     log.debug("old ncmds: {}".format(arch_macho.ncmds))
     arch_macho.ncmds += 1
@@ -249,10 +239,7 @@ def make_signature(arch_macho, arch_offset, arch_size, cmds, f, entitlements_fil
     arch_macho.sizeofcmds += cmd.cmdsize
     log.debug("new sizeofcmds: {}".format(arch_macho.sizeofcmds))
 
-
     arch_macho.commands.append(cmd)
-
-
 
     hashes = []
     if codesig_data_length > 0:
@@ -285,9 +272,6 @@ def make_signature(arch_macho, arch_offset, arch_size, cmds, f, entitlements_fil
             log.warn("expected {} bytes but got {}, zero padding.".format(bytes_to_read, len(file_slice)))
             file_slice += ("\x00" * (bytes_to_read - len(file_slice)))
         actual_data += file_slice
-
-#        actual_data = actual_data + ("\x00" * 4096)
-
 
         for i in xrange(nCodeSlots):
             actual_data_slice = actual_data[(0x1000 * i):(0x1000 * i + 0x1000)]

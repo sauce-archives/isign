@@ -210,8 +210,6 @@ class Signable(object):
 
                 log.debug('new arch slice after codesig: offset {}, size {}'.format(arch['arch_offset'], arch['arch_size']))
 
-
-
             # write slices and code signatures in reverse order
             for arch in reversed(sorted_archs):
                 self.f.seek(arch['old_arch_offset'])

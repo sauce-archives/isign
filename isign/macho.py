@@ -10,7 +10,6 @@
 from construct import *
 from macho_cs import Blob
 
-
 UInt32 = ULInt32
 UInt64 = ULInt64
 
