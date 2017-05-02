@@ -71,16 +71,12 @@ class Codesig(object):
         log.debug("existing data is {}".format(len(data)))
         self.signable = signable
         self.construct = macho_cs.Blob.parse(data)
-        utils.dump_to_file("cs.old", utils.print_structure(self.construct, macho_cs.Blob))
-
         self.is_sha256 = len(self.construct.data.BlobIndex) >= 6
 
     def is_sha256_signature(self):
         return self.is_sha256
 
     def build_data(self):
-        utils.dump_to_file("cs.new", utils.print_structure(self.construct, macho_cs.Blob))
-
         return macho_cs.Blob.build(self.construct)
 
     def get_blob(self, magic):
@@ -241,9 +237,6 @@ class Codesig(object):
         # signer._log_parsed_asn1(sigwrapper.data.data.value)
         # open("sigrip.der", "wb").write(sigwrapper.data.data.value)
         cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
-
-        utils.dump_to_file("cs.old2", utils.print_structure(self.construct, macho_cs.Blob))
-
 
         sig = signer.sign(cd_data)
         # log.debug("sig len: {0}".format(len(sig)))

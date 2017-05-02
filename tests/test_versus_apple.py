@@ -284,3 +284,36 @@ class TestVersusApple(IsignBaseTest):
 
         shutil.rmtree(working_dir)
         os.chdir(old_cwd)
+
+    def test_app_from_scratch(self):
+        """ Test signing app bundles from scratch """
+        # skip if this isn't a Mac with codesign installed
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
+
+        # resign the test app that has frameworks, extract it to a temp directory
+        working_dir = tempfile.mkdtemp()
+        signed_app_path = join(working_dir, 'signed.app')
+        self.resign(self.TEST_UNSIGNED_THIN_APP,
+                    output_path=signed_app_path)
+        old_cwd = os.getcwd()
+        os.chdir(working_dir)
+
+        # expected path to app
+        # When we ask for codesign to analyze the app directory, it
+        # will default to showing info for the main executable
+        app_path = working_dir #join(working_dir, 'Payload/isignTestApp.app')
+        self.check_bundle(app_path)
+
+        # Now we do similar tests for a dynamic library, linked to the
+        # main executable.
+        dylib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
+        self.check_dylib(dylib_path)
+
+        # Now we do similar tests for a framework
+        framework_path = join(app_path, 'Frameworks', 'FontAwesome_swift.framework')
+        self.check_bundle(framework_path)
+
+        shutil.rmtree(working_dir)
+        os.chdir(old_cwd)
+
