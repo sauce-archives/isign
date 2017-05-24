@@ -62,7 +62,18 @@ def make_expr(op, *args):
                                data=data)
 
 
-def make_requirements(drs, ident, common_name):
+def make_requirements(drs, ident, signer):
+    if signer.is_adhoc():
+        log.debug("Ad hoc -- using empty requirement set")
+        reqs = construct.Container(
+            sb_start=0,
+            count=0,
+            BlobIndex=[],
+            )
+        return reqs
+
+    common_name = signer.get_common_name()
+
     expr = make_expr(
         'And',
         ('Ident', ident),
@@ -100,30 +111,53 @@ def make_requirements(drs, ident, common_name):
 
 
 def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident):
-    common_name = signer.get_common_name()
+
     log.debug("ident: {}".format(ident))
     log.debug("codelimit: {}".format(code_limit))
-    teamID = signer._get_team_id() + '\x00'
     empty_hash = "\x00" * 20
-    cd = construct.Container(cd_start=None,
-                             version=0x20200,
-                             flags=0,
-                             identOffset=52,
-                             nSpecialSlots=5,
-                             nCodeSlots=len(hashes),
-                             codeLimit=code_limit,
-                             hashSize=20,
-                             hashType=1,
-                             spare1=0,
-                             pageSize=12,
-                             spare2=0,
-                             ident=ident + '\x00',
-                             scatterOffset=0,
-                             teamIDOffset=52 + len(ident) + 1,
-                             teamID=teamID,
-                             hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
-                             hashes=([empty_hash] * 5) + hashes,
-                             )
+
+    if not signer.is_adhoc():
+        teamID = signer._get_team_id() + '\x00'
+        cd = construct.Container(cd_start=None,
+                                 version=0x20200,
+                                 flags=0,
+                                 identOffset=52,
+                                 nSpecialSlots=5,
+                                 nCodeSlots=len(hashes),
+                                 codeLimit=code_limit,
+                                 hashSize=20,
+                                 hashType=1,
+                                 spare1=0,
+                                 pageSize=12,
+                                 spare2=0,
+                                 ident=ident + '\x00',
+                                 scatterOffset=0,
+                                 teamIDOffset=52 + len(ident) + 1,
+                                 teamID=teamID,
+                                 hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
+                                 hashes=([empty_hash] * 5) + hashes,
+                                 )
+    else:
+        teamID = ''
+        cd = construct.Container(cd_start=None,
+                                 version=0x20100,
+                                 flags=2,
+                                 identOffset=52,
+                                 nSpecialSlots=5,
+                                 nCodeSlots=len(hashes),
+                                 codeLimit=code_limit,
+                                 hashSize=20,
+                                 hashType=1,
+                                 spare1=0,
+                                 pageSize=12,
+                                 spare2=0,
+                                 ident=ident + '\x00',
+                                 scatterOffset=0,
+                                 teamIDOffset=52 + len(ident) + 1,
+                                 teamID=teamID,
+                                 hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
+                                 hashes=([empty_hash] * 5) + hashes,
+                                 )
 
     cd_data = macho_cs.CodeDirectory.build(cd)
 
@@ -137,7 +171,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident
                                                             ))
 
     offset += cd_index.blob.length
-    reqs_sblob = make_requirements(drs, ident, common_name)
+    reqs_sblob = make_requirements(drs, ident, signer)
     reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
     requirements_index = construct.Container(type=2,
                                              offset=offset,
@@ -149,7 +183,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident
     offset += requirements_index.blob.length
 
     entitlements_index = None
-    if entitlements_file != None:
+    if entitlements_file != None and not signer.is_adhoc():
         entitlements_bytes = open(entitlements_file, "rb").read()
         entitlements_index = construct.Container(type=5,
                                                  offset=offset,

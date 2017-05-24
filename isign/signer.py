@@ -97,11 +97,11 @@ class Signer(object):
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
+        self.team_id = None
         team_id = self._get_team_id()
         if team_id is None:
             raise ImproperCredentials("Cert file does not contain Subject line"
                                       "with Apple Organizational Unit (OU)")
-        self.team_id = team_id
         self.check_openssl_version()
 
     def check_openssl_version(self):
@@ -146,6 +146,9 @@ class Signer(object):
 
     def _get_team_id(self):
         """ Same as Apple Organizational Unit. Should be in the cert """
+        if self.team_id:
+            return self.team_id
+
         team_id = None
         cmd = [
             'x509',
@@ -160,4 +163,22 @@ class Signer(object):
             if match is not None:
                 team_id = match.group(1)
                 break
+        self.team_id = team_id
         return team_id
+
+    def is_adhoc(self):
+        return False
+
+class AdhocSigner(Signer):
+    def __init__(self):
+        pass
+
+    def sign(self, data):
+        """Return empty signature"""
+        return ''
+
+    def is_adhoc(self):
+        return True
+
+    def _get_team_id(self):
+        return ''

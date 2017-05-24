@@ -108,10 +108,17 @@ class Codesig(object):
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
     def set_requirements(self, signer):
+
         # log.debug("requirements:")
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
         # requirements_data = macho_cs.Blob_.build(requirements)
         # log.debug(hashlib.sha1(requirements_data).hexdigest())
+
+        if signer.is_adhoc():
+            log.debug("Ad hoc -- using empty requirement set")
+            requirements.count = 0
+            return
+
 
         signer_cn = signer.get_common_name()
 
@@ -183,7 +190,7 @@ class Codesig(object):
             self.get_codedirectory().data.hashes[index] = slot.get_hash()
 
     def set_codedirectory(self, seal_path, info_path, signer):
-        if self.has_codedirectory_slot(EntitlementsSlot):
+        if self.has_codedirectory_slot(EntitlementsSlot) and not signer.is_adhoc():
             self.fill_codedirectory_slot(EntitlementsSlot(self))
 
         if self.has_codedirectory_slot(ResourceDirSlot):
@@ -199,7 +206,7 @@ class Codesig(object):
             self.fill_codedirectory_slot(InfoSlot(info_path))
 
         cd = self.get_codedirectory()
-        cd.data.teamID = signer.team_id
+        cd.data.teamID = signer._get_team_id()
 
         changed_bundle_id = self.signable.get_changed_bundle_id()
         if changed_bundle_id:

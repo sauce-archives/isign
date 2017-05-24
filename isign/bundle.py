@@ -240,15 +240,17 @@ class App(Bundle):
         # and then embed it into Signer?
 
         # In the typical case, we add entitlements from the pprof into the app's signature
-        if alternate_entitlements_path is None:
-            # copy the provisioning profile in
-            self.provision(provisioning_profile)
+        if not signer.is_adhoc():
+            if alternate_entitlements_path is None:
+                # copy the provisioning profile in
+                self.provision(provisioning_profile)
 
-            entitlements = self.extract_entitlements(provisioning_profile)
-        else:
-            log.info("signing with alternative entitlements: {}".format(alternate_entitlements_path))
-            entitlements = biplist.readPlist(alternate_entitlements_path)
-        self.write_entitlements(entitlements)
+                entitlements = self.extract_entitlements(provisioning_profile)
+
+            else:
+                log.info("signing with alternative entitlements: {}".format(alternate_entitlements_path))
+                entitlements = biplist.readPlist(alternate_entitlements_path)
+            self.write_entitlements(entitlements)
 
         # actually resign this bundle now
         super(App, self).resign(signer)
