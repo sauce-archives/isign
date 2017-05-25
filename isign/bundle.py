@@ -26,10 +26,14 @@ log = logging.getLogger(__name__)
 
 
 def is_info_plist_native(plist):
-    """ If an bundle is for native iOS, it has these properties in the Info.plist """
+    """ If an bundle is for native iOS, it has these properties in the Info.plist
+
+    Note that starting with iOS 10, simulator framework/test bundles also need to
+    be signed (at least ad hoc).
+    """
     return (
         'CFBundleSupportedPlatforms' in plist and
-        'iPhoneOS' in plist['CFBundleSupportedPlatforms']
+        ('iPhoneOS' in plist['CFBundleSupportedPlatforms'] or 'iPhoneSimulator' in plist['CFBundleSupportedPlatforms'])
     )
 
 
@@ -122,41 +126,43 @@ class Bundle(object):
             dylib = signable.Dylib(self, dylib_path, signer)
             dylib.sign(self, signer)
 
-    def sign(self, signer):
-        """ Sign everything in this bundle, recursively with sub-bundles """
+    def sign(self, deep, signer):
+        """ Sign everything in this bundle.  If deep is specified, sign
+        recursively with sub-bundles """
         # log.debug("SIGNING: %s" % self.path)
-        frameworks_path = join(self.path, 'Frameworks')
-        if exists(frameworks_path):
-            # log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
-            # sign all the frameworks
-            for framework_name in os.listdir(frameworks_path):
-                framework_path = join(frameworks_path, framework_name)
-                # log.debug("checking for framework: %s" % framework_path)
-                try:
-                    framework = Framework(framework_path)
-                    # log.debug("resigning: %s" % framework_path)
-                    framework.resign(signer)
-                except NotMatched:
-                    # log.debug("not a framework: %s" % framework_path)
-                    continue
-            # sign all the dylibs under Frameworks
-            self.sign_dylibs(signer, frameworks_path)
+        if deep:
+            frameworks_path = join(self.path, 'Frameworks')
+            if exists(frameworks_path):
+                # log.debug("SIGNING FRAMEWORKS: %s" % frameworks_path)
+                # sign all the frameworks
+                for framework_name in os.listdir(frameworks_path):
+                    framework_path = join(frameworks_path, framework_name)
+                    # log.debug("checking for framework: %s" % framework_path)
+                    try:
+                        framework = Framework(framework_path)
+                        # log.debug("resigning: %s" % framework_path)
+                        framework.resign(deep, signer)
+                    except NotMatched:
+                        # log.debug("not a framework: %s" % framework_path)
+                        continue
+                # sign all the dylibs under Frameworks
+                self.sign_dylibs(signer, frameworks_path)
 
-        # sign any dylibs in the main directory (rare, but it happens)
-        self.sign_dylibs(signer, self.path)
+            # sign any dylibs in the main directory (rare, but it happens)
+            self.sign_dylibs(signer, self.path)
 
-        plugins_path = join(self.path, 'PlugIns')
-        if exists(plugins_path):
-            # sign the appex executables
-            appex_paths = glob.glob(join(plugins_path, '*.appex'))
-            for appex_path in appex_paths:
-                plist_path = join(appex_path, 'Info.plist')
-                if not exists(plist_path):
-                    continue
-                plist = biplist.readPlist(plist_path)
-                appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
-                appex = signable.Appex(self, appex_exec_path)
-                appex.sign(self, signer)
+            plugins_path = join(self.path, 'PlugIns')
+            if exists(plugins_path):
+                # sign the appex executables
+                appex_paths = glob.glob(join(plugins_path, '*.appex'))
+                for appex_path in appex_paths:
+                    plist_path = join(appex_path, 'Info.plist')
+                    if not exists(plist_path):
+                        continue
+                    plist = biplist.readPlist(plist_path)
+                    appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
+                    appex = signable.Appex(self, appex_exec_path)
+                    appex.sign(self, signer)
 
         # then create the seal
         # TODO maybe the app should know what its seal path should be...
@@ -166,9 +172,9 @@ class Bundle(object):
         executable = self.signable_class(self, self.get_executable_path(), signer)
         executable.sign(self, signer)
 
-    def resign(self, signer):
+    def resign(self, deep, signer):
         """ signs bundle, modifies in place """
-        self.sign(signer)
+        self.sign(deep, signer)
         log.debug("Resigned bundle at <%s>", self.path)
 
 
@@ -231,7 +237,7 @@ class App(Bundle):
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
 
-    def resign(self, signer, provisioning_profile, alternate_entitlements_path=None):
+    def resign(self, deep, signer, provisioning_profile, alternate_entitlements_path=None):
         """ signs app in place """
 
         # TODO all this mucking about with entitlements feels wrong. The entitlements_path is
@@ -253,4 +259,4 @@ class App(Bundle):
             self.write_entitlements(entitlements)
 
         # actually resign this bundle now
-        super(App, self).resign(signer)
+        super(App, self).resign(deep, signer)

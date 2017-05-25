@@ -17,7 +17,7 @@ import os.path
 import subprocess
 import re
 
-OPENSSL = os.getenv('OPENSSL', spawn.find_executable('openssl'))
+OPENSSL = os.getenv('OPENSSL', spawn.find_executable('openssl', os.getenv('PATH', '')))
 # modern OpenSSL versions look like '0.9.8zd'. Use a regex to parse
 OPENSSL_VERSION_RE = re.compile(r'(\d+).(\d+).(\d+)(\w*)')
 MINIMUM_OPENSSL_VERSION = '1.0.1'
