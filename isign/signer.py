@@ -7,7 +7,7 @@
 # tool, and make sure it's the right version.
 
 from distutils import spawn
-from exceptions import (ImproperCredentials,
+from .exceptions import (ImproperCredentials,
                         MissingCredentials,
                         OpenSslFailure)
 import logging
@@ -16,10 +16,11 @@ import os
 import os.path
 import subprocess
 import re
+from isign.utils import decode_dict
 
-OPENSSL = os.getenv('OPENSSL', spawn.find_executable('openssl'))
+OPENSSL = os.getenv('OPENSSL', spawn.find_executable('openssl', os.getenv('PATH', '')))
 # modern OpenSSL versions look like '0.9.8zd'. Use a regex to parse
-OPENSSL_VERSION_RE = re.compile(r'(\d+).(\d+).(\d+)(\w*)')
+OPENSSL_VERSION_RE = re.compile(b'(\d+).(\d+).(\d+)(\w*)')
 MINIMUM_OPENSSL_VERSION = '1.0.1'
 
 log = logging.getLogger(__name__)
@@ -40,6 +41,8 @@ def openssl_command(args, data=None, expect_err=False):
     if data is not None:
         proc.stdin.write(data)
     out, err = proc.communicate()
+    # out, err = out.decode(), err.decode()
+    err = err.decode()
 
     if not expect_err:
         if err is not None and err != '':
@@ -58,7 +61,7 @@ def openssl_command(args, data=None, expect_err=False):
 def get_installed_openssl_version():
     version_line = openssl_command(['version'])
     # e.g. 'OpenSSL 0.9.8zd 8 Jan 2015'
-    return re.split(r'\s+', version_line)[1]
+    return re.split(b'\s+', version_line)[1]
 
 
 def is_openssl_version_ok(version, minimum):
@@ -71,6 +74,8 @@ def is_openssl_version_ok(version, minimum):
 def openssl_version_to_tuple(s):
     """ OpenSSL uses its own versioning scheme, so we convert to tuple,
         for easier comparison """
+    if isinstance(s, str):
+        s = s.encode()
     search = re.search(OPENSSL_VERSION_RE, s)
     if search is not None:
         return search.groups()
@@ -97,11 +102,11 @@ class Signer(object):
         self.signer_key_file = signer_key_file
         self.signer_cert_file = signer_cert_file
         self.apple_cert_file = apple_cert_file
+        self.team_id = None
         team_id = self._get_team_id()
         if team_id is None:
             raise ImproperCredentials("Cert file does not contain Subject line"
                                       "with Apple Organizational Unit (OU)")
-        self.team_id = team_id
         self.check_openssl_version()
 
     def check_openssl_version(self):
@@ -122,6 +127,7 @@ class Signer(object):
             "-outform", "DER"
         ]
         signature = openssl_command(cmd, data)
+        log.debug("in length: {}, out length: {}".format(len(data), len(signature)))
         # in some cases we've seen this return a zero length file.
         # Misconfigured machines?
         if len(signature) < 128:
@@ -136,7 +142,8 @@ class Signer(object):
         with open(self.signer_cert_file, 'rb') as fh:
             cert = crypto.load_certificate(crypto.FILETYPE_PEM, fh.read())
         subject = cert.get_subject()
-        return dict(subject.get_components())['CN']
+        components = dict(subject.get_components())
+        return decode_dict(components)['CN']
 
     def _log_parsed_asn1(self, data):
         cmd = ['asn1parse', '-inform', 'DER' '-i']
@@ -145,6 +152,9 @@ class Signer(object):
 
     def _get_team_id(self):
         """ Same as Apple Organizational Unit. Should be in the cert """
+        if self.team_id:
+            return self.team_id
+
         team_id = None
         cmd = [
             'x509',
@@ -153,10 +163,28 @@ class Signer(object):
             '-noout'
         ]
         certificate_info = openssl_command(cmd)
-        subject_with_ou_match = re.compile(r'\s+Subject:.*OU=(\w+)')
+        subject_with_ou_match = re.compile(b'\s+Subject:.*OU=(\w+)')
         for line in certificate_info.splitlines():
             match = subject_with_ou_match.match(line)
             if match is not None:
                 team_id = match.group(1)
                 break
+        self.team_id = team_id
         return team_id
+
+    def is_adhoc(self):
+        return False
+
+class AdhocSigner(Signer):
+    def __init__(self):
+        pass
+
+    def sign(self, data):
+        """Return empty signature"""
+        return ''
+
+    def is_adhoc(self):
+        return True
+
+    def _get_team_id(self):
+        return ''

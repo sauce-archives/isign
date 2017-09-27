@@ -26,6 +26,10 @@ class TestVersusApple(IsignBaseTest):
                                 stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT)
         out, _ = proc.communicate()
+        out, _ = out.decode(), _.decode()
+        if proc.returncode != 0:
+            log.debug(out)
+            log.debug(_)
         assert proc.returncode == 0, "Return code not 0"
         return self.codesign_display_parse(out)
 
@@ -110,6 +114,12 @@ class TestVersusApple(IsignBaseTest):
                 return item[key]
         return None
 
+    def get_hashes_from_codesign_output_info(self, info):
+        try:
+            return self.get_dict_with_key(info['Hash'], '_') or info['Page'][0]['_']
+        except KeyError:
+            return None
+
     def assert_common_signed_properties(self, info):
         # has an executable
         assert 'Executable' in info
@@ -124,7 +134,8 @@ class TestVersusApple(IsignBaseTest):
 
         # has a set of hashes
         assert 'Hash' in info
-        hashes = self.get_dict_with_key(info['Hash'], '_')
+        hashes = self.get_hashes_from_codesign_output_info(info)
+
         assert hashes is not None
 
         # seal hash
@@ -143,7 +154,8 @@ class TestVersusApple(IsignBaseTest):
         # assert 'Apple Root CA' in authorities
 
         assert 'Info.plist' in info
-        assert self.get_dict_with_key(info['Info.plist'], 'entries') is not None
+        assert self.get_dict_with_key(
+            info['Info.plist'], 'entries') is not None
 
         assert 'TeamIdentifier' in info
         # TODO get this from an arg
@@ -157,7 +169,7 @@ class TestVersusApple(IsignBaseTest):
 
     def assert_common_signed_hashes(self, info, start_index, end_index):
         assert 'Hash' in info
-        hashes = self.get_dict_with_key(info['Hash'], '_')
+        hashes = self.get_hashes_from_codesign_output_info(info)
         assert hashes is not None
         for i in range(start_index, end_index + 1):
             assert str(i) in hashes
@@ -178,7 +190,7 @@ class TestVersusApple(IsignBaseTest):
         # http://opensource.apple.com/source/libsecurity_codesigning/
         #   libsecurity_codesigning-55032/lib/codedirectory.h
         assert 'Hash' in info
-        hashes = self.get_dict_with_key(info['Hash'], '_')
+        hashes = self.get_hashes_from_codesign_output_info(info)
         assert hashes is not None
         for i in hashes_to_check:
             key = str(i)
@@ -210,14 +222,14 @@ class TestVersusApple(IsignBaseTest):
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
             raise SkipTest
 
-        old_cwd = os.getcwd()
-        
+#        old_cwd = os.getcwd()
+
         info = self.codesign_display(self.TEST_APP)
         original_id = info['Identifier'][0]
 
         # Make sure our original ID is long enough to test shorter bundle ids
         assert len(original_id) >= 6
-        
+
         alphabet = 'abcdefghijklmnopqrstuvwxyz'
         while len(alphabet) <= len(original_id):
             alphabet += alphabet
@@ -246,10 +258,11 @@ class TestVersusApple(IsignBaseTest):
                         'CFBundleIdentifier': long_id
                     })
         self.assert_matching_identifier(resigned_app_path, long_id)
+
+ #       os.chdir(old_cwd)
         shutil.rmtree(working_dir)
-        
-        os.chdir(old_cwd)
-        
+
+
     def test_app(self):
         """ Extract a resigned app with frameworks, analyze if some expected
             things about them are true """
@@ -257,12 +270,18 @@ class TestVersusApple(IsignBaseTest):
         if platform.system() != 'Darwin' or CODESIGN_BIN is None:
             raise SkipTest
 
+<<<<<<< HEAD
+        # resign the test app that has frameworks,
+        # extract it to a temp directory
+=======
+        old_cwd = os.getcwd()
+
         # resign the test app that has frameworks, extract it to a temp directory
+>>>>>>> 495e3145335aba4bb9241aef5baa0baaae7794d8
         working_dir = tempfile.mkdtemp()
         resigned_ipa_path = join(working_dir, 'resigned.ipa')
         self.resign(self.TEST_WITH_FRAMEWORKS_IPA,
                     output_path=resigned_ipa_path)
-        old_cwd = os.getcwd()
         os.chdir(working_dir)
         with zipfile.ZipFile(resigned_ipa_path) as zf:
             zf.extractall()
@@ -279,8 +298,57 @@ class TestVersusApple(IsignBaseTest):
         self.check_dylib(dylib_path)
 
         # Now we do similar tests for a framework
-        framework_path = join(app_path, 'Frameworks', 'FontAwesome_swift.framework')
+        framework_path = join(
+            app_path, 'Frameworks', 'FontAwesome_swift.framework')
         self.check_bundle(framework_path)
 
-        shutil.rmtree(working_dir)
         os.chdir(old_cwd)
+        shutil.rmtree(working_dir)
+
+
+    def test_app_from_scratch(self):
+        """ Test signing app bundles from scratch """
+        # skip if this isn't a Mac with codesign installed
+        if platform.system() != 'Darwin' or CODESIGN_BIN is None:
+            raise SkipTest
+
+        working_dir = tempfile.mkdtemp()
+        signed_app_path = join(working_dir, 'signed.app')
+        self.resign(self.TEST_UNSIGNED_THIN_APP,
+                    output_path=signed_app_path)
+        os.chdir(working_dir)
+
+        # expected path to app
+        # When we ask for codesign to analyze the app directory, it
+        # will default to showing info for the main executable
+        app_path = signed_app_path
+        self.check_bundle(app_path)
+
+        # Now we do similar tests for a dynamic library, linked to the
+        # main executable.
+        dylib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
+        self.check_dylib(dylib_path)
+
+
+        shutil.rmtree(working_dir)
+
+
+        working_dir = tempfile.mkdtemp()
+        signed_app_path = join(working_dir, 'signed.app')
+        self.resign(self.TEST_UNSIGNED_FAT_APP,
+                    output_path=signed_app_path)
+        os.chdir(working_dir)
+
+        # expected path to app
+        # When we ask for codesign to analyze the app directory, it
+        # will default to showing info for the main executable
+        app_path = signed_app_path
+        self.check_bundle(app_path)
+
+        # Now we do similar tests for a dynamic library, linked to the
+        # main executable.
+        dylib_path = join(app_path, 'Frameworks', 'libswiftCore.dylib')
+        self.check_dylib(dylib_path)
+
+
+        shutil.rmtree(working_dir)

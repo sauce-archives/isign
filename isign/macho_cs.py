@@ -12,10 +12,12 @@ import plistlib
 
 class PlistAdapter(Adapter):
     def _encode(self, obj, context):
-        return plistlib.writePlistToString(obj)
+        return plistlib.dumps(obj)
+
 
     def _decode(self, obj, context):
-        return plistlib.readPlistFromString(obj)
+        return plistlib.dumps(obj)
+
 
 # talk about overdesign.
 # magic is in the blob struct

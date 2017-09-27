@@ -47,7 +47,7 @@ class App(object):
         return self.path
 
     def provision(self, provision_path):
-        print "provision_path: {0}".format(provision_path)
+        print("provision_path: {0}".format(provision_path))
         shutil.copyfile(provision_path, self.provision_path)
 
     def create_entitlements(self):
@@ -218,4 +218,4 @@ if __name__ == '__main__':
     if os.path.exists(args.stage_dir):
         shutil.rmtree(args.stage_dir)
 
-    print "Re-signed package: {0}".format(output_path)
+    print("Re-signed package: {0}".format(output_path))

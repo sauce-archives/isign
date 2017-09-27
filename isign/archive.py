@@ -5,8 +5,8 @@
 
 import abc
 import biplist
-from bundle import App, Bundle, is_info_plist_native
-from exceptions import MissingHelpers, NotSignable, NotMatched
+from .bundle import App, Bundle, is_info_plist_native
+from .exceptions import MissingHelpers, NotSignable, NotMatched
 from distutils import spawn
 import logging
 import os
@@ -14,9 +14,10 @@ from os.path import abspath, dirname, exists, isdir, isfile, join, normpath
 import tempfile
 import re
 from subprocess import call
-from signer import Signer
+from .signer import AdhocSigner, Signer
 import shutil
 import zipfile
+import plistlib
 
 
 REMOVE_WATCHKIT = True
@@ -360,12 +361,14 @@ def view(input_path):
 
 
 def resign(input_path,
+           deep,
            certificate,
            key,
            apple_cert,
            provisioning_profile,
            output_path,
-           info_props=None):
+           info_props=None,
+           alternate_entitlements_path=None):
     """ Unified interface to extract any kind of archive from
         a temporary file, resign it with these credentials,
         and create a similar archive for that resigned app """
@@ -373,15 +376,18 @@ def resign(input_path,
     if not exists(input_path):
         raise IOError("{0} not found".format(input_path))
 
-    log.debug('Signing with apple_cert: {}'.format(apple_cert))
-    log.debug('Signing with key: {}'.format(key))
-    log.debug('Signing with certificate: {}'.format(certificate))
-    log.debug('Signing with provisioning_profile: {}'.format(provisioning_profile))
 
-    signer = Signer(signer_cert_file=certificate,
-                    signer_key_file=key,
-                    apple_cert_file=apple_cert)
-
+    if key == None:
+        log.debug('Signing ad-hoc')
+        signer = AdhocSigner()
+    else:
+        log.debug('Signing with apple_cert: {}'.format(apple_cert))
+        log.debug('Signing with key: {}'.format(key))
+        log.debug('Signing with certificate: {}'.format(certificate))
+        log.debug('Signing with provisioning_profile: {}'.format(provisioning_profile))
+        signer = Signer(signer_cert_file=certificate,
+                        signer_key_file=key,
+                        apple_cert_file=apple_cert)
     ua = None
     bundle_info = None
     try:
@@ -392,7 +398,7 @@ def resign(input_path,
         if info_props:
             # Override info.plist props of the parent bundle
             ua.bundle.update_info_props(info_props)
-        ua.bundle.resign(signer, provisioning_profile)
+        ua.bundle.resign(deep, signer, provisioning_profile, alternate_entitlements_path)
         bundle_info = ua.bundle.info
         ua.archive(output_path)
     except NotSignable as e:

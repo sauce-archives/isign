@@ -25,4 +25,4 @@ app = isign.archive.AppArchive(IsignBaseTest.TEST_APP)
 executable = Executable(app.get_executable_path())
 arch = executable.arches[0]
 codesig_str = str(arch['cmds']['LC_CODE_SIGNATURE'])
-print codesig_str
+print(codesig_str)
