@@ -63,7 +63,8 @@ def resign(input_path,
            key=DEFAULT_CREDENTIAL_PATHS['key'],
            provisioning_profile=DEFAULT_CREDENTIAL_PATHS['provisioning_profile'],
            output_path=join(os.getcwd(), "out"),
-           info_props=None):
+           info_props=None,
+           alternate_entitlements_path=None):
     """ Mirrors archive.resign(), put here for convenience, to unify exceptions,
         and to omit default args """
     try:
@@ -73,7 +74,8 @@ def resign(input_path,
                               apple_cert,
                               provisioning_profile,
                               output_path,
-                              info_props)
+                              info_props,
+                              alternate_entitlements_path)
     except exceptions.NotSignable as e:
         # re-raise the exception without exposing internal
         # details of how it happened

@@ -250,8 +250,9 @@ mac_setup() {
 }
 
 linux_setup() {
-    apt-get install ideviceinstaller
-    apt-get install libimobiledevice-utils
+    #apt-get install ideviceinstaller
+    #apt-get install libimobiledevice-utils
+    echo "Skipping apt-get installs, we use yum"
 }
 
 

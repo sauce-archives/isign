@@ -111,6 +111,14 @@ def parse_args():
         required=False,
         help='Display information about the app without resigning'
     )
+    parser.add_argument(
+        '-e', '--entitlements',
+        dest='alternate_entitlements_path',
+        required=False,
+        metavar='<alternate entitlements path>',
+        type=absolute_path_argument,
+        help='Sign with these entitlements, rather than ones extracted from provisioning profile'
+    )
     return parser.parse_args()
 
 
@@ -185,6 +193,7 @@ if __name__ == '__main__':
                            'key',
                            'apple_cert',
                            'provisioning_profile',
-                           'output_path']
+                           'output_path',
+                           'alternate_entitlements_path']
             kwargs.update(filter_args(args, resign_args))
             isign.resign(app_path, **kwargs)

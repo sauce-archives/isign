@@ -81,6 +81,7 @@ target/
 .realsync
 *.tm_build_errors
 tmtags
+*.iml
 
 # iresign version
 isign/version.json

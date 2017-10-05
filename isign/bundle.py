@@ -38,6 +38,7 @@ class Bundle(object):
         Apps are Bundles, but so are some kinds of Frameworks (libraries) """
     helpers = []
     signable_class = None
+    entitlements_path = None  # Not set for every bundle type
 
     def __init__(self, path):
         self.path = path
@@ -50,6 +51,9 @@ class Bundle(object):
             raise NotMatched("not a native iOS bundle")
         # will be added later
         self.seal_path = None
+
+    def get_entitlements_path(self):
+        return self.entitlements_path
 
     def get_executable_path(self):
         """ Path to the main executable. For an app, this is app itself. For
@@ -115,7 +119,7 @@ class Bundle(object):
     def sign_dylibs(self, signer, path):
         """ Sign all the dylibs in this directory """
         for dylib_path in glob.glob(join(path, '*.dylib')):
-            dylib = signable.Dylib(self, dylib_path)
+            dylib = signable.Dylib(self, dylib_path, signer)
             dylib.sign(self, signer)
 
     def sign(self, signer):
@@ -159,7 +163,7 @@ class Bundle(object):
         self.seal_path = code_resources.make_seal(self.get_executable_path(),
                                                   self.path)
         # then sign the app
-        executable = self.signable_class(self, self.get_executable_path())
+        executable = self.signable_class(self, self.get_executable_path(), signer)
         executable.sign(self, signer)
 
     def resign(self, signer):
@@ -221,20 +225,30 @@ class App(Bundle):
             raise Exception('could not find Entitlements in {}'.format(provision_path))
         return plist_dict['Entitlements']
 
-    def write_entitlements(self, signer, provisioning_path):
-        """ Given a path to a provisioning profile, write its entitlements to
-            self.entitlements_path """
-        entitlements = self.extract_entitlements(provisioning_path)
+    def write_entitlements(self, entitlements):
+        """ Write entitlements to self.entitlements_path. This actually doesn't matter
+            to the app, it's just used later on by other parts of the signing process. """
         biplist.writePlist(entitlements, self.entitlements_path, binary=False)
         log.debug("wrote Entitlements to {0}".format(self.entitlements_path))
 
-    def resign(self, signer, provisioning_profile):
+    def resign(self, signer, provisioning_profile, alternate_entitlements_path=None):
         """ signs app in place """
-        # copy the provisioning profile in
-        self.provision(provisioning_profile)
 
-        # Add entitlements from the pprof into the app
-        self.write_entitlements(signer, provisioning_profile)
+        # TODO all this mucking about with entitlements feels wrong. The entitlements_path is
+        # not actually functional, it's just a way of passing it to later stages of signing.
+        # Maybe we should determine entitlements data in isign/archive.py or even isign/isign.py,
+        # and then embed it into Signer?
+
+        # In the typical case, we add entitlements from the pprof into the app's signature
+        if alternate_entitlements_path is None:
+            # copy the provisioning profile in
+            self.provision(provisioning_profile)
+
+            entitlements = self.extract_entitlements(provisioning_profile)
+        else:
+            log.info("signing with alternative entitlements: {}".format(alternate_entitlements_path))
+            entitlements = biplist.readPlist(alternate_entitlements_path)
+        self.write_entitlements(entitlements)
 
         # actually resign this bundle now
         super(App, self).resign(signer)
