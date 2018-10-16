@@ -151,7 +151,7 @@ class Bundle(object):
                     continue
                 plist = biplist.readPlist(plist_path)
                 appex_exec_path = join(appex_path, plist['CFBundleExecutable'])
-                appex = signable.Appex(self, appex_exec_path)
+                appex = signable.Appex(self, appex_exec_path, signer)
                 appex.sign(self, signer)
 
         # then create the seal
