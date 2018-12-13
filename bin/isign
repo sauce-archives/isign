@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/local/bin/python
 
 import argparse
 from isign import isign
@@ -111,6 +111,42 @@ def parse_args():
         required=False,
         help='Display information about the app without resigning'
     )
+    parser.add_argument(
+        '-e', '--entitlements',
+        dest='alternate_entitlements_path',
+        required=False,
+        metavar='<alternate entitlements path>',
+        type=absolute_path_argument,
+        help='Sign with these entitlements, rather than ones extracted from provisioning profile'
+    )
+    parser.add_argument(
+        '--force',
+        required=False,
+        action='store_true',
+        help='This option is ignored.  It exists only for compatibility with Apple codesign.'
+    )
+    parser.add_argument(
+        '--sign',
+        required=False,
+        dest='fingerprint',
+        action='store',
+        help='Sign with the identity with this fingerprint, overriding any key, certificate or credential args.  Currently only supports the special \'-\' identity for ad-hoc signing.',
+    )
+    parser.add_argument(
+        '--shallow',
+        required=False,
+        dest='deep',
+        action='store_false',
+        help='Do not recursively sign bundles.'
+    )
+    parser.add_argument(
+        '--inplace',
+        required=False,
+        action='store_true',
+        default=False,
+        help='Sign in place, destructively replacing the original input.  This matches Apple codesign behavior.',
+    )
+
     return parser.parse_args()
 
 
@@ -159,7 +195,30 @@ if __name__ == '__main__':
             if info_props:
                 kwargs['info_props'] = info_props
 
-        if args.credentials_dir:
+        if args.inplace:
+            if args.output_path is not None:
+                raise Exception('output-path and inplace should not be both specified')
+            kwargs['output_path'] = app_path
+
+        if args.fingerprint:
+            incompatible_args = ['certificate', 'key']
+            args_dict = vars(args)
+            for k, v in vars(args).iteritems():
+                if k in incompatible_args and v is not None:
+                    raise Exception("Incompatible arguments. Do not use any of " +
+                                    ", ".join(['--' + s for s in incompatible_args]) + " "
+                                    "with the --sign argument.")
+
+            if args.fingerprint != '-':
+                raise Exception("Currently only - (ad hoc) is supported as a fingerprint value.")
+
+            kwargs['key'] = None
+            resign_args = ['deep',
+                           'output_path']
+            kwargs.update(filter_args(args, resign_args))
+            isign.resign(app_path, **kwargs)
+
+        elif args.credentials_dir:
             # Handle a resign with credentials directory.
             # First check they haven't over-specified credential paths
             incompatible_args = ['certificate', 'key', 'provisioning_profile']
@@ -171,6 +230,7 @@ if __name__ == '__main__':
                                     "with the --credentials argument.")
             # looks good, now massage args into method arguments
             resign_args = ['apple_cert',
+                           'deep',
                            'output_path']
             kwargs.update(filter_args(args, resign_args))
             isign.resign_with_creds_dir(app_path,
@@ -182,9 +242,11 @@ if __name__ == '__main__':
             # isign.resign() to supply defaults.
             # Massage args into method arguments
             resign_args = ['certificate',
+                           'deep',
                            'key',
                            'apple_cert',
                            'provisioning_profile',
-                           'output_path']
+                           'output_path',
+                           'alternate_entitlements_path']
             kwargs.update(filter_args(args, resign_args))
             isign.resign(app_path, **kwargs)

@@ -4,6 +4,8 @@ import hashlib
 import logging
 import macho_cs
 
+import utils
+
 log = logging.getLogger(__name__)
 
 
@@ -106,10 +108,17 @@ class Codesig(object):
             # log.debug(hashlib.sha1(entitlements_data).hexdigest())
 
     def set_requirements(self, signer):
+
         # log.debug("requirements:")
         requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
         # requirements_data = macho_cs.Blob_.build(requirements)
         # log.debug(hashlib.sha1(requirements_data).hexdigest())
+
+        if signer.is_adhoc():
+            log.debug("Ad hoc -- using empty requirement set")
+            requirements.count = 0
+            return
+
 
         signer_cn = signer.get_common_name()
 
@@ -181,7 +190,7 @@ class Codesig(object):
             self.get_codedirectory().data.hashes[index] = slot.get_hash()
 
     def set_codedirectory(self, seal_path, info_path, signer):
-        if self.has_codedirectory_slot(EntitlementsSlot):
+        if self.has_codedirectory_slot(EntitlementsSlot) and not signer.is_adhoc():
             self.fill_codedirectory_slot(EntitlementsSlot(self))
 
         if self.has_codedirectory_slot(ResourceDirSlot):
@@ -197,22 +206,20 @@ class Codesig(object):
             self.fill_codedirectory_slot(InfoSlot(info_path))
 
         cd = self.get_codedirectory()
-        cd.data.teamID = signer.team_id
-        
+        cd.data.teamID = signer._get_team_id()
+
         changed_bundle_id = self.signable.get_changed_bundle_id()
         if changed_bundle_id:
             offset_change = len(changed_bundle_id) - len(cd.data.ident)
             cd.data.ident = changed_bundle_id
             cd.data.hashOffset += offset_change
-            if cd.data.teamIDOffset == None:
+            if cd.data.teamIDOffset is None:
                 cd.data.teamIDOffset = offset_change
             else:
                 cd.data.teamIDOffset += offset_change
             cd.length += offset_change
-            
+
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
-        # cd_data = macho_cs.Blob_.build(cd)
-        # log.debug(len(cd_data))
         # open("cdrip", "wb").write(cd_data)
         # log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
 
@@ -281,10 +288,12 @@ class Codesig(object):
             elif len(codedirs) > 2:
                 raise Exception("Too many code directories (%d)" % len(codedirs))
 
-        # TODO - the hasattr is a code smell. Make entitlements dependent on
-        # isinstance(App, bundle) or signable type being Executable? May need to do
-        # visitor pattern?
-        if hasattr(bundle, 'entitlements_path'):
+        # TODO - the way entitlements are handled is a code smell
+        # 1 - We're doing a hasattr to detect whether it's a top-level app. isinstance(App, bundle) ?
+        # 2 - unlike the seal_path and info_path, the entitlements_path is not functional. Apps are verified
+        #     based on the entitlements encoded into the code signature and slots and MAYBE the pprof.
+        # Possible refactor - make entitlements data part of Signer rather than Bundle?
+        if hasattr(bundle, 'entitlements_path') and bundle.entitlements_path is not None:
             self.set_entitlements(bundle.entitlements_path)
         self.set_requirements(signer)
         # See docs/codedirectory.rst for some notes on optional hashes

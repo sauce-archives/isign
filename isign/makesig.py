@@ -9,9 +9,14 @@
 
 import construct
 import hashlib
+import logging
 import math
 import macho
 import macho_cs
+import utils
+
+
+log = logging.getLogger(__name__)
 
 
 def make_arg(data_type, arg):
@@ -57,14 +62,23 @@ def make_expr(op, *args):
                                data=data)
 
 
-def make_requirements(drs):
+def make_requirements(drs, ident, signer):
+    if signer.is_adhoc():
+        log.debug("Ad hoc -- using empty requirement set")
+        reqs = construct.Container(
+            sb_start=0,
+            count=0,
+            BlobIndex=[],
+            )
+        return reqs
+
+    common_name = signer.get_common_name()
+
     expr = make_expr(
         'And',
-        ('Ident', 'ca.michaelhan.NativeIOSTestApp'),
+        ('Ident', ident),
         ('AppleGenericAnchor',),
-        # TODO pull this from the X509 cert
-        # http://stackoverflow.com/questions/14565597/pyopenssl-reading-certificate-pkey-file
-        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', 'iPhone Developer: Steven Hazel (DU2T223MY8)']),
+        ('CertField', 'leafCert', 'subject.CN', ['matchEqual', common_name]),
         ('CertGeneric', 1, '*\x86H\x86\xf7cd\x06\x02\x01', ['matchExists']))
     des_req = construct.Container(kind=1, expr=expr)
     des_req_data = macho_cs.Requirement.build(des_req)
@@ -96,29 +110,55 @@ def make_requirements(drs):
     return reqs
 
 
-def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
-    ident = 'ca.michaelhan.NativeIOSTestApp' + '\x00'
-    teamID = 'fake' + '\x00'
+def make_basic_codesig(entitlements_file, drs, code_limit, hashes, signer, ident):
+
+    log.debug("ident: {}".format(ident))
+    log.debug("codelimit: {}".format(code_limit))
     empty_hash = "\x00" * 20
-    cd = construct.Container(cd_start=None,
-                             version=0x20200,
-                             flags=0,
-                             identOffset=52,
-                             nSpecialSlots=5,
-                             nCodeSlots=len(hashes),
-                             codeLimit=code_limit,
-                             hashSize=20,
-                             hashType=1,
-                             spare1=0,
-                             pageSize=12,
-                             spare2=0,
-                             ident=ident,
-                             scatterOffset=0,
-                             teamIDOffset=52 + len(ident),
-                             teamID=teamID,
-                             hashOffset=52 + (20 * 5) + len(ident) + len(teamID),
-                             hashes=([empty_hash] * 5) + hashes,
-                             )
+
+    if not signer.is_adhoc():
+        teamID = signer._get_team_id() + '\x00'
+        cd = construct.Container(cd_start=None,
+                                 version=0x20200,
+                                 flags=0,
+                                 identOffset=52,
+                                 nSpecialSlots=5,
+                                 nCodeSlots=len(hashes),
+                                 codeLimit=code_limit,
+                                 hashSize=20,
+                                 hashType=1,
+                                 spare1=0,
+                                 pageSize=12,
+                                 spare2=0,
+                                 ident=ident + '\x00',
+                                 scatterOffset=0,
+                                 teamIDOffset=52 + len(ident) + 1,
+                                 teamID=teamID,
+                                 hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
+                                 hashes=([empty_hash] * 5) + hashes,
+                                 )
+    else:
+        teamID = ''
+        cd = construct.Container(cd_start=None,
+                                 version=0x20100,
+                                 flags=2,
+                                 identOffset=52,
+                                 nSpecialSlots=5,
+                                 nCodeSlots=len(hashes),
+                                 codeLimit=code_limit,
+                                 hashSize=20,
+                                 hashType=1,
+                                 spare1=0,
+                                 pageSize=12,
+                                 spare2=0,
+                                 ident=ident + '\x00',
+                                 scatterOffset=0,
+                                 teamIDOffset=52 + len(ident) + 1,
+                                 teamID=teamID,
+                                 hashOffset=52 + (20 * 5) + len(ident) + 1 + len(teamID),
+                                 hashes=([empty_hash] * 5) + hashes,
+                                 )
+
     cd_data = macho_cs.CodeDirectory.build(cd)
 
     offset = 44
@@ -131,7 +171,7 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                             ))
 
     offset += cd_index.blob.length
-    reqs_sblob = make_requirements(drs)
+    reqs_sblob = make_requirements(drs, ident, signer)
     reqs_sblob_data = macho_cs.Entitlements.build(reqs_sblob)
     requirements_index = construct.Container(type=2,
                                              offset=offset,
@@ -142,15 +182,18 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                                       ))
     offset += requirements_index.blob.length
 
-    entitlements_bytes = open(entitlements_file, "rb").read()
-    entitlements_index = construct.Container(type=5,
-                                             offset=offset,
-                                             blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
-                                                                      length=len(entitlements_bytes) + 8,
-                                                                      data="",
-                                                                      bytes=entitlements_bytes
-                                                                      ))
-    offset += entitlements_index.blob.length
+    entitlements_index = None
+    if entitlements_file != None and not signer.is_adhoc():
+        entitlements_bytes = open(entitlements_file, "rb").read()
+        entitlements_index = construct.Container(type=5,
+                                                 offset=offset,
+                                                 blob=construct.Container(magic='CSMAGIC_ENTITLEMENT',
+                                                                          length=len(entitlements_bytes) + 8,
+                                                                          data="",
+                                                                          bytes=entitlements_bytes
+                                                                          ))
+        offset += entitlements_index.blob.length
+
     sigwrapper_index = construct.Container(type=65536,
                                            offset=offset,
                                            blob=construct.Container(magic='CSMAGIC_BLOBWRAPPER',
@@ -158,10 +201,10 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
                                                                     data="",
                                                                     bytes="",
                                                                     ))
-    indicies = [cd_index,
+    indicies = filter(None, [cd_index,
                 requirements_index,
                 entitlements_index,
-                sigwrapper_index]
+                sigwrapper_index])
 
     superblob = construct.Container(
         sb_start=0,
@@ -177,10 +220,9 @@ def make_basic_codesig(entitlements_file, drs, code_limit, hashes):
     return macho_cs.Blob.parse(chunk)
 
 
-def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
-    raise Exception("Making a signature is not fully implemented. This code was"
-                    "abandoned since we think our customers will only give us signed"
-                    "apps. But, it almost works, so it's preserved here.")
+def make_signature(arch_macho, arch_offset, arch_size, cmds, f, entitlements_file, codesig_data_length, signer, ident):
+    # NB: arch_offset is absolute in terms of file start.  Everything else is relative to arch_offset!
+
     # sign from scratch
     log.debug("signing from scratch")
 
@@ -189,29 +231,98 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
     if drs_lc:
         drs = drs_lc.data.blob
 
-    codesig_offset = arch_end
+    codesig_offset = utils.round_up(arch_size, 16)
 
     # generate code hashes
-    hashes = []
-    #log.debug("codesig offset:", codesig_offset)
-    start_offset = arch_macho.macho_start
-    end_offset = macho_end
-    #log.debug("new start-end", start_offset, end_offset)
-    codeLimit = end_offset - start_offset
-    #log.debug("new cL:", codeLimit)
-    nCodeSlots = int(math.ceil(float(end_offset - start_offset) / 0x1000))
-    #log.debug("new nCS:", nCodeSlots)
-    for i in xrange(nCodeSlots):
-        f.seek(start_offset + 0x1000 * i)
-        actual_data = f.read(min(0x1000, end_offset - f.tell()))
-        actual = hashlib.sha1(actual_data).digest()
-        #log.debug(actual.encode('hex'))
-        hashes.append(actual)
+    log.debug("codesig offset: {}".format(codesig_offset))
+    codeLimit = codesig_offset
+    log.debug("new cL: {}".format(hex(codeLimit)))
+    nCodeSlots = int(math.ceil(float(codesig_offset) / 0x1000))
+    log.debug("new nCS: {}".format(nCodeSlots))
+
+
+    # generate placeholder LC_CODE_SIGNATURE (like what codesign_allocate does)
+    fake_hashes = ["\x00" * 20]*nCodeSlots
 
     codesig_cons = make_basic_codesig(entitlements_file,
             drs,
             codeLimit,
-            hashes)
+            fake_hashes,
+            signer,
+            ident)
+    codesig_data = macho_cs.Blob.build(codesig_cons)
+
+    cmd_data = construct.Container(dataoff=codesig_offset,
+            datasize=codesig_data_length)
+    cmd = construct.Container(cmd='LC_CODE_SIGNATURE',
+            cmdsize=16,
+            data=cmd_data,
+            bytes=macho.CodeSigRef.build(cmd_data))
+
+    log.debug("CS blob before: {}".format(utils.print_structure(codesig_cons, macho_cs.Blob)))
+    log.debug("len(codesig_data): {}".format(len(codesig_data)))
+
+    codesig_length = codesig_data_length
+    log.debug("codesig length: {}".format(codesig_length))
+
+    log.debug("old ncmds: {}".format(arch_macho.ncmds))
+    arch_macho.ncmds += 1
+    log.debug("new ncmds: {}".format(arch_macho.ncmds))
+
+    log.debug("old sizeofcmds: {}".format(arch_macho.sizeofcmds))
+    arch_macho.sizeofcmds += cmd.cmdsize
+    log.debug("new sizeofcmds: {}".format(arch_macho.sizeofcmds))
+
+    arch_macho.commands.append(cmd)
+
+    hashes = []
+    if codesig_data_length > 0:
+        # Patch __LINKEDIT
+        for lc in arch_macho.commands:
+            if lc.cmd == 'LC_SEGMENT_64' or lc.cmd == 'LC_SEGMENT':
+                if lc.data.segname == '__LINKEDIT':
+                    log.debug("found __LINKEDIT, old filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
+
+                    lc.data.filesize = utils.round_up(lc.data.filesize, 16) + codesig_length
+                    if (lc.data.filesize > lc.data.vmsize):
+                        lc.data.vmsize = utils.round_up(lc.data.filesize, 4096)
+
+                    if lc.cmd == 'LC_SEGMENT_64':
+                        lc.bytes = macho.Segment64.build(lc.data)
+                    else:
+                        lc.bytes = macho.Segment.build(lc.data)
+
+                    log.debug("new filesize {}, vmsize {}".format(lc.data.filesize, lc.data.vmsize))
+
+
+        actual_data = macho.MachO.build(arch_macho)
+        log.debug("actual_data length with codesig LC {}".format(len(actual_data)))
+
+        # Now seek to the start of the actual data and read until the end of the arch.
+        f.seek(arch_offset + len(actual_data))
+        bytes_to_read = codesig_offset + arch_offset - f.tell()
+        file_slice = f.read(bytes_to_read)
+        if len(file_slice) < bytes_to_read:
+            log.warn("expected {} bytes but got {}, zero padding.".format(bytes_to_read, len(file_slice)))
+            file_slice += ("\x00" * (bytes_to_read - len(file_slice)))
+        actual_data += file_slice
+
+        for i in xrange(nCodeSlots):
+            actual_data_slice = actual_data[(0x1000 * i):(0x1000 * i + 0x1000)]
+
+            actual = hashlib.sha1(actual_data_slice).digest()
+            log.debug("Slot {} (File page @{}): {}".format(i, hex(0x1000 * i), actual.encode('hex')))
+            hashes.append(actual)
+    else:
+        hashes = fake_hashes
+
+    # Replace placeholder with real one.
+    codesig_cons = make_basic_codesig(entitlements_file,
+            drs,
+            codeLimit,
+            hashes,
+            signer,
+            ident)
     codesig_data = macho_cs.Blob.build(codesig_cons)
     cmd_data = construct.Container(dataoff=codesig_offset,
             datasize=len(codesig_data))
@@ -219,8 +330,6 @@ def make_signature(arch_macho, arch_end, cmds, f, entitlements_file):
             cmdsize=16,
             data=cmd_data,
             bytes=macho.CodeSigRef.build(cmd_data))
-    arch_macho.commands.append(cmd)
-    arch_macho.ncmds += 1
-    arch_macho.sizeofcmds += len(macho.LoadCommand.build(cmd))
+    arch_macho.commands[-1] = cmd
     cmds['LC_CODE_SIGNATURE'] = cmd
-
+    return codesig_data

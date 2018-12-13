@@ -2,7 +2,7 @@ import archive
 # import makesig
 import exceptions
 import os
-from os.path import dirname, exists, join, realpath
+from os.path import dirname, exists, expanduser, join, realpath
 
 # this comes with the repo
 PACKAGE_ROOT = dirname(realpath(__file__))
@@ -34,9 +34,10 @@ def get_credential_paths(directory, file_names=DEFAULT_CREDENTIAL_FILE_NAMES):
 #   ~/isign-credentials/mobdev.cert.pem, etc.
 # But the new way that everyone should now use:
 #   ~/.isign/certificate.pem, etc.
-if exists(join(os.environ['HOME'], 'isign-credentials')):
+HOME_DIR = expanduser("~")
+if exists(join(HOME_DIR, 'isign-credentials')):
     DEFAULT_CREDENTIAL_PATHS = get_credential_paths(
-        join(os.environ['HOME'], 'isign-credentials'),
+        join(HOME_DIR, 'isign-credentials'),
         {
             'certificate': 'mobdev.cert.pem',
             'key': 'mobdev.key.pem',
@@ -45,7 +46,7 @@ if exists(join(os.environ['HOME'], 'isign-credentials')):
     )
 else:
     DEFAULT_CREDENTIAL_PATHS = get_credential_paths(
-        join(os.environ['HOME'], '.isign')
+        join(HOME_DIR, '.isign')
     )
 
 
@@ -58,22 +59,26 @@ def resign_with_creds_dir(input_path,
 
 
 def resign(input_path,
+           deep=True,
            apple_cert=DEFAULT_APPLE_CERT_PATH,
            certificate=DEFAULT_CREDENTIAL_PATHS['certificate'],
            key=DEFAULT_CREDENTIAL_PATHS['key'],
            provisioning_profile=DEFAULT_CREDENTIAL_PATHS['provisioning_profile'],
            output_path=join(os.getcwd(), "out"),
-           info_props=None):
+           info_props=None,
+           alternate_entitlements_path=None):
     """ Mirrors archive.resign(), put here for convenience, to unify exceptions,
         and to omit default args """
     try:
         return archive.resign(input_path,
+                              deep,
                               certificate,
                               key,
                               apple_cert,
                               provisioning_profile,
                               output_path,
-                              info_props)
+                              info_props,
+                              alternate_entitlements_path)
     except exceptions.NotSignable as e:
         # re-raise the exception without exposing internal
         # details of how it happened
