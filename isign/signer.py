@@ -157,7 +157,7 @@ class Signer(object):
             '-noout'
         ]
         certificate_info = openssl_command(cmd)
-        subject_with_ou_match = re.compile(r'\s+Subject:.*OU=(\w+)')
+        subject_with_ou_match = re.compile(r'\s+Subject:.*OU\s?=\s?(\w+)')
         for line in certificate_info.splitlines():
             match = subject_with_ou_match.match(line)
             if match is not None:
