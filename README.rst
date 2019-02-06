@@ -83,7 +83,7 @@ the standard place to put ``isign`` configuration files.
 
 Finally, you need a provisioning profile from the Apple Developer Portal that uses
 the same certificate. If you've never dealt with this, the provisioning profile is 
-what tells the phone that you Apple has okayed you installing apps onto this particular phone.
+what tells the phone that Apple has okayed you installing apps onto this particular phone.
 
 If you develop with XCode, you might have a provisioning profile already. 
 On the Mac where you develop with XCode, try running the ``isign_guess_mobileprovision.sh`` script. 
