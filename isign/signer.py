@@ -121,6 +121,8 @@ class Signer(object):
             "-keyform", "pem",
             "-outform", "DER"
         ]
+        print cmd
+        print repr(data)
         signature = openssl_command(cmd, data)
         log.debug("in length: {}, out length: {}".format(len(data), len(signature)))
         # in some cases we've seen this return a zero length file.

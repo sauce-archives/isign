@@ -7,17 +7,20 @@
 
 from abc import ABCMeta
 from codesig import (Codesig,
+                     XattrCodesig,
                      EntitlementsSlot,
                      ResourceDirSlot,
                      RequirementsSlot,
                      ApplicationSlot,
-                     InfoSlot)
+                     InfoSlot,
+                     IpaFileSlot)
 import logging
 import macho
 from makesig import make_signature
 import os
 import tempfile
 import utils
+import xattr
 
 log = logging.getLogger(__name__)
 
@@ -118,7 +121,7 @@ class Signable(object):
         return arch
 
     def _sign_arch(self, arch, app, signer):
-    # Returns slice-relative offset, code signature blob
+        # Returns slice-relative offset, code signature blob
         arch['codesig'].resign(app, signer)
 
         new_codesig_data = arch['codesig'].build_data()
@@ -289,3 +292,69 @@ class Framework(Signable):
     slot_classes = [ResourceDirSlot,
                     RequirementsSlot,
                     InfoSlot]
+
+
+class XattrSignable(object):
+    __metaclass__ = ABCMeta
+
+    slot_classes = [RequirementsSlot,
+                    IpaFileSlot]
+
+    def __init__(self, bundle, path):
+        log.debug("working on {0}".format(path))
+        self.bundle = bundle
+        self.path = path
+
+        self.f = open(self.path, "rb")
+        self.f.seek(0, os.SEEK_END)
+        self.file_end = self.f.tell()
+        self.f.seek(0)
+
+        self.sign_from_scratch = False
+
+    def should_fill_slot(self, codesig, slot):
+
+        slot_class = slot.__class__
+        if slot_class not in self.slot_classes:
+            # This signable does not have this slot
+            return False
+
+        if self.sign_from_scratch:
+            return True
+
+        if slot_class == InfoSlot and not self.bundle.info_props_changed():
+            # No Info.plist changes, don't fill
+            return False
+
+        if slot_class == ApplicationSlot and not codesig.is_sha256_signature():
+            # Application slot only needs to be zeroed out when there's a sha256 layer
+            return False
+
+        return True
+
+    def get_changed_bundle_id(self):
+        # Return a bundle ID to assign if Info.plist's CFBundleIdentifier value was changed
+        if self.bundle.info_prop_changed('CFBundleIdentifier'):
+            return self.bundle.get_info_prop('CFBundleIdentifier')
+        else:
+            return None
+
+    def sign(self, signer):
+
+        temp = tempfile.NamedTemporaryFile('wb', delete=False)
+
+        # copy self.f into temp, reset to beginning of file
+        self.f.seek(0)
+        temp.write(self.f.read())
+        temp.seek(0)
+        temp.close()
+        xattr.xattr(temp.name).update(xattr.xattr(self.path))
+
+        codesig = XattrCodesig(self, xattr.xattr(temp.name))
+        codesig.resign(self.bundle, signer)
+
+        # make copy have same permissions
+        mode = os.stat(self.path).st_mode
+        os.chmod(temp.name, mode)
+        # log.debug("moving temporary file to {0}".format(self.path))
+        os.rename(temp.name, self.path)

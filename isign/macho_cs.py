@@ -26,7 +26,7 @@ Blob = LazyBound("blob", lambda: Blob_)
 Hashes = LazyBound("hashes", lambda: Hashes_)
 Hashes_ = Array(lambda ctx: ctx['nSpecialSlots'] + ctx['nCodeSlots'], Bytes("hash", lambda ctx: ctx['hashSize']))
 
-CodeDirectory = Struct("CodeDirectory",
+CodeDirectory = Debugger(Struct("CodeDirectory",
                        Anchor("cd_start"),
                        UBInt32("version"),
                        UBInt32("flags"),
@@ -45,7 +45,7 @@ CodeDirectory = Struct("CodeDirectory",
                        If(lambda ctx: ctx['version'] >= 0x20200, UBInt32("teamIDOffset")),
                        If(lambda ctx: ctx['version'] >= 0x20200, Pointer(lambda ctx: ctx['cd_start'] - 8 + ctx['teamIDOffset'], CString('teamID'))),
                        Pointer(lambda ctx: ctx['cd_start'] - 8 + ctx['hashOffset'] - ctx['hashSize'] * ctx['nSpecialSlots'], Hashes)
-                       )
+                       ))
 
 Data = Struct("Data",
               UBInt32("length"),

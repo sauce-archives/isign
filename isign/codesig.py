@@ -19,7 +19,8 @@ class CodeDirectorySlot(object):
         self.codesig = codesig
 
     def get_hash(self):
-        return hashlib.sha1(self.get_contents()).digest()
+        print "in get_hash", self, hashlib.sha256(self.get_contents()).hexdigest()
+        return hashlib.sha256(self.get_contents()).digest()
 
 
 class EntitlementsSlot(CodeDirectorySlot):
@@ -33,6 +34,8 @@ class ApplicationSlot(CodeDirectorySlot):
     offset = -4
 
     def get_hash(self):
+        raise "hell"
+        #return '\x00' * (20 if hash_algorithm == 'sha1' else 32)
         return '\x00' * 20
 
 
@@ -63,6 +66,16 @@ class InfoSlot(CodeDirectorySlot):
         return open(self.info_path, "rb").read()
 
 
+class IpaFileSlot(CodeDirectorySlot):
+    offset = 0
+
+    def __init__(self, path):
+        self.path = path
+
+    def get_contents(self):
+        return open(self.path, "rb").read()
+
+
 # Represents a code signature object, aka the LC_CODE_SIGNATURE,
 # within the Signable
 class Codesig(object):
@@ -70,7 +83,7 @@ class Codesig(object):
     def __init__(self, signable, data):
         self.signable = signable
         self.construct = macho_cs.Blob.parse(data)
-        self.is_sha256 = len(self.construct.data.BlobIndex) >= 6
+        self.is_sha256 = len(self.construct.data.BlobIndex) >= 6  # FIXME: nonsense
 
     def is_sha256_signature(self):
         return self.is_sha256
@@ -161,6 +174,10 @@ class Codesig(object):
 
             # rebuild requirements, and set length for whole thing
             requirements.bytes = macho_cs.Entitlements.build(requirements.data)
+            # HERE this is an entry in a com.apple.CodeRequirements; most of a CSMAGIC_REQUIREMENT, where CodeRequirements is a CSMAGIC_REQUIREMENTS
+            print "=== REQ BLOB ENT ==="
+            print repr(requirements.bytes)
+            print "=== ~~~~~~~~ ==="
             requirements.length = len(requirements.bytes) + 8
 
         # then rebuild the whole data, but just to show the digest...?
@@ -221,7 +238,8 @@ class Codesig(object):
 
         cd.bytes = macho_cs.CodeDirectory.build(cd.data)
         # open("cdrip", "wb").write(cd_data)
-        # log.debug("CDHash:" + hashlib.sha1(cd_data).hexdigest())
+        log.debug("CDHash sha1:" + hashlib.sha1(cd.bytes).hexdigest())
+        log.debug("CDHash sha256:" + hashlib.sha256(cd.bytes).hexdigest())
 
     def set_signature(self, signer):
         # TODO how do we even know this blobwrapper contains the signature?
@@ -256,16 +274,17 @@ class Codesig(object):
         self.construct.bytes = superblob
 
     def resign(self, bundle, signer):
-        """ Do the actual signing. Create the structre and then update all the
+        """ Do the actual signing. Create the structure and then update all the
             byte offsets """
         if self.is_sha256_signature():
+            # FIXME: broken hack to remove sha256 sig
             # Might be an app signed from Xcode 7.3+ with sha256 stuff
             codedirs = []
             for i, index in enumerate(self.construct.data.BlobIndex):
                 if index.blob.magic == 'CSMAGIC_CODEDIRECTORY':
                     codedirs.append(i)
 
-            if len(codedirs) == 2:
+            if len(codedirs) == 2 and False:
                 # Remove the sha256 code directory
                 i = codedirs.pop()
                 if (len(self.construct.data.BlobIndex) <= i + 1 or
@@ -321,3 +340,182 @@ class Codesig(object):
     #         expected.encode('hex'),
     #         actual.encode('hex')
     #     )
+
+
+# Represents a code signature object, aka the LC_CODE_SIGNATURE,
+# within the Signable
+class XattrCodesig(object):
+    """ wrapper around construct for code signature """
+    def __init__(self, signable, xattrs):
+        self.signable = signable
+        self.xattrs = xattrs
+        self.is_sha256 = True
+
+    def is_sha256_signature(self):
+        return self.is_sha256
+
+    def get_blob(self, magic):
+        for blob_data in self.xattrs.itervalues():
+            try:
+                blob = macho_cs.Blob.parse(blob_data)
+            except Exception:
+                continue
+            print blob.magic
+            if blob.magic == magic:
+                return blob
+        raise KeyError(magic)
+
+    def get_blob_data(self, magic):
+        """ convenience method, if we just want the data """
+        blob = self.get_blob(magic)
+        return macho_cs.Blob.build(blob)
+
+    def set_requirements(self, signer):
+
+        # log.debug("requirements:")
+        requirements = self.get_blob('CSMAGIC_REQUIREMENTS')
+        # requirements_data = macho_cs.Blob_.build(requirements)
+        # log.debug(hashlib.sha1(requirements_data).hexdigest())
+
+        if signer.is_adhoc():
+            log.debug("Ad hoc -- using empty requirement set")
+            requirements.count = 0
+            return
+
+
+        signer_cn = signer.get_common_name()
+
+        # this is for convenience, a reference to the first blob
+        # structure within requirements, which contains the data
+        # we are going to change
+        req_blob_0 = requirements.data.BlobIndex[0].blob
+        req_blob_0_original_length = req_blob_0.length
+
+        if self.signable.get_changed_bundle_id():
+            # Set the bundle id if it changed
+            try:
+                bundle_struct = req_blob_0.data.expr.data[0].data
+                bundle_struct.data = self.signable.get_changed_bundle_id()
+                bundle_struct.length = len(bundle_struct.data)
+            except Exception:
+                log.debug("could not set bundle id")
+
+        try:
+            cn = req_blob_0.data.expr.data[1].data[1].data[0].data[2].Data
+        except Exception:
+            log.debug("no signer CN rule found in requirements")
+            log.debug(requirements)
+        else:
+            # if we could find a signer CN rule, make requirements.
+
+            # first, replace old signer CN with our own
+            cn.data = signer_cn
+            cn.length = len(cn.data)
+
+            # req_blob_0 contains that CN, so rebuild it, and get what
+            # the length is now
+            req_blob_0.bytes = macho_cs.Requirement.build(req_blob_0.data)
+            req_blob_0.length = len(req_blob_0.bytes) + 8
+
+            # fix offsets of later blobs in requirements
+            offset_delta = req_blob_0.length - req_blob_0_original_length
+            for bi in requirements.data.BlobIndex[1:]:
+                bi.offset += offset_delta
+
+            # rebuild requirements, and set length for whole thing
+            requirements.bytes = macho_cs.Entitlements.build(requirements.data)
+            # HERE this is an entry in a com.apple.CodeRequirements; most of a CSMAGIC_REQUIREMENT, where CodeRequirements is a CSMAGIC_REQUIREMENTS
+            requirements.length = len(requirements.bytes) + 8
+            self.xattrs['com.apple.cs.CodeRequirements'] = macho_cs.Blob.build(requirements)
+
+        # then rebuild the whole data, but just to show the digest...?
+        # requirements_data = macho_cs.Blob_.build(requirements)
+        # log.debug(hashlib.sha1(requirements_data).hexdigest())
+
+
+    codedirectory = None
+    def get_codedirectory(self):
+        # return self.get_blob('CSMAGIC_CODEDIRECTORY')
+        if not self.codedirectory:
+            self.codedirectory = macho_cs.Blob.parse(self.xattrs['com.apple.cs.CodeRequirements-1'])
+        return self.codedirectory
+
+    def get_codedirectory_hash_index(self, slot):
+        """ The slots have negative offsets, because they start from the 'top'.
+            So to get the actual index, we add it to the length of the
+            slots. """
+        return slot.offset + self.get_codedirectory().data.nSpecialSlots
+
+    def has_codedirectory_slot(self, slot):
+        """ Some dylibs have all 5 slots, even though technically they only need
+            the first 2. If this dylib only has 2 slots, some of the calculated
+            indices for slots will be negative. This means we don't do
+            those slots when resigning (for dylibs, they don't add any
+            security anyway) """
+        return self.get_codedirectory_hash_index(slot) >= 0
+
+    def fill_codedirectory_slot(self, slot):
+        if self.signable.should_fill_slot(self, slot):
+            index = self.get_codedirectory_hash_index(slot)
+            self.get_codedirectory().data.hashes[index] = slot.get_hash()
+
+    def set_codedirectory(self, seal_path, info_path, signer):
+        if self.has_codedirectory_slot(EntitlementsSlot) and not signer.is_adhoc():
+            self.fill_codedirectory_slot(EntitlementsSlot(self))
+
+        if self.has_codedirectory_slot(ResourceDirSlot):
+            self.fill_codedirectory_slot(ResourceDirSlot(seal_path))
+
+        if self.has_codedirectory_slot(RequirementsSlot):
+            self.fill_codedirectory_slot(RequirementsSlot(self))
+
+        if self.has_codedirectory_slot(ApplicationSlot):
+            self.fill_codedirectory_slot(ApplicationSlot(self))
+
+        if self.has_codedirectory_slot(InfoSlot):
+            self.fill_codedirectory_slot(InfoSlot(info_path))
+
+        if self.has_codedirectory_slot(IpaFileSlot):
+            self.fill_codedirectory_slot(IpaFileSlot(self.signable.path))
+
+        cd = self.get_codedirectory()
+        cd.data.teamID = signer._get_team_id()
+
+        changed_bundle_id = self.signable.get_changed_bundle_id()
+        if changed_bundle_id:
+            offset_change = len(changed_bundle_id) - len(cd.data.ident)
+            cd.data.ident = changed_bundle_id
+            cd.data.hashOffset += offset_change
+            if cd.data.teamIDOffset is None:
+                cd.data.teamIDOffset = offset_change
+            else:
+                cd.data.teamIDOffset += offset_change
+            cd.length += offset_change
+
+        log.debug("CD DATA BE LIKE: %s", cd.data)
+        cd.bytes = macho_cs.CodeDirectory.build(cd.data)
+        # open("cdrip", "wb").write(cd_data)
+        log.debug("CDHash sha1:" + hashlib.sha1(cd.bytes).hexdigest())
+        log.debug("CDHash sha256:" + hashlib.sha256(cd.bytes).hexdigest())
+        self.xattrs['com.apple.cs.CodeRequirements-1'] = macho_cs.Blob.build(cd)
+
+    def set_signature(self, signer):
+        #cd_data = self.get_blob_data('CSMAGIC_CODEDIRECTORY')
+        cd_data = self.xattrs['com.apple.cs.CodeDirectory']
+        sig = signer.sign(cd_data)
+        # log.debug("sig len: {0}".format(len(sig)))
+        # log.debug("old sig len: {0}".format(len(oldsig)))
+        # open("my_sigrip.der", "wb").write(sig)
+        self.xattrs['com.apple.cs.CodeSignature'] = sig
+
+    def update_offsets(self):
+        # there is no SuperBlob with indexes
+        pass
+
+    def resign(self, bundle, signer):
+        """ Do the actual signing. Create the structure and then update all the
+            byte offsets """
+        self.set_requirements(signer)
+        # See docs/codedirectory.rst for some notes on optional hashes
+        self.set_codedirectory(bundle.seal_path, bundle.info_path, signer)
+        self.set_signature(signer)

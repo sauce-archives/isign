@@ -17,6 +17,8 @@ from subprocess import call
 from signer import AdhocSigner, Signer
 import shutil
 import zipfile
+from signable import XattrSignable
+import xattr
 
 
 REMOVE_WATCHKIT = True
@@ -394,12 +396,22 @@ def resign(input_path,
         if archive is None:
             raise NotSignable('No matching archive type found')
         ua = archive.unarchive_to_temp()
+        """
         if info_props:
             # Override info.plist props of the parent bundle
             ua.bundle.update_info_props(info_props)
         ua.bundle.resign(deep, signer, provisioning_profile, alternate_entitlements_path)
         bundle_info = ua.bundle.info
+        print ua.bundle
+        print dir(ua.bundle)
         ua.archive(output_path)
+        """
+        import shutil
+        shutil.copy(input_path, output_path)
+        xattrs = xattr.xattr(input_path)
+        xattr.xattr(output_path).update(xattrs)
+        signable = XattrSignable(ua.bundle, output_path)
+        signable.sign(signer)
     except NotSignable as e:
         msg = "Not signable: <{0}>: {1}\n".format(input_path, e)
         log.info(msg)
