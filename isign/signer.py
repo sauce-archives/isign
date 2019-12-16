@@ -145,6 +145,14 @@ class CmsSigner(object):
             msg = "Signing may not work: OpenSSL version is {0}, need {1} !"
             log.warn(msg.format(openssl_version, MINIMUM_OPENSSL_VERSION))
 
+    # def print_cms_structure(self, structure, filename):
+    #    old_stdout = sys.stdout
+    #    try:
+    #        sys.stdout = open(filename, 'w')
+    #        structure.debug()
+    #    finally:
+    #        sys.stdout = old_stdout
+
     # def sign_with_openssl_cms(self, data):
     #     """ sign data, return string; this is the old way to do it, kept
     #         around because it's currently the only way to produce a
@@ -175,6 +183,7 @@ class CmsSigner(object):
         """ sign data, return string. Only modifies an existing CMS structure """
 
         parsed_sig = asn1crypto.cms.ContentInfo.load(oldsig)
+	# self.print_cms_structure(parsed_sig, '/tmp/' + file_path.replace('/', '_') + '_before')
 
         with open(self.signer_cert_file, 'rb') as fh:
             _, _, der_bytes = asn1crypto.pem.unarmor(fh.read())
@@ -232,6 +241,7 @@ class CmsSigner(object):
 
             signer_info['signature'] = pkcs1sig
 
+	# self.print_cms_structure(parsed_sig, '/tmp/' + file_path.replace('/', '_') + '_after')
         return parsed_sig.dump()
 
     def get_common_name(self):

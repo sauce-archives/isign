@@ -35,11 +35,9 @@ secure.
 ### Password security
 
 Later on you're going to need to use this password on the command line. _This is a potential 
-security vulnerability_. The command and its argumetns can be observed by other processes on your machine, and 
-it will automatically be stored in your `.bash_history`.
+security vulnerability_. The command and its arguments can be observed by other processes on your machine, and it will automatically be stored in your `.bash_history`.
 
-So, the best practice would be to store it someplace secure, and then obtain it for use on the command line, 
-in some way that doesn't leave traces.
+So, the best practice would be to store it someplace secure, and then obtain it for use on the command line, in some way that doesn't leave traces.
 
 Here are a couple of options:
 
@@ -60,14 +58,20 @@ In the following examples, we'll assume that (somehow) the password exists in th
 
 Open your app project in XCode.
 
+
+
+#### Bundle version
 When you submit to Apple, you need to keep bumping the bundle version. If you don't have some automatic 
-way to do that, you can manually edit the file `Info.plist`. A simple thing to do is to call your first version 0.01,
-then increment to 0.02, etc. Enter the same string in:
+way to do that, you can manually edit the file `Info.plist` or use `isign`'s `-i` option to edit the values while resigning. TBD example. A simple thing to do is to call your first version 0.01,
+then increment to 0.02, etc.
+
+If you're using XCode, enter the same string in:
 
 * Bundle versions string, short
 * Bundle version
 
-At the top of the windowm select “Generic iOS Device” as your build target.
+
+At the top of the window select “Generic iOS Device” as your build target.
  
 Select “Product > Archive”.
 
@@ -107,3 +111,31 @@ $ xcrun altool --upload-app --file ./resigned.ipa --username "$APP_STORE_USERNAM
 ## Semi-automated procedure
 
 TBD - add an action to XCode build pipeline
+
+
+
+## Submitting a resigned app without source available
+
+This is for the unlikely case where you have an IPA, and want to resign it to for App Store Distribution with a completely different organization.
+
+First, be aware that if you try to distribute a resigned version of someone else's work without their permission, you are a) a bad person b) going to be in trouble. They have ways of catching you.
+
+In the event that you do have permission, or, if you simply want to do some testing of isign, here's how you would do it.
+
+You have to override the existing bundle identifier, from say `test.originalapp` to `com.example.myapp` this is what you need to do.
+
+TODO this is complicated....
+
+Each app has a bundle identifier, like `com.example.mytestapp`.  You must:
+* Create an application record in App Store Connect.
+* ? Create an identifier matching this bundle
+* ? Create a certificate compatible with the iOS App Store for this identifier
+* ? Create a provisioning profile compatible with the iOS App Store and this bundle identifier?
+* ? when resigning, use the `-i` option to change the bundle when resigning, e.g.
+
+`isign -i CFBundleIdentifier=net.neilk.mytestapp -o resignedWithNewCFBI.ipa original.ipa`
+
+
+If you are editing the Info.plist manually, these correspond to the following properties:
+* CFBundleShortVersionString
+* ???? tbd?

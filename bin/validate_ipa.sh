@@ -1,6 +1,10 @@
 #!/bin/bash
 # 
-# Quickly check that an IPA's signature is valid and satisfies its designated requirement.
+# Quickly check that an IPA's signature is valid and satisfies its designated requirement,
+# including embedded app bundles.
+#
+# Also prints signing info to STDOUT. Check that authority is the same and correct.
+# .
 # Only works on MacOS.
 #
 
@@ -26,5 +30,5 @@ find "Payload" -type d -name "*.app" | while IFS= read -r appdir; do
       codesign -vv "$framework";
   done;
   echo "checking $appdir..."
-  codesign -vv "$appdir";
+  codesign -dvv --deep "$appdir";
 done;

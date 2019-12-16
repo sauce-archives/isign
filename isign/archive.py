@@ -5,7 +5,7 @@
 
 import abc
 import biplist
-from bundle import App, Bundle, is_info_plist_native
+from bundle import IosApp
 from exceptions import MissingHelpers, NotSignable, NotMatched
 from distutils import spawn
 import logging
@@ -17,7 +17,6 @@ from subprocess import call
 import shutil
 import zipfile
 
-REMOVE_WATCHKIT = True
 helper_paths = {}
 log = logging.getLogger(__name__)
 
@@ -35,48 +34,6 @@ def get_helper(helper_name):
 
 def make_temp_dir():
     return tempfile.mkdtemp(prefix="isign-")
-
-
-def get_watchkit_paths(root_bundle_path):
-    """ collect sub-bundles of this bundle that have watchkit """
-    # typical structure:
-    #
-    # app_bundle
-    #   ...
-    #   some_directory
-    #     watchkit_extension   <-- this is the watchkit bundle
-    #       Info.plist
-    #       watchkit_bundle    <-- this is the part that runs on the Watch
-    #         Info.plist       <-- WKWatchKitApp=True
-    #
-    watchkit_paths = []
-    for path, _, _ in os.walk(root_bundle_path):
-        if path == root_bundle_path:
-            continue
-        try:
-            bundle = Bundle(path)
-        except NotMatched:
-            # this directory is not a bundle
-            continue
-        if bundle.info.get('WKWatchKitApp') is True:
-            # get the *containing* bundle
-            watchkit_paths.append(dirname(path))
-    return watchkit_paths
-
-
-def process_watchkit(root_bundle_path, should_remove=False):
-    """ Unfortunately, we currently can't sign WatchKit. If you don't
-        care about watchkit functionality, it is
-        generally harmless to remove it, so that's the default.
-        Remove when https://github.com/saucelabs/isign/issues/20 is fixed """
-    watchkit_paths = get_watchkit_paths(root_bundle_path)
-    if len(watchkit_paths) > 0:
-        if should_remove:
-            for path in watchkit_paths:
-                log.warning("Removing WatchKit bundle {}".format(path))
-                shutil.rmtree(path)
-        else:
-            raise NotSignable("Cannot yet sign WatchKit bundles")
 
 
 class Archive(object):
@@ -112,7 +69,7 @@ class Archive(object):
 
 
 class AppArchive(Archive):
-    """ The simplest form of archive -- a naked App Bundle, with no extra directory structure,
+    """ The simplest form of archive -- a naked IosApp Bundle, with no extra directory structure,
         compression, etc """
 
     @classmethod
@@ -136,7 +93,7 @@ class AppArchive(Archive):
         if not os.path.exists(cls._get_plist_path(path)):
             return False
         plist = cls.get_info(path)
-        is_native = is_info_plist_native(plist)
+	is_native = IosApp.is_native(plist)
         log.debug("is_native: {}".format(is_native))
         return is_native
 
@@ -157,7 +114,6 @@ class AppArchive(Archive):
         log.debug("unarchiving to temp... %s -> %s", self.path, containing_dir)
         shutil.rmtree(containing_dir)  # quirk of copytree, top dir can't exist already
         shutil.copytree(self.path, containing_dir)
-        process_watchkit(containing_dir, REMOVE_WATCHKIT)
         return UncompressedArchive(containing_dir, '.', self.__class__)
 
 
@@ -233,7 +189,7 @@ class AppZipArchive(Archive):
                 if plist_path not in zipfile_obj.namelist():
                     return False
                 plist = cls.get_info(relative_bundle_dir, zipfile_obj)
-                is_native = is_info_plist_native(plist)
+		is_native = IosApp.is_native(plist)
                 log.debug("is_native: {}".format(is_native))
         return is_native
 
@@ -254,7 +210,6 @@ class AppZipArchive(Archive):
         containing_dir = make_temp_dir()
         call([get_helper('unzip'), "-qu", self.path, "-d", containing_dir])
         app_dir = abspath(join(containing_dir, self.relative_bundle_dir))
-        process_watchkit(app_dir, REMOVE_WATCHKIT)
         return UncompressedArchive(containing_dir, self.relative_bundle_dir, self.__class__)
 
     @classmethod
@@ -307,7 +262,7 @@ class UncompressedArchive(object):
         self.relative_bundle_dir = relative_bundle_dir
         self.archive_class = archive_class
         bundle_path = normpath(join(path, relative_bundle_dir))
-        self.bundle = App(bundle_path)
+	self.bundle = IosApp(bundle_path)
 
     def archive(self, output_path):
         """ Re-zip this back up, or simply copy it out, depending on what the

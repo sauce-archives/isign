@@ -24,19 +24,6 @@ import shutil
 log = logging.getLogger(__name__)
 
 
-def is_info_plist_native(plist):
-    """ If an bundle is for native iOS, it has these properties in the Info.plist
-
-    Note that starting with iOS 10, simulator framework/test bundles also need to
-    be signed (at least ad hoc).
-    """
-    return (
-            'CFBundleSupportedPlatforms' in plist and
-            ('iPhoneOS' in plist['CFBundleSupportedPlatforms'] or 'iPhoneSimulator' in plist[
-                'CFBundleSupportedPlatforms'])
-    )
-
-
 class Bundle(object):
     """ A bundle is a standard directory structure, a signable, installable set of files.
         Apps are Bundles, but so are some kinds of Frameworks (libraries) """
@@ -44,17 +31,36 @@ class Bundle(object):
     signable_class = None
     entitlements_path = None  # Not set for every bundle type
 
-    def __init__(self, path):
+    @classmethod
+    def has_platform(cls, plist, platforms):
+	""" If an bundle is for a native platform, it has these properties in the Info.plist
+
+	Note that starting with iOS 10, simulator framework/test bundles also need to
+	be signed (at least ad hoc).
+	"""
+	if platforms is None:
+	    raise Exception("no platforms?")
+
+	return (
+		'CFBundleSupportedPlatforms' in plist and
+		any(map(lambda p: p in plist['CFBundleSupportedPlatforms'], platforms))
+	)
+
+    def __init__(self, path, native_platforms):
         self.path = path
         self.info_path = join(self.path, 'Info.plist')
+	self.native_platforms = native_platforms
         if not exists(self.info_path):
             raise NotMatched("no Info.plist found; probably not a bundle")
         self.info = biplist.readPlist(self.info_path)
         self.orig_info = None
-        if not is_info_plist_native(self.info):
-            raise NotMatched("not a native iOS bundle")
+	if not self._is_native(self.info):
+	    raise NotMatched("not a native bundle")
         # will be added later
         self.seal_path = None
+
+    def _is_native(self, info):
+	return self.__class__.has_platform(info, self.native_platforms)
 
     def get_entitlements_path(self):
         return self.entitlements_path
@@ -139,7 +145,7 @@ class Bundle(object):
                     framework_path = join(frameworks_path, framework_name)
                     # log.debug("checking for framework: %s" % framework_path)
                     try:
-                        framework = Framework(framework_path)
+			framework = Framework(framework_path, self.native_platforms)
                         # log.debug("resigning: %s" % framework_path)
                         framework.resign(deep, signer)
                     except NotMatched:
@@ -187,9 +193,6 @@ class Framework(Bundle):
     # the executable in this bundle will be a Framework
     signable_class = signable.Framework
 
-    def __init__(self, path):
-        super(Framework, self).__init__(path)
-
 
 class App(Bundle):
     """ The kind of bundle that is visible as an app to the user.
@@ -199,8 +202,8 @@ class App(Bundle):
     # executable of an app)
     signable_class = signable.Executable
 
-    def __init__(self, path):
-        super(App, self).__init__(path)
+    def __init__(self, path, native_platforms):
+	super(App, self).__init__(path, native_platforms)
         self.provision_path = join(self.path,
                                    'embedded.mobileprovision')
 
@@ -260,3 +263,51 @@ class App(Bundle):
 
         # actually resign this bundle now
         super(App, self).resign(deep, cms_signer)
+
+
+class WatchApp(App):
+    """ At some point it became possible to ship a Watch app not just as an "appex" in plugins,
+    but as a complete app, embedded in an IosApp. """
+
+    # possible values for CFBundleSupportedPlatforms
+    native_platforms = ['WatchOS']  # TODO what is the right value for watch app in simulator?
+
+    def __init__(self, path):
+	super(WatchApp, self).__init__(path, self.native_platforms)
+
+
+class IosApp(App):
+    """ Represents a normal iOS app. Just an App, except it may also contain a watch app """
+
+    # possible values for CFBundleSupportedPlatforms
+    native_platforms = ['iPhoneOS', 'iPhoneSimulator']
+
+    # TODO this is a bit convoluted
+    # we keep the class value 'native_platforms' available so the archive precheck can
+    # call a simple IosApp.is_native() without instantiating the full IosApp.
+    # We *also* put native_platforms into
+    # the superclass Bundle, because any frameworks discovered beneath the app also need to be the same platform, and
+    # the simplest thing is to pass down a "native_platforms" in initialization,
+    # rather than have two kinds of Frameworks: IosFramework and WatchFramework...
+    @classmethod
+    def is_native(cls, info):
+	return cls.has_platform(info, cls.native_platforms)
+
+    def __init__(self, path):
+	super(IosApp, self).__init__(path, self.native_platforms)
+
+    def sign_watch_apps(self, deep, cms_signer, provisioning_profile):
+	watch_apps_path = join(self.path, 'Watch')
+	if exists(watch_apps_path):
+	    watch_app_paths = glob.glob(join(watch_apps_path, '*.app'))
+	    for watch_app_path in watch_app_paths:
+		log.debug("found Watch app at {}".format(watch_app_path))
+		watch_app = WatchApp(watch_app_path)
+		# we assume alternate_entitlements_path is not relevant here; watch app has different entitlements
+		# anyway. If we want to provide alternate entitlements for the Watch app,
+		# we need to expose as that an option higher up somewhere
+		watch_app.resign(deep, cms_signer, provisioning_profile)
+
+    def resign(self, deep, cms_signer, provisioning_profile, alternate_entitlements_path=None):
+	self.sign_watch_apps(deep, cms_signer, provisioning_profile)
+	super(IosApp, self).resign(deep, cms_signer, provisioning_profile, alternate_entitlements_path)
