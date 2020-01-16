@@ -188,15 +188,23 @@ class CmsSigner(object):
 
         with open(self.signer_cert_file, 'rb') as fh:
             _, _, der_bytes = asn1crypto.pem.unarmor(fh.read())
-            cert = asn1crypto.x509.Certificate.load(der_bytes)
+            signer_cert = asn1crypto.x509.Certificate.load(der_bytes)
 
-        parsed_sig['content']['certificates'][2] = asn1crypto.cms.CertificateChoices("certificate", cert)
+        # find all the serial numbers of certs that were used for signing (usually there's just one)
+        signer_serials = [signer_info['sid'].native['serial_number']
+                          for signer_info in parsed_sig['content']['signer_infos']]
+
+        # replace any certs used for signing with the new one
+        for i, cert in enumerate(parsed_sig['content']['certificates']):
+            if cert.chosen.serial_number in signer_serials:
+                parsed_sig['content']['certificates'][i] = asn1crypto.cms.CertificateChoices("certificate", signer_cert)
 
         for signer_info in parsed_sig['content']['signer_infos']:
             # Update signer cert info
             signer_info['sid'] = asn1crypto.cms.SignerIdentifier(
                 'issuer_and_serial_number',
-                asn1crypto.cms.IssuerAndSerialNumber(dict(issuer=cert.issuer, serial_number=cert.serial_number)))
+                asn1crypto.cms.IssuerAndSerialNumber(dict(issuer=signer_cert.issuer,
+                                                          serial_number=signer_cert.serial_number)))
 
             # Update signingTime
             signer_info['signed_attrs'][1][1][0] = asn1crypto.cms.Time("utc_time", datetime.utcnow())
